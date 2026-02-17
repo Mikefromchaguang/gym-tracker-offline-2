@@ -631,7 +631,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       value: convertWeight(estimate.weight, settings.weightUnit),
       hideValue: true,
       hideTitle: true,
-      lines: [`${Math.round(convertWeight(estimate.weight, settings.weightUnit))} × ${estimate.reps}`],
+      lines: [`${Math.round(convertWeight(estimate.weight, settings.weightUnit))} ${settings.weightUnit} × ${estimate.reps}`],
     }));
   }, [repMaxEstimatesSorted, settings.weightUnit]);
 
