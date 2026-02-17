@@ -1,5 +1,5 @@
 /**
- * Home Screen - Start workouts and manage templates
+ * Home Screen - Start workouts and manage routines
  */
 
 import { ScrollView, Text, View, Pressable, Alert, RefreshControl, Modal } from 'react-native';
@@ -323,7 +323,7 @@ export default function HomeScreen() {
 
   const handleDeleteTemplate = (templateId: string, templateName: string) => {
     Alert.alert(
-      'Delete Template',
+      'Delete Routine',
       `Are you sure you want to delete "${templateName}"?`,
       [
         { text: 'Cancel', onPress: () => {} },
@@ -336,7 +336,7 @@ export default function HomeScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete template');
+              Alert.alert('Error', 'Failed to delete routine');
             }
           },
         },
@@ -352,23 +352,23 @@ export default function HomeScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
       } else {
-        Alert.alert('Error', 'Template not found');
+        Alert.alert('Error', 'Routine not found');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to duplicate template');
+      Alert.alert('Error', 'Failed to duplicate routine');
     }
   };
 
   const handleExportTemplate = async (templateId: string) => {
     const template = templates.find(t => t.id === templateId);
     if (!template) {
-      Alert.alert('Error', 'Template not found');
+      Alert.alert('Error', 'Routine not found');
       return;
     }
 
     // Show confirmation dialog
     Alert.alert(
-      'Export Template',
+      'Export Routine',
       `Are you sure you want to export "${template.name}"?`,
       [
         { text: 'Cancel', style: 'cancel' },
@@ -380,20 +380,20 @@ export default function HomeScreen() {
 
               if (result.success) {
                 const message = Platform.OS === 'web' 
-                  ? `Template exported: ${result.filePath}`
+                  ? `Routine exported: ${result.filePath}`
                   : Platform.OS === 'android'
-                  ? `Template saved to selected location`
-                  : `Template ready to save - choose location in share sheet`;
+                  ? `Routine saved to selected location`
+                  : `Routine ready to save - choose location in share sheet`;
                 Alert.alert('Export Successful', message);
                 if (Platform.OS !== 'web') {
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 }
               } else {
-                Alert.alert('Error', result.error || 'Failed to export template');
+                Alert.alert('Error', result.error || 'Failed to export routine');
               }
             } catch (error) {
               console.error('Export error:', error);
-              Alert.alert('Error', 'Failed to export template');
+              Alert.alert('Error', 'Failed to export routine');
             }
           },
         },
@@ -406,7 +406,7 @@ export default function HomeScreen() {
       // Show security warning
       Alert.alert(
         'Security Warning',
-        '⚠️ Only import template files from trusted sources. Malicious files could contain harmful data. Make sure you have verified the file before importing.',
+        '⚠️ Only import routine files from trusted sources. Malicious files could contain harmful data. Make sure you have verified the file before importing.',
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -446,11 +446,11 @@ export default function HomeScreen() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   }
                 } else {
-                  Alert.alert('Import Failed', importResult.error || 'Invalid template file');
+                  Alert.alert('Import Failed', importResult.error || 'Invalid routine file');
                 }
               } catch (error) {
                 console.error('Import error:', error);
-                Alert.alert('Error', 'Failed to import template');
+                Alert.alert('Error', 'Failed to import routine');
               }
             },
           },
@@ -458,7 +458,7 @@ export default function HomeScreen() {
       );
     } catch (error) {
       console.error('Import error:', error);
-      Alert.alert('Error', 'Failed to import template');
+      Alert.alert('Error', 'Failed to import routine');
     }
   };
 
@@ -505,7 +505,7 @@ export default function HomeScreen() {
         <View className="gap-6 pb-6">
           {/* Header */}
           <View className="gap-2">
-            <Text className="text-3xl font-bold text-foreground">Gym Tracker</Text>
+            <Text className="text-3xl font-bold text-foreground">Swole Revolution</Text>
             <Text className="text-base text-muted">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -610,10 +610,10 @@ export default function HomeScreen() {
             <Text className="text-base font-semibold text-background">Quick Workout</Text>
           </Button>
 
-          {/* Templates Section */}
+          {/* Routines Section */}
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-foreground">Workout Templates</Text>
+              <Text className="text-lg font-semibold text-foreground">Workout Routines</Text>
               <View className="flex-row items-center gap-3">
                 <Pressable
                   onPress={handleImportTemplate}
@@ -663,7 +663,7 @@ export default function HomeScreen() {
                 <CardContent className="items-center gap-2 py-8">
                   <IconSymbol size={32} name="plus.circle" color={colors.muted} />
                   <Text className="text-center text-muted">
-                    No templates yet. Create one to get started!
+                    No routines yet. Create one to get started!
                   </Text>
                 </CardContent>
               </Card>

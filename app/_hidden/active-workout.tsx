@@ -452,7 +452,7 @@ export default function ActiveWorkoutScreen() {
 
       if (templateId && templateName) {
         setWorkoutActive(
-          typeof templateName === 'string' ? templateName : 'Template Workout',
+          typeof templateName === 'string' ? templateName : 'Routine Workout',
           workoutStartTime,
           typeof templateId === 'string' ? templateId : undefined,
           typeof templateName === 'string' ? templateName : undefined
@@ -488,7 +488,7 @@ export default function ActiveWorkoutScreen() {
       // Only update if this is a template workout AND we haven't just started a new workout
       if (templateId && templateName && activeWorkoutName !== templateName) {
         setWorkoutActive(
-          typeof templateName === 'string' ? templateName : 'Template Workout',
+          typeof templateName === 'string' ? templateName : 'Routine Workout',
           activeWorkoutStartTime,
           typeof templateId === 'string' ? templateId : undefined,
           typeof templateName === 'string' ? templateName : undefined
@@ -1296,15 +1296,15 @@ export default function ActiveWorkoutScreen() {
 
   const handleSaveAsNewTemplate = useCallback(async (workout: CompletedWorkout) => {
     Alert.prompt(
-      'New Template Name',
-      'Enter a name for this template:',
+      'New Routine Name',
+      'Enter a name for this routine:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Save',
           onPress: async (templateName?: string) => {
             if (!templateName || !templateName.trim()) {
-              Alert.alert('Error', 'Please enter a template name');
+              Alert.alert('Error', 'Please enter a routine name');
               return;
             }
 
@@ -1337,7 +1337,7 @@ export default function ActiveWorkoutScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
 
-              Alert.alert('Success', 'Template saved successfully!');
+              Alert.alert('Success', 'Routine saved successfully!');
               router.push({
                 pathname: '/_hidden/workout-summary',
                 params: {
@@ -1346,7 +1346,7 @@ export default function ActiveWorkoutScreen() {
                 },
               });
             } catch (error) {
-              Alert.alert('Error', 'Failed to save template');
+              Alert.alert('Error', 'Failed to save routine');
             }
           },
         },
@@ -1360,8 +1360,8 @@ export default function ActiveWorkoutScreen() {
     if (!templateId || typeof templateId !== 'string') return;
 
     Alert.alert(
-      'Update Template',
-      `Update "${workoutName}" template with this workout's exercises, sets, weights, and reps?`,
+      'Update Routine',
+      `Update "${workoutName}" routine with this workout's exercises, sets, weights, and reps?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -1370,7 +1370,7 @@ export default function ActiveWorkoutScreen() {
             try {
               const template = templates.find((t) => t.id === templateId);
               if (!template) {
-                Alert.alert('Error', 'Template not found');
+                Alert.alert('Error', 'Routine not found');
                 return;
               }
 
@@ -1400,7 +1400,7 @@ export default function ActiveWorkoutScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
 
-              Alert.alert('Success', 'Template updated successfully!');
+              Alert.alert('Success', 'Routine updated successfully!');
               router.push({
                 pathname: '/_hidden/workout-summary',
                 params: {
@@ -1409,7 +1409,7 @@ export default function ActiveWorkoutScreen() {
                 },
               });
             } catch (error) {
-              Alert.alert('Error', 'Failed to update template');
+              Alert.alert('Error', 'Failed to update routine');
             }
           },
         },

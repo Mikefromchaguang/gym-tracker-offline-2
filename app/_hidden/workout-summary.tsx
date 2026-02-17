@@ -19,7 +19,7 @@ import { convertWeight, formatVolume, formatWeight } from '@/lib/unit-conversion
 import { calculateExerciseVolume } from '@/lib/volume-calculation';
 
 /**
- * Converts completed workout exercises to template exercise format.
+ * Converts completed workout exercises to routine exercise format.
  * Maps CompletedExercise (with sets: CompletedSet[]) to Exercise (with sets: number and setDetails).
  */
 function completedExercisesToTemplateExercises(
@@ -83,7 +83,7 @@ export default function WorkoutSummaryScreen() {
   const [workout, setWorkout] = useState<CompletedWorkout | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Save as Template modal state
+  // Save as Routine modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [newTemplateName, setNewTemplateName] = useState('');
 
@@ -102,7 +102,7 @@ export default function WorkoutSummaryScreen() {
 
   const handleSaveAsTemplate = useCallback(async () => {
     if (!newTemplateName.trim()) {
-      Alert.alert('Error', 'Template name cannot be empty');
+      Alert.alert('Error', 'Routine name cannot be empty');
       return;
     }
 
@@ -113,7 +113,7 @@ export default function WorkoutSummaryScreen() {
 
     // Check for duplicate name
     if (templates.some(t => t.name.toLowerCase() === newTemplateName.trim().toLowerCase())) {
-      Alert.alert('Error', 'A template with this name already exists');
+      Alert.alert('Error', 'A routine with this name already exists');
       return;
     }
 
@@ -138,11 +138,11 @@ export default function WorkoutSummaryScreen() {
       }
 
       setShowSaveModal(false);
-      Alert.alert('Success', 'Template saved successfully', [
+      Alert.alert('Success', 'Routine saved successfully', [
         { text: 'OK', onPress: () => router.replace('/(tabs)') }
       ]);
     } catch (error) {
-      Alert.alert('Error', 'Failed to save template');
+      Alert.alert('Error', 'Failed to save routine');
     } finally {
       setIsLoading(false);
     }
@@ -150,13 +150,13 @@ export default function WorkoutSummaryScreen() {
 
   const handleUpdateTemplate = useCallback(async () => {
     if (!templateId || typeof templateId !== 'string') {
-      Alert.alert('Error', 'No template to update');
+      Alert.alert('Error', 'No routine to update');
       return;
     }
 
     const template = templates.find((t) => t.id === templateId);
     if (!template) {
-      Alert.alert('Error', 'Template not found');
+      Alert.alert('Error', 'Routine not found');
       return;
     }
 
@@ -166,7 +166,7 @@ export default function WorkoutSummaryScreen() {
     }
 
     Alert.alert(
-      'Update Template',
+      'Update Routine',
       `Update "${template.name}" with current workout values?`,
       [
         { text: 'Cancel', onPress: () => {} },
@@ -190,11 +190,11 @@ export default function WorkoutSummaryScreen() {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               }
 
-              Alert.alert('Success', 'Template updated successfully', [
+              Alert.alert('Success', 'Routine updated successfully', [
                 { text: 'OK', onPress: () => router.replace('/(tabs)') }
               ]);
             } catch (error) {
-              Alert.alert('Error', 'Failed to update template');
+              Alert.alert('Error', 'Failed to update routine');
             } finally {
               setIsLoading(false);
             }
@@ -333,7 +333,7 @@ export default function WorkoutSummaryScreen() {
                   disabled={isLoading}
                   className="w-full"
                 >
-                  {isLoading ? 'Updating...' : 'Update Template'}
+                  {isLoading ? 'Updating...' : 'Update Routine'}
                 </Button>
                 <Button
                   variant="secondary"
@@ -342,7 +342,7 @@ export default function WorkoutSummaryScreen() {
                   disabled={isLoading}
                   className="w-full"
                 >
-                  Save as New Template
+                  Save as New Routine
                 </Button>
                 <Button
                   variant="secondary"
@@ -362,7 +362,7 @@ export default function WorkoutSummaryScreen() {
                   disabled={isLoading}
                   className="w-full"
                 >
-                  {isLoading ? 'Saving...' : 'Save as Template'}
+                  {isLoading ? 'Saving...' : 'Save as Routine'}
                 </Button>
                 <Button
                   variant="secondary"
@@ -379,7 +379,7 @@ export default function WorkoutSummaryScreen() {
         </View>
       </ScrollView>
 
-      {/* Save as Template Modal */}
+      {/* Save as Routine Modal */}
       <Modal
         visible={showSaveModal}
         animationType="fade"
@@ -401,16 +401,16 @@ export default function WorkoutSummaryScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground, marginBottom: 8 }}>
-              Save as Template
+              Save as Routine
             </Text>
             <Text style={{ fontSize: 14, color: colors.muted, marginBottom: 16 }}>
-              Enter a name for this template:
+              Enter a name for this routine:
             </Text>
             
             <TextInput
               value={newTemplateName}
               onChangeText={setNewTemplateName}
-              placeholder="Template name"
+              placeholder="Routine name"
               placeholderTextColor={colors.muted}
               autoFocus={true}
               style={{

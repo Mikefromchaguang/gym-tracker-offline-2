@@ -1,5 +1,5 @@
 /**
- * Template Details Screen - View and manage template
+ * Routine Details Screen - View and manage routine
  */
 
 import { ScrollView, Text, View, FlatList, Alert, Pressable } from 'react-native';
@@ -37,10 +37,10 @@ export default function TemplateDetailsScreen() {
     if (!template) return;
     try {
       await duplicateTemplate(template.id);
-      Alert.alert('Success', 'Template duplicated');
+      Alert.alert('Success', 'Routine duplicated');
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to duplicate template');
+      Alert.alert('Error', 'Failed to duplicate routine');
     }
   };
 
@@ -48,8 +48,8 @@ export default function TemplateDetailsScreen() {
     if (!template) return;
 
     Alert.alert(
-      'Delete Template',
-      'Are you sure you want to delete this template?',
+      'Delete Routine',
+      'Are you sure you want to delete this routine?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -60,7 +60,7 @@ export default function TemplateDetailsScreen() {
               await deleteTemplate(template.id);
               router.back();
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete template');
+              Alert.alert('Error', 'Failed to delete routine');
             }
           },
         },
@@ -76,7 +76,7 @@ export default function TemplateDetailsScreen() {
   if (!template) {
     return (
       <ScreenContainer className="items-center justify-center gap-4">
-        <Text className="text-lg font-semibold text-foreground">Template not found</Text>
+        <Text className="text-lg font-semibold text-foreground">Routine not found</Text>
         <Button onPress={() => router.back()}>Go Back</Button>
       </ScreenContainer>
     );
@@ -131,7 +131,7 @@ export default function TemplateDetailsScreen() {
               />
             ) : (
               <Text className="text-sm text-muted text-center py-4">
-                No exercises in this template
+                No exercises in this routine
               </Text>
             )}
           </View>

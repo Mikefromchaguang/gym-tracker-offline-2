@@ -41,11 +41,11 @@ const IMPORT_CATEGORIES: ImportCategory[] = [
   },
   {
     id: 'templates',
-    title: 'Templates',
-    description: 'Saved workout templates and their configurations.',
-    warning: 'Will replace all your current templates.',
+    title: 'Routines',
+    description: 'Saved workout routines and their configurations.',
+    warning: 'Will replace all your current routines.',
     icon: '📋',
-    getCount: (s) => s.counts.templates > 0 ? `${s.counts.templates} templates` : 'No data',
+    getCount: (s) => s.counts.templates > 0 ? `${s.counts.templates} routines` : 'No data',
   },
   {
     id: 'bodyWeight',
@@ -286,7 +286,7 @@ export default function SettingsScreen() {
               <CardHeader>
                 <CardTitle className="text-base">Backup Data</CardTitle>
                 <CardDescription>
-                  Save all your locally stored data (workouts, templates, exercises, settings, body weight, analytics preferences, etc.) to a file
+                    Save all your locally stored data (workouts, routines, exercises, settings, body weight, analytics preferences, etc.) to a file
                 </CardDescription>
               </CardHeader>
               <CardContent>

@@ -162,7 +162,7 @@ export default function PreferencesScreen() {
               ]}
             >
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
-                {settings.weightUnit === 'kg' ? 'lbs' : 'kg'}
+                Change
               </Text>
             </Pressable>
           </View>
@@ -211,7 +211,7 @@ export default function PreferencesScreen() {
               ]}
             >
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
-                {settings.bodyMapGender === 'male' ? 'Female' : 'Male'}
+                Change
               </Text>
             </Pressable>
           </View>

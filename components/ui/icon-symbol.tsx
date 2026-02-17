@@ -54,6 +54,7 @@ const MAPPING = {
   "ellipsis.circle": "more-horiz",
   "minus": "remove",
   "calendar": "event",
+  "sparkles": "auto-awesome",
 } as const satisfies IconMapping;
 
 type IconSymbolName = keyof typeof MAPPING;

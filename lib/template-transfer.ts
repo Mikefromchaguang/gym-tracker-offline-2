@@ -55,7 +55,7 @@ export async function exportTemplate(
     // Generate filename
     const sanitizedName = template.name.replace(/[^a-z0-9]/gi, '-');
     const date = new Date().toISOString().split('T')[0];
-    const filename = `Template-${sanitizedName}-${date}.json`;
+    const filename = `Routine-${sanitizedName}-${date}.json`;
 
     if (Platform.OS === 'web') {
       // For web, create a blob and trigger download
@@ -98,7 +98,7 @@ export async function exportTemplate(
         await FileSystem.writeAsStringAsync(filepath, jsonData);
         await Sharing.shareAsync(filepath, {
           mimeType: 'application/json',
-          dialogTitle: 'Save Template',
+          dialogTitle: 'Save Routine',
         });
         return { success: true, filePath: filename };
       }
@@ -111,7 +111,7 @@ export async function exportTemplate(
       if (isAvailable) {
         await Sharing.shareAsync(filepath, {
           mimeType: 'application/json',
-          dialogTitle: 'Save Template',
+          dialogTitle: 'Save Routine',
           UTI: 'public.json',
         });
         return { success: true, filePath: filename };
@@ -121,7 +121,7 @@ export async function exportTemplate(
     }
   } catch (error) {
     console.error('Template export error:', error);
-    return { success: false, error: 'Failed to export template' };
+    return { success: false, error: 'Failed to export routine' };
   }
 }
 
@@ -136,27 +136,27 @@ function validateTemplateData(data: any): { valid: boolean; error?: string } {
 
   // Check version (for now, only support 1.0)
   if (!data.version || data.version !== '1.0') {
-    return { valid: false, error: 'Unsupported template version' };
+    return { valid: false, error: 'Unsupported routine version' };
   }
 
   // Check template structure
   if (!data.template || typeof data.template !== 'object') {
-    return { valid: false, error: 'Invalid template data' };
+    return { valid: false, error: 'Invalid routine data' };
   }
 
   const template = data.template;
 
   // Check required template fields
   if (!template.name || typeof template.name !== 'string') {
-    return { valid: false, error: 'Template name is required' };
+    return { valid: false, error: 'Routine name is required' };
   }
 
   if (!Array.isArray(template.exercises)) {
-    return { valid: false, error: 'Template exercises must be an array' };
+    return { valid: false, error: 'Routine exercises must be an array' };
   }
 
   if (template.exercises.length === 0) {
-    return { valid: false, error: 'Template must have at least one exercise' };
+    return { valid: false, error: 'Routine must have at least one exercise' };
   }
 
   // Validate each exercise
@@ -262,6 +262,6 @@ export async function importTemplate(
     };
   } catch (error) {
     console.error('Template import error:', error);
-    return { success: false, error: 'Failed to import template' };
+    return { success: false, error: 'Failed to import routine' };
   }
 }

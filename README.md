@@ -1,6 +1,6 @@
 # Offline Gym Tracker
 
-A local-first workout tracking app built with React Native + Expo, made exclusively with Manus and Github Copilot in VS Code. Create unlimited workout templates, customize unlimited exercises, and visually track your progress while keeping your data completely offline.
+A local-first workout tracking app built with React Native + Expo, made exclusively with Manus and Github Copilot in VS Code. Create unlimited workout routines, customize unlimited exercises, and visually track your progress while keeping your data completely offline.
 
 ## What This App Is (and Isn't)
 
@@ -8,7 +8,7 @@ This tracker is designed for for people who have used other gym trackers before,
 
 **What you get:**
 - Intuitive UI with meaningful metrics
-- Fully customizable exercises with unlimited templates
+- Fully customizable exercises with unlimited routines
 - Week-by-week progression analytics
 
 **What you won't find:**
@@ -26,7 +26,7 @@ Just track, grind, and progress.
 ### 1. Initial Setup
 
 The app has three main sections:
-- **Home**: Log bodyweight, create/edit templates, start workouts
+- **Home**: Log bodyweight, create/edit routines, start workouts
 - **Analytics**: View graphs and progression metrics
 - **Profile**: Configure exercises, app preferences, and manage data
 
@@ -67,10 +67,10 @@ Muscle contributions power volume data in your analytics charts:
 - All percentages must total 100%
 - Even predefined contributions can be modified
 
-### 3. Create Templates & Work Out
+### 3. Create Routines & Work Out
 
-**Creating templates:**
-- Go to **Home** to create a template
+**Creating routines:**
+- Go to **Home** to create a routine
 - Add exercises, configure sets/reps/weights
 - (Optional) Group exercises into supersets
 - Tap a set number to remove it or mark as **Warmup** (warmup sets don't count toward volume)
@@ -81,7 +81,7 @@ Muscle contributions power volume data in your analytics charts:
 - Use arrows to reorder exercises
 
 **During workouts:**
-- Start a quick workout or use a template
+- Start a quick workout or use a routine
 - Mark sets complete as you go (only completed sets count toward volume and PRs)
 - Back out of an active workout to navigate freely, but return to the workout to complete it
 - Tap a set number to remove the set, mark it as a **Warmup** set (warmups don't count toward volume and PRs), or mark it as a **Failure** set (failure sets are used to estimate your max rep values)
@@ -92,7 +92,7 @@ Muscle contributions power volume data in your analytics charts:
 #### During Workouts
 Each exercise card shows:
 - 1RM and previous best set
-- Completed volume vs. template targets (red/green indicators)
+- Completed volume vs. routine targets (red/green indicators)
 
 #### Analytics Page
 

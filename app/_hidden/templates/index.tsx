@@ -1,5 +1,5 @@
 /**
- * Templates Tab - Manage workout templates
+ * Routines Screen - Manage workout routines
  */
 
 import { ScrollView, Text, View, FlatList } from 'react-native';
@@ -21,7 +21,7 @@ export default function TemplatesScreen() {
       <View className="flex-1 gap-4">
         {/* Header */}
         <View className="flex-row items-center justify-between">
-          <Text className="text-2xl font-bold text-foreground">Workout Templates</Text>
+          <Text className="text-2xl font-bold text-foreground">Workout Routines</Text>
           <Button
             size="sm"
             onPress={() => router.push('/_hidden/templates/create')}
@@ -30,7 +30,7 @@ export default function TemplatesScreen() {
           </Button>
         </View>
 
-        {/* Templates List */}
+        {/* Routines List */}
         {templates.length > 0 ? (
           <FlatList
             data={templates}
@@ -53,14 +53,14 @@ export default function TemplatesScreen() {
           />
         ) : (
           <View className="flex-1 items-center justify-center gap-4">
-            <Text className="text-lg font-semibold text-foreground">No templates yet</Text>
+            <Text className="text-lg font-semibold text-foreground">No routines yet</Text>
             <Text className="text-sm text-muted text-center">
-              Create your first workout template to get started
+              Create your first workout routine to get started
             </Text>
               <Button
                 onPress={() => router.push('/_hidden/templates/create')}
               >
-                Create Template
+                Create Routine
               </Button>
           </View>
         )}

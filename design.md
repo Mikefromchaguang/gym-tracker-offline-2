@@ -1,7 +1,7 @@
 # Local Gym Tracker - Design Document
 
 ## Overview
-A fully local gym tracker mobile app for Android that enables users to create workout templates, track exercises with reps and weights, and view workout history. All data is stored locally with no authentication required.
+A fully local gym tracker mobile app for Android that enables users to create workout routines, track exercises with reps and weights, and view workout history. All data is stored locally with no authentication required.
 
 ## Design Principles
 - **Mobile Portrait (9:16)** - All screens optimized for one-handed usage
@@ -34,52 +34,52 @@ Main dashboard showing today's workout status and quick actions.
 Modal sheet that appears when user taps "Start Workout" or "New Workout".
 
 **Content:**
-- Search bar to filter templates
-- List of saved workout templates
+- Search bar to filter routines
+- List of saved workout routines
 - "Create New Workout" button at bottom
 
 **Functionality:**
-- Tap template → Start Active Workout
+- Tap routine → Start Active Workout
 - Tap "Create New Workout" → Workout Builder Screen
 
 ---
 
-### 3. **Workout Templates Tab**
-Browse, create, edit, and delete workout templates.
+### 3. **Workout Routines Tab**
+Browse, create, edit, and delete workout routines.
 
 **Content:**
-- List of all saved templates
-- Each template card shows: Name, number of exercises, last used date
-- Floating action button "+" to create new template
+- List of all saved routines
+- Each routine card shows: Name, number of exercises, last used date
+- Floating action button "+" to create new routine
 - Swipe actions: Edit, Duplicate, Delete
 
 **Functionality:**
-- Tap template → Edit Template Screen
+- Tap routine → Edit Routine Screen
 - Tap "+" → Workout Builder Screen
-- Long-press template → Show context menu (Edit, Duplicate, Delete)
+- Long-press routine → Show context menu (Edit, Duplicate, Delete)
 
 ---
 
 ### 4. **Workout Builder Screen**
-Create or edit a workout template.
+Create or edit a workout routine.
 
 **Content:**
-- Template name input field
-- List of exercises in template
+- Routine name input field
+- List of exercises in routine
 - "Add Exercise" button
-- "Save Template" button
+- "Save Routine" button
 - "Cancel" button
 
 **Functionality:**
 - Add exercises by tapping "Add Exercise"
 - Reorder exercises via drag-and-drop or up/down buttons
 - Delete exercise via swipe or delete button
-- Save template with validation
+- Save routine with validation
 
 ---
 
 ### 5. **Exercise Selector Sheet** (Modal)
-Modal to add exercises to a template.
+Modal to add exercises to a routine.
 
 **Content:**
 - Search bar to find exercises
@@ -87,7 +87,7 @@ Modal to add exercises to a template.
 - "Create Custom Exercise" option
 
 **Functionality:**
-- Tap exercise → Add to template with default sets/reps
+- Tap exercise → Add to routine with default sets/reps
 - Tap "Create Custom Exercise" → Custom Exercise Modal
 
 ---
@@ -181,20 +181,20 @@ App configuration and preferences.
 
 ## Primary User Flows
 
-### Flow 1: Create Workout Template
-1. User taps "Templates" tab
+### Flow 1: Create Workout Routine
+1. User taps "Routines" tab
 2. User taps "+" button
-3. User enters template name
+3. User enters routine name
 4. User taps "Add Exercise"
 5. User selects exercise from list
 6. User confirms exercise (default: 3 sets × 8-12 reps)
 7. User repeats steps 4-6 for more exercises
-8. User taps "Save Template"
-9. Template saved and appears in list
+8. User taps "Save Routine"
+9. Routine saved and appears in list
 
 ### Flow 2: Log a Workout
 1. User taps "Start Workout" on Home
-2. User selects template from modal
+2. User selects routine from modal
 3. Active Workout screen opens
 4. For each exercise:
    - User enters reps in first set
@@ -234,7 +234,7 @@ App configuration and preferences.
 
 - **Haptic Feedback**: Light haptic on button taps, success haptic on workout completion
 - **Animations**: Subtle fade-in for modals, smooth transitions between screens
-- **Input Validation**: Prevent empty template names, validate numeric inputs for reps/weight
+- **Input Validation**: Prevent empty routine names, validate numeric inputs for reps/weight
 - **Undo/Redo**: Not required for MVP; focus on quick logging
 
 ---
@@ -287,7 +287,7 @@ CompletedSet {
 ## MVP Scope
 
 **In Scope:**
-- Create and manage workout templates
+- Create and manage workout routines
 - Log workouts with reps and weights
 - View workout history
 - Local storage only (AsyncStorage)

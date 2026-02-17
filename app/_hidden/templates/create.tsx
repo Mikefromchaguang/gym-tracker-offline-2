@@ -621,7 +621,7 @@ export default function TemplateCreateScreen() {
   }, []);
 
   const handleDeleteExercise = useCallback((exerciseId: string) => {
-    Alert.alert('Remove Exercise?', 'Are you sure you want to remove this exercise from your template?', [
+    Alert.alert('Remove Exercise?', 'Are you sure you want to remove this exercise from your routine?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -974,7 +974,7 @@ export default function TemplateCreateScreen() {
 
   const handleSaveTemplate = useCallback(async () => {
     if (!templateName.trim()) {
-      Alert.alert('Error', 'Please enter a template name');
+      Alert.alert('Error', 'Please enter a routine name');
       return;
     }
 
@@ -982,7 +982,7 @@ export default function TemplateCreateScreen() {
       (t) => t.name.toLowerCase() === templateName.toLowerCase() && t.id !== templateId
     );
     if (duplicateName) {
-      Alert.alert('Error', 'A template with this name already exists');
+      Alert.alert('Error', 'A routine with this name already exists');
       return;
     }
 
@@ -998,7 +998,7 @@ export default function TemplateCreateScreen() {
       const exercisesWithoutSets = exercises.filter(ex => !ex.sets || ex.sets.length === 0);
       if (exercisesWithoutSets.length > 0) {
         Alert.alert(
-          'Cannot Save Template',
+          'Cannot Save Routine',
           `The following exercises have no sets: ${exercisesWithoutSets.map(ex => ex.name).join(', ')}. Please add at least one set to each exercise.`
         );
         setIsLoading(false);
@@ -1081,11 +1081,11 @@ export default function TemplateCreateScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
 
-      Alert.alert('Success', 'Template saved successfully');
+      Alert.alert('Success', 'Routine saved successfully');
       setHasUnsavedChanges(false);
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save template');
+      Alert.alert('Error', 'Failed to save routine');
     } finally {
       setIsLoading(false);
     }
@@ -1106,7 +1106,7 @@ export default function TemplateCreateScreen() {
     const newName = newTemplateName.trim();
     
     if (!newName) {
-      Alert.alert('Error', 'Please enter a template name');
+      Alert.alert('Error', 'Please enter a routine name');
       return;
     }
 
@@ -1118,7 +1118,7 @@ export default function TemplateCreateScreen() {
       const exercisesWithoutSets = exercises.filter(ex => !ex.sets || ex.sets.length === 0);
       if (exercisesWithoutSets.length > 0) {
         Alert.alert(
-          'Cannot Save Template',
+          'Cannot Save Routine',
           `The following exercises have no sets: ${exercisesWithoutSets.map(ex => ex.name).join(', ')}. Please add at least one set to each exercise.`
         );
         setIsLoading(false);
@@ -1173,11 +1173,11 @@ export default function TemplateCreateScreen() {
       console.log('[Template Save] Creating new template from existing:', newTemplate);
       await addTemplate(newTemplate);
 
-      Alert.alert('Success', 'New template saved successfully');
+      Alert.alert('Success', 'New routine saved successfully');
       setHasUnsavedChanges(false);
       router.back();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save new template');
+      Alert.alert('Error', 'Failed to save new routine');
     } finally {
       setIsLoading(false);
     }
@@ -1192,8 +1192,8 @@ export default function TemplateCreateScreen() {
 
     // This doesn't work on Android/web
     Alert.prompt(
-      'Save as New Template',
-      'Enter a name for the new template:',
+      'Save as New Routine',
+      'Enter a name for the new routine:',
       [
         {
           text: 'Cancel',
@@ -1203,7 +1203,7 @@ export default function TemplateCreateScreen() {
           text: 'Save',
           onPress: async (newName?: string) => {
             if (!newName || !newName.trim()) {
-              Alert.alert('Error', 'Please enter a template name');
+              Alert.alert('Error', 'Please enter a routine name');
               return;
             }
 
@@ -1214,7 +1214,7 @@ export default function TemplateCreateScreen() {
               const exercisesWithoutSets = exercises.filter(ex => !ex.sets || ex.sets.length === 0);
               if (exercisesWithoutSets.length > 0) {
                 Alert.alert(
-                  'Cannot Save Template',
+                  'Cannot Save Routine',
                   `The following exercises have no sets: ${exercisesWithoutSets.map(ex => ex.name).join(', ')}. Please add at least one set to each exercise.`
                 );
                 setIsLoading(false);
@@ -1270,11 +1270,11 @@ export default function TemplateCreateScreen() {
               console.log('[Template Save] Creating new template from existing:', newTemplate);
               await addTemplate(newTemplate);
 
-              Alert.alert('Success', 'New template saved successfully');
+              Alert.alert('Success', 'New routine saved successfully');
               setHasUnsavedChanges(false);
               router.back();
             } catch (error) {
-              Alert.alert('Error', 'Failed to save new template');
+              Alert.alert('Error', 'Failed to save new routine');
             } finally {
               setIsLoading(false);
             }
@@ -1772,7 +1772,7 @@ export default function TemplateCreateScreen() {
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
             <Text className="text-2xl font-bold text-foreground">
-              {templateId ? 'Edit Template' : 'Create Template'}
+              {templateId ? 'Edit Routine' : 'Create Routine'}
             </Text>
             <Text className="text-sm text-muted mt-1">
               Total Volume: {Math.round(convertWeight(totalTemplateVolume, settings.weightUnit))} {settings.weightUnit}
@@ -1836,7 +1836,7 @@ export default function TemplateCreateScreen() {
             disabled={isLoading}
             className="w-full"
           >
-            {isLoading ? 'Updating...' : 'Update Template'}
+            {isLoading ? 'Updating...' : 'Update Routine'}
           </Button>
           <Button
             variant="secondary"
@@ -1845,7 +1845,7 @@ export default function TemplateCreateScreen() {
             disabled={isLoading}
             className="w-full"
           >
-            <Text className="text-base font-semibold text-foreground">Save as New Template</Text>
+            <Text className="text-base font-semibold text-foreground">Save as New Routine</Text>
           </Button>
         </>
       ) : (
@@ -1856,7 +1856,7 @@ export default function TemplateCreateScreen() {
           disabled={isLoading}
           className="w-full"
         >
-          {isLoading ? 'Saving...' : 'Save Template'}
+          {isLoading ? 'Saving...' : 'Save Routine'}
         </Button>
       )}
     </View>
@@ -1879,9 +1879,9 @@ export default function TemplateCreateScreen() {
 
   return (
     <ScreenContainer className="p-4">
-      {/* Template Name Input - outside list to prevent keyboard closing */}
+      {/* Routine Name Input - outside list to prevent keyboard closing */}
       <View className="gap-2 mb-4">
-        <Text className="text-sm font-semibold text-foreground">Template Name</Text>
+        <Text className="text-sm font-semibold text-foreground">Routine Name</Text>
         <TextInput
           placeholder="e.g., Push Day, Leg Day"
           placeholderTextColor={colors.muted}
@@ -2157,7 +2157,7 @@ export default function TemplateCreateScreen() {
         </SafeAreaView>
       </Modal>
 
-      {/* Save as New Template Modal */}
+      {/* Save as New Routine Modal */}
       <Modal visible={showSaveAsNewModal} transparent animationType="fade">
         <Pressable
           style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}
@@ -2179,16 +2179,16 @@ export default function TemplateCreateScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={{ fontSize: 20, fontWeight: '600', color: colors.foreground, marginBottom: 8 }}>
-              Save as New Template
+              Save as New Routine
             </Text>
             <Text style={{ fontSize: 14, color: colors.muted, marginBottom: 20 }}>
-              Enter a name for the new template:
+              Enter a name for the new routine:
             </Text>
             
             <TextInput
               value={newTemplateName}
               onChangeText={setNewTemplateName}
-              placeholder="Template name"
+              placeholder="Routine name"
               placeholderTextColor={colors.muted}
               style={{
                 backgroundColor: colors.surface,

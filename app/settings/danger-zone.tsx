@@ -33,9 +33,9 @@ const DATA_CATEGORIES: DataCategory[] = [
   },
   {
     id: 'templates',
-    title: 'Templates',
-    description: 'All saved workout templates and their configurations.',
-    warning: 'You will need to recreate your workout routines.',
+    title: 'Routines',
+    description: 'All saved workout routines and their configurations.',
+    warning: 'You will need to recreate your routines.',
     icon: '📋',
   },
   {
