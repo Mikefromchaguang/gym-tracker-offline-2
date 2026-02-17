@@ -28,7 +28,7 @@ export type ExerciseDetailChartSettings = {
 
 export type ExerciseDetailChartPrefs = {
   timePeriod: 'week' | 'month' | '6months' | 'all';
-  volumeAggregation: 'best_set' | 'avg_set' | 'total_volume' | 'heaviest_weight' | 'weekly_volume';
+  volumeAggregation: 'best_set' | 'avg_set' | 'total_volume' | 'heaviest_weight' | 'weekly_volume' | 'estimated_1rm';
   overlays: ExerciseDetailChartSettings;
 };
 

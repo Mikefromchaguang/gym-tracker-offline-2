@@ -31,7 +31,7 @@ import { calculateSetVolume } from '@/lib/volume-calculation';
 import { useBodyweight } from '@/hooks/use-bodyweight';
 
 type TimePeriod = 'week' | 'month' | '6months' | 'all';
-type VolumeAggregation = 'best_set' | 'avg_set' | 'total_volume' | 'heaviest_weight' | 'weekly_volume';
+type VolumeAggregation = 'best_set' | 'avg_set' | 'total_volume' | 'heaviest_weight' | 'weekly_volume' | 'estimated_1rm';
 
 interface ChartDataPoint {
   date: string;
@@ -418,6 +418,41 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       })
       .sort((a, b) => a.timestamp - b.timestamp);
 
+    // Estimated 1RM / session (max estimated 1RM from any completed set in the session)
+    // Uses effective weight so assisted/weighted-bodyweight sets are comparable.
+    const estimated1RMChartData: ChartDataPoint[] = Array.from(sessionMap.entries())
+      .map(([date, data]) => {
+        const sets = data.sets;
+        let best1RM = 0;
+        let bestSetWeight = 0;
+        let bestSetReps = 0;
+
+        sets.forEach((s) => {
+          const reps = s.reps || 0;
+          if (!reps) return;
+          const effectiveWeight = getEffectiveWeight(s.weight || 0, s.exType);
+          if (effectiveWeight <= 0) return;
+
+          const est = reps === 1 ? effectiveWeight : effectiveWeight * (1 + reps / 30);
+          if (est > best1RM) {
+            best1RM = est;
+            bestSetWeight = effectiveWeight;
+            bestSetReps = reps;
+          }
+        });
+
+        return {
+          date,
+          value: best1RM,
+          timestamp: data.timestamp,
+          weight: bestSetWeight,
+          reps: bestSetReps,
+          tooltipLabel: best1RM > 0 ? `Est 1RM: ${Math.round(best1RM * 10) / 10}` : 'No data',
+        };
+      })
+      .filter((d) => d.value > 0)
+      .sort((a, b) => a.timestamp - b.timestamp);
+
     // Calculate weekly total volume from workout data
     const weeklyVolumeMap = new Map<string, { volume: number; timestamp: number; setCount: number; repCount: number }>();
     allSets.forEach((set) => {
@@ -460,6 +495,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       totalVolumeChartData,
       heaviestWeightChartData,
       weeklyVolumeChartData,
+      estimated1RMChartData,
       allSets, // Include all sets for time period filtering
     };
   }, [workouts, exerciseNameStr, volumeHistory, exerciseType, bodyWeightKgForCalc, isWeightedExercise]);
@@ -681,6 +717,9 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       case 'weekly_volume':
         sourceData = exerciseData.weeklyVolumeChartData || [];
         break;
+      case 'estimated_1rm':
+        sourceData = (exerciseData as any).estimated1RMChartData || [];
+        break;
       default:
         sourceData = exerciseData.bestSetChartData || [];
     }
@@ -724,12 +763,14 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         return 'Heaviest Weight / Session';
       case 'weekly_volume':
         return 'Total Volume / Week';
+      case 'estimated_1rm':
+        return '1RM / Session';
     }
   };
 
   const cycleProgressionMode = () => {
     setVolumeAggregation((prev) => {
-      const modes: VolumeAggregation[] = ['best_set', 'avg_set', 'total_volume', 'heaviest_weight', 'weekly_volume'];
+      const modes: VolumeAggregation[] = ['best_set', 'avg_set', 'total_volume', 'heaviest_weight', 'estimated_1rm', 'weekly_volume'];
       const currentIndex = modes.indexOf(prev);
       const nextIndex = (currentIndex + 1) % modes.length;
       return modes[nextIndex];
@@ -1259,7 +1300,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                   }))}
                   xLabels={filteredData.chartData.map((d) => d.date)}
                   yLabel={
-                    volumeAggregation === 'heaviest_weight'
+                    volumeAggregation === 'heaviest_weight' || volumeAggregation === 'estimated_1rm'
                       ? `Weight (${settings.weightUnit})`
                       : `Volume (${settings.weightUnit})`
                   }
@@ -1277,6 +1318,11 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                         lines.push(`${Math.round(convertWeight(weight, settings.weightUnit))} ${settings.weightUnit} × ${reps}`);
                       } else if (d.tooltipLabel) {
                         lines.push(d.tooltipLabel);
+                      }
+
+                      if (volumeAggregation === 'estimated_1rm') {
+                        const oneRm = convertWeight(d.value, settings.weightUnit);
+                        if (oneRm > 0) lines.push(`Est 1RM: ${Math.round(oneRm)} ${settings.weightUnit}`);
                       }
 
                       if (volumeAggregation === 'heaviest_weight') {
