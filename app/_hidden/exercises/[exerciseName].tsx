@@ -79,7 +79,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
   const [manualVolume, setManualVolume] = useState<string>('');
   const [manualDate, setManualDate] = useState<string>('');
   const [volumeHistory, setVolumeHistory] = useState<ExerciseVolumeLog[]>([]);
-  const [repMaxView, setRepMaxView] = useState<'table' | 'graph'>('table');
+  // Removed repMaxView state - always show graph
   const [failureSetData, setFailureSetData] = useState<FailureSetData[]>([]);
   const [showAddDataPointModal, setShowAddDataPointModal] = useState(false);
   const [newDataPointWeight, setNewDataPointWeight] = useState('');
@@ -1108,29 +1108,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                     >
                       <Text style={{ color: colors.background, fontSize: 12, fontWeight: '600' }}>+ Add</Text>
                     </Pressable>
-                    {repMaxEstimates && (
-                      <Pressable
-                        onPress={() => {
-                          setRepMaxView((prev) => (prev === 'table' ? 'graph' : 'table'));
-                          if (Platform.OS !== 'web') {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }
-                        }}
-                        style={({ pressed }) => ({
-                          paddingVertical: 6,
-                          paddingHorizontal: 10,
-                          borderRadius: 999,
-                          backgroundColor: colors.surface,
-                          borderWidth: 1,
-                          borderColor: colors.border,
-                          opacity: pressed ? 0.8 : 1,
-                        })}
-                      >
-                        <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '600' }}>
-                          {repMaxView === 'table' ? 'Graph' : 'Table'}
-                        </Text>
-                      </Pressable>
-                    )}
+                    {/* Table/Graph toggle removed - always show graph */}
                   </View>
                 </View>
               </CardHeader>
@@ -1143,43 +1121,6 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                       Complete workouts to see estimated rep maxes
                     </Text>
                   </View>
-                ) : repMaxView === 'table' ? (
-                  <>
-                    {[1, 5, 10, 15, 20, 25].map((reps) => {
-                      const estimate = repMaxEstimates.find((e) => e.reps === reps);
-                      if (!estimate) return null;
-                      // Check if there's actual failure data at this rep count
-                      const failurePoint = failureSetData.find((f) => f.reps === reps);
-                      const isActual = !!failurePoint;
-                      // Display the failure data weight if available, otherwise the estimate
-                      const displayWeight = isActual ? failurePoint.weight : estimate.weight;
-
-                      const statRowProps = isActual
-                        ? {
-                            onPress: () => {
-                              handleDeleteFailureDataPoint(failurePoint.timestamp);
-                            },
-                          }
-                        : {};
-
-                      return (
-                        <StatRow
-                          key={reps}
-                          label={`${reps}RM${isActual ? ' ✓' : ''}`}
-                          value={`${Math.round(convertWeight(displayWeight, settings.weightUnit))}`}
-                          {...statRowProps}
-                        />
-                      );
-                    })}
-                    {/* Data point legend - only show if there's failure data */}
-                    {failureSetData.length > 0 && (
-                      <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 16, marginTop: 8 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                          <Text style={{ color: colors.muted, fontSize: 11 }}>✓ = Actual failure data</Text>
-                        </View>
-                      </View>
-                    )}
-                  </>
                 ) : (
                   <>
                     <InteractiveLineChart
