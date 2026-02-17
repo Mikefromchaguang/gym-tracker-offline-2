@@ -241,6 +241,8 @@ export default function HomeScreen() {
             onPress: async () => {
               await stopTimer();
               await clearWorkoutActive();
+              // Wait a tick to ensure state propagates before navigation
+              await new Promise(resolve => setTimeout(resolve, 0));
               router.push('/_hidden/active-workout');
             },
           },
@@ -283,6 +285,8 @@ export default function HomeScreen() {
               const template = templates.find(t => t.id === templateId);
               await stopTimer();
               await clearWorkoutActive();
+              // Wait a tick to ensure state propagates before navigation
+              await new Promise(resolve => setTimeout(resolve, 0));
               router.push({
                 pathname: '/_hidden/active-workout',
                 params: {

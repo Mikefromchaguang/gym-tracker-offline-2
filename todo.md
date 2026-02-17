@@ -1960,3 +1960,4 @@
 - [x] Rename app to "Swole Revolution"
 - [x] Update app slug to "swole-revolution" for APK installer
 - [x] Resize dumbbell logo to be smaller
+- [x] Fix workout state management bug: title flickering between old and new workout after ending previous workout

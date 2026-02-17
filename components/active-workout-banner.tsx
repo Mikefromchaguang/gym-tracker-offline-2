@@ -58,6 +58,8 @@ export function ActiveWorkoutBanner() {
             // Same behavior as red X button - discard workout
             await stopTimer();
             await clearWorkoutActive();
+            // Wait a tick to ensure state propagates before navigation
+            await new Promise(resolve => setTimeout(resolve, 0));
             router.push('/(tabs)');
           },
         },
