@@ -313,6 +313,18 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       { weight: 0, reps: 0 }
     );
 
+    // NEW: Top 5 sets by estimated 1RM for improved rep max calculation
+    const topSets = allSets
+      .map((set: any) => ({
+        weight: set.weight || 0,
+        reps: set.reps || 0,
+        timestamp: set.timestamp,
+        estimated1RM: (set.weight || 0) * (1 + (set.reps || 0) / 30),
+      }))
+      .sort((a, b) => b.estimated1RM - a.estimated1RM) // Sort by estimated 1RM descending
+      .slice(0, 5) // Take top 5
+      .map(({ weight, reps, timestamp }) => ({ weight, reps, timestamp })); // Remove estimated1RM field
+
     // Chart data: use volume history for daily best set
     // Deduplicate by date, keeping the highest volume per date
     const dailyVolumeMap = new Map<string, { value: number; timestamp: number; weight: number; reps: number }>();
@@ -450,10 +462,12 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       heaviestWeightChartData,
       weeklyVolumeChartData,
       allSets, // Include all sets for time period filtering
+      topSets, // NEW: Top 5 sets for improved rep max calculation
     };
   }, [workouts, exerciseNameStr, volumeHistory, exerciseType, bodyWeightKgForCalc, isWeightedExercise]);
 
   // Calculate rep max estimates from best set performance (historical data)
+  // IMPROVED: Now uses top 5 sets with recency weighting for more accurate estimates
   const repMaxEstimates = useMemo(() => {
     if (!exerciseData.estimated1RM || !exerciseData.bestSetByWeight.weight || !exerciseData.bestSetByWeight.reps) {
       return null;
@@ -464,10 +478,11 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         oneRepMax: exerciseData.estimated1RM,
         bestSetWeight: exerciseData.bestSetByWeight.weight,
         bestSetReps: exerciseData.bestSetByWeight.reps,
+        topSets: exerciseData.topSets, // NEW: Pass top 5 sets for improved calculation
       },
       undefined
     );
-  }, [exerciseData.estimated1RM, exerciseData.bestSetByWeight]);
+  }, [exerciseData.estimated1RM, exerciseData.bestSetByWeight, exerciseData.topSets]);
 
   // Get actual failure data points for chart markers (supplements the estimated curve)
   const failureDataMarkers = useMemo(() => {

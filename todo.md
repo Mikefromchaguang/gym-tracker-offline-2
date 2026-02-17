@@ -1962,3 +1962,4 @@
 - [x] Resize dumbbell logo to be smaller
 - [x] Fix workout state management bug: title flickering between old and new workout after ending previous workout
 - [x] Remove table view from estimated 1RM card on exercise details page (keep only graph)
+- [x] Improve rep max calculation: use top 3-5 sets with recency weighting instead of single best set

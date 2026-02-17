@@ -19,6 +19,8 @@ export interface RepMaxInput {
   oneRepMax: number;
   bestSetWeight: number;
   bestSetReps: number;
+  // New: multiple sets for improved accuracy
+  topSets?: Array<{ weight: number; reps: number; timestamp: number }>;
 }
 
 /**
@@ -42,8 +44,27 @@ export function calculateWeightAtReps(oneRepMax: number, reps: number): number {
 }
 
 /**
+ * Calculate recency weight factor for a set based on how old it is.
+ * More recent sets get higher weight in the calculation.
+ * 
+ * @param timestamp - Unix timestamp of the set
+ * @returns Weight factor between 0.2 and 1.0
+ */
+function calculateRecencyWeight(timestamp: number): number {
+  const now = Date.now();
+  const ageInDays = (now - timestamp) / (1000 * 60 * 60 * 24);
+  
+  if (ageInDays <= 90) return 1.0;        // Last 3 months: full weight
+  if (ageInDays <= 180) return 0.7;       // 3-6 months: 70% weight
+  if (ageInDays <= 365) return 0.5;       // 6-12 months: 50% weight
+  return 0.3;                              // 12+ months: 30% weight
+}
+
+/**
  * Calculate rep max estimates from best set performance data.
  * This always returns estimates based on historical workout performance.
+ * 
+ * IMPROVED: Now uses top 3-5 sets with recency weighting for more accurate estimates.
  * 
  * @param input - Current 1RM and best set data from workout history
  * @param manualOverrides - Optional manual overrides for specific rep counts
@@ -53,35 +74,66 @@ export function calculateRepMaxEstimates(
   input: RepMaxInput,
   manualOverrides?: Record<number, number>
 ): RepMaxEstimate[] | null {
-  const { oneRepMax, bestSetWeight, bestSetReps } = input;
+  const { oneRepMax, bestSetWeight, bestSetReps, topSets } = input;
 
   // Validate inputs
   if (!oneRepMax || oneRepMax <= 0 || !bestSetWeight || bestSetWeight <= 0 || !bestSetReps || bestSetReps <= 0) {
     return null;
   }
 
-  // STEP 1: Derive the fatigue constant from best set performance
+  // STEP 1: Derive the fatigue constant from top sets (or fallback to best set)
   let fatigueConstant: number;
 
-  if (bestSetReps === 1) {
-    // Edge case: if best set is 1 rep, use default Epley constant
-    fatigueConstant = 30;
+  if (topSets && topSets.length > 0) {
+    // NEW LOGIC: Calculate weighted average fatigue constant from top 3-5 sets
+    let totalWeightedConstant = 0;
+    let totalWeight = 0;
+    let validSets = 0;
+
+    for (const set of topSets) {
+      if (set.reps === 1) continue; // Skip 1-rep sets for fatigue calculation
+      
+      const denominator = (oneRepMax / set.weight) - 1;
+      if (denominator <= 0 || !isFinite(denominator)) continue;
+      
+      const calculated = set.reps / denominator;
+      if (!isFinite(calculated) || calculated < 0 || isNaN(calculated)) continue;
+      
+      // Clamp individual constant
+      const clampedConstant = Math.max(15, Math.min(60, calculated));
+      
+      // Apply recency weighting
+      const recencyWeight = calculateRecencyWeight(set.timestamp);
+      
+      totalWeightedConstant += clampedConstant * recencyWeight;
+      totalWeight += recencyWeight;
+      validSets++;
+    }
+
+    if (validSets > 0 && totalWeight > 0) {
+      // Use weighted average
+      fatigueConstant = totalWeightedConstant / totalWeight;
+    } else {
+      // Fallback to single best set logic
+      fatigueConstant = 30;
+    }
   } else {
-    // Calculate personalized fatigue constant
-    const denominator = (oneRepMax / bestSetWeight) - 1;
-    
-    // Handle invalid calculations
-    if (denominator <= 0 || !isFinite(denominator)) {
+    // FALLBACK: Original single best set logic
+    if (bestSetReps === 1) {
       fatigueConstant = 30;
     } else {
-      const calculated = bestSetReps / denominator;
+      const denominator = (oneRepMax / bestSetWeight) - 1;
       
-      // Check for invalid results
-      if (!isFinite(calculated) || calculated < 0 || isNaN(calculated)) {
+      if (denominator <= 0 || !isFinite(denominator)) {
         fatigueConstant = 30;
       } else {
-        // Clamp between 15 and 60
-        fatigueConstant = Math.max(15, Math.min(60, calculated));
+        const calculated = bestSetReps / denominator;
+        
+        if (!isFinite(calculated) || calculated < 0 || isNaN(calculated)) {
+          fatigueConstant = 30;
+        } else {
+          fatigueConstant = Math.max(15, Math.min(60, calculated));
+        }
       }
     }
   }
