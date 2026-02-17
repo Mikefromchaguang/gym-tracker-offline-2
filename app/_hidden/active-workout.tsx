@@ -67,7 +67,8 @@ export default function ActiveWorkoutScreen() {
     activeWorkoutName,
     activeWorkoutExercises,
     activeWorkoutBodyweight,
-    activeWorkoutDisabledTimers
+    activeWorkoutDisabledTimers,
+    activeWorkoutCollapsedDisplayKeys
   } = useGym();
   const { templateId, templateName, newExerciseName } = useLocalSearchParams();
 
@@ -134,6 +135,9 @@ export default function ActiveWorkoutScreen() {
   // Timer disabled state (tracks which exercises have timer disabled)
   const [disabledTimers, setDisabledTimers] = useState<Set<string>>(new Set());
 
+  // Collapsed/expanded state for exercise/superset cards (keyed by displayItem.key)
+  const [collapsedDisplayKeys, setCollapsedDisplayKeys] = useState<Set<string>>(new Set());
+
   // Merge superset modal state
   const [showMergeSupersetModal, setShowMergeSupersetModal] = useState(false);
   const [mergeSupersetSourceIndex, setMergeSupersetSourceIndex] = useState<number | null>(null);
@@ -142,6 +146,15 @@ export default function ActiveWorkoutScreen() {
   const MUSCLE_GROUPS: MuscleGroup[] = PRIMARY_MUSCLE_GROUPS;
 
   const displayItems = useMemo(() => groupExercisesForDisplay(exercises), [exercises]);
+
+  const toggleCollapsedDisplayKey = useCallback((key: string) => {
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
 
   // Available exercises for merge superset modal (non-superset exercises only)
   const availableExercisesForMerge = useMemo(() => {
@@ -286,6 +299,7 @@ export default function ActiveWorkoutScreen() {
         setElapsedTime(0);
         setExercises([]);
         setDisabledTimers(new Set());
+        setCollapsedDisplayKeys(new Set());
         setFocusCounter(prev => prev + 1);
       }
     });
@@ -305,6 +319,7 @@ export default function ActiveWorkoutScreen() {
       setExercises(activeWorkoutExercises);
       setCurrentBodyweight(activeWorkoutBodyweight);
       setDisabledTimers(activeWorkoutDisabledTimers);
+      setCollapsedDisplayKeys(new Set(activeWorkoutCollapsedDisplayKeys || []));
       if (activeWorkoutName) {
         setWorkoutName(activeWorkoutName);
       }
@@ -383,6 +398,8 @@ export default function ActiveWorkoutScreen() {
           };
         });
         setExercises(exercisesWithSets);
+        // New workout (template-based): start with all cards collapsed
+        setCollapsedDisplayKeys(new Set(groupExercisesForDisplay(exercisesWithSets).map((item) => item.key)));
         
         // Set workout name from template
         setWorkoutName(template.name);
@@ -399,11 +416,13 @@ export default function ActiveWorkoutScreen() {
         setIsInitialized(true);
       } else {
         setExercises([]);
+        setCollapsedDisplayKeys(new Set());
         setIsInitialized(true);
       }
     } else {
       // Quick workout - start empty
       setExercises([]);
+      setCollapsedDisplayKeys(new Set());
       setWorkoutName('Quick Workout');
       setIsInitialized(true);
     }
@@ -413,6 +432,7 @@ export default function ActiveWorkoutScreen() {
     activeWorkoutExercises,
     activeWorkoutBodyweight,
     activeWorkoutDisabledTimers,
+    activeWorkoutCollapsedDisplayKeys,
     activeWorkoutName,
     templateId,
     templates,
@@ -548,9 +568,9 @@ export default function ActiveWorkoutScreen() {
   // Important: guard with isWorkoutActive to prevent re-persisting after workout is finished
   useEffect(() => {
     if (isInitialized && isWorkoutActive && exercises.length >= 0) {
-      updateActiveWorkoutData(exercises, currentBodyweight, disabledTimers);
+      updateActiveWorkoutData(exercises, currentBodyweight, disabledTimers, collapsedDisplayKeys);
     }
-  }, [exercises, currentBodyweight, disabledTimers, isInitialized, isWorkoutActive, updateActiveWorkoutData]);
+  }, [exercises, currentBodyweight, disabledTimers, collapsedDisplayKeys, isInitialized, isWorkoutActive, updateActiveWorkoutData]);
 
   // Timer for elapsed time - calculate from activeWorkoutStartTime (global context)
   useEffect(() => {
@@ -724,6 +744,18 @@ export default function ActiveWorkoutScreen() {
 
     const groupId = generateId();
 
+    // Preserve collapse state: if BOTH cards were collapsed, keep the resulting superset collapsed.
+    const sourceId = exercises[mergeSupersetSourceIndex]?.id;
+    const targetId = exercises[targetIndex]?.id;
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      const shouldCollapse = !!sourceId && !!targetId && next.has(sourceId) && next.has(targetId);
+      if (sourceId) next.delete(sourceId);
+      if (targetId) next.delete(targetId);
+      if (shouldCollapse) next.add(groupId);
+      return next;
+    });
+
     setExercises((prev) => {
       // Apply rest timer to both exercises before merging
       const updated = prev.map((ex, i) => {
@@ -746,13 +778,22 @@ export default function ActiveWorkoutScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [mergeSupersetSourceIndex, getWorkoutExerciseSetCount, padWorkoutExerciseSets]);
+  }, [mergeSupersetSourceIndex, exercises, getWorkoutExerciseSetCount, padWorkoutExerciseSets]);
 
   // Handler: Add a new exercise and merge with it
   const handleMergeWithNewExercise = useCallback(async (exerciseName: string, restTimeSeconds: number) => {
     if (mergeSupersetSourceIndex === null) return;
 
     const groupId = generateId();
+
+    // New exercise should be expanded by default; ensure the new superset isn't auto-collapsed.
+    const sourceId = exercises[mergeSupersetSourceIndex]?.id;
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      if (sourceId) next.delete(sourceId);
+      next.delete(groupId);
+      return next;
+    });
 
     // Build the new exercise
     const newExercise = await buildWorkoutExercise(exerciseName, {
@@ -795,12 +836,15 @@ export default function ActiveWorkoutScreen() {
     if (Platform.OS !== 'web') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-  }, [mergeSupersetSourceIndex, buildWorkoutExercise, padWorkoutExerciseSets]);
+  }, [mergeSupersetSourceIndex, exercises, buildWorkoutExercise, padWorkoutExerciseSets]);
 
   // Handler: Split a superset into individual exercises
   const handleSplitSuperset = useCallback((exerciseIndex: number) => {
     const ex = exercises[exerciseIndex];
     if (!ex || !ex.groupId) return;
+
+    const groupId = ex.groupId;
+    const memberIds = exercises.filter((e) => e.groupType === 'superset' && e.groupId === groupId).map((e) => e.id);
 
     Alert.alert(
       'Split Superset?',
@@ -810,6 +854,15 @@ export default function ActiveWorkoutScreen() {
         {
           text: 'Split',
           onPress: () => {
+            setCollapsedDisplayKeys((prev) => {
+              const next = new Set(prev);
+              const wasCollapsed = next.has(groupId);
+              next.delete(groupId);
+              if (wasCollapsed) {
+                memberIds.forEach((id) => next.add(id));
+              }
+              return next;
+            });
             setExercises((prev) => splitSupersetToExercises(prev, ex.groupId!));
             if (Platform.OS !== 'web') {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -827,6 +880,16 @@ export default function ActiveWorkoutScreen() {
         text: 'Delete',
         style: 'destructive',
         onPress: () => {
+          const base = exercises[index];
+          setCollapsedDisplayKeys((prev) => {
+            const next = new Set(prev);
+            if (base?.groupType === 'superset' && typeof base.groupId === 'string') {
+              next.delete(base.groupId);
+            } else if (base?.id) {
+              next.delete(base.id);
+            }
+            return next;
+          });
           setExercises((prev) => {
             const base = prev[index];
             if (base?.groupType === 'superset' && typeof base.groupId === 'string') {
@@ -840,7 +903,7 @@ export default function ActiveWorkoutScreen() {
         },
       },
     ]);
-  }, []);
+  }, [exercises]);
 
   const handleReplaceExercise = useCallback(async (exerciseIndex: number, newExerciseName: string) => {
     const customEx = customExercises.find(ex => ex.name.toLowerCase() === newExerciseName.toLowerCase());
@@ -1780,6 +1843,7 @@ export default function ActiveWorkoutScreen() {
             <View className="gap-3">
               {displayItems.map((displayItem, displayIndex) => {
                 const reorderLayout = Platform.OS === 'web' ? undefined : LinearTransition.duration(120);
+                const isCollapsed = collapsedDisplayKeys.has(displayItem.key);
                 if (displayItem.kind === 'single') {
                   const exerciseIndex = displayItem.indices[0];
                   const exercise = exercises[exerciseIndex];
@@ -1898,16 +1962,30 @@ export default function ActiveWorkoutScreen() {
                                 })()}
                               </View>
                             </View>
-                            <View />
+                            <Pressable
+                              onPress={() => toggleCollapsedDisplayKey(displayItem.key)}
+                              hitSlop={8}
+                              accessibilityRole="button"
+                              accessibilityLabel={isCollapsed ? 'Expand exercise card' : 'Collapse exercise card'}
+                              style={({ pressed }) => ({ padding: 6, opacity: pressed ? 0.6 : 1 })}
+                            >
+                              <IconSymbol
+                                size={18}
+                                name={isCollapsed ? 'chevron.right' : 'chevron.down'}
+                                color={colors.muted}
+                              />
+                            </Pressable>
                           </View>
                         </CardHeader>
-                        <CardContent className="gap-2">
-                          {exercise.completedSets.map((set, setIndex) => renderSetRow(exerciseIndex, set, setIndex, exercise.type))}
+                        {!isCollapsed && (
+                          <CardContent className="gap-2">
+                            {exercise.completedSets.map((set, setIndex) => renderSetRow(exerciseIndex, set, setIndex, exercise.type))}
 
-                          <Button size="sm" onPress={() => handleAddSet(exerciseIndex)} className="w-full mt-2">
-                            <Text className="text-sm font-semibold text-background">+ Add Set</Text>
-                          </Button>
-                        </CardContent>
+                            <Button size="sm" onPress={() => handleAddSet(exerciseIndex)} className="w-full mt-2">
+                              <Text className="text-sm font-semibold text-background">+ Add Set</Text>
+                            </Button>
+                          </CardContent>
+                        )}
                       </Card>
                     </Animated.View>
                   );
@@ -2112,10 +2190,23 @@ export default function ActiveWorkoutScreen() {
                           </Text>
                         </View>
 
-                        <View />
+                          <Pressable
+                            onPress={() => toggleCollapsedDisplayKey(displayItem.key)}
+                            hitSlop={8}
+                            accessibilityRole="button"
+                            accessibilityLabel={isCollapsed ? 'Expand superset card' : 'Collapse superset card'}
+                            style={({ pressed }) => ({ padding: 6, opacity: pressed ? 0.6 : 1 })}
+                          >
+                            <IconSymbol
+                              size={18}
+                              name={isCollapsed ? 'chevron.right' : 'chevron.down'}
+                              color={colors.muted}
+                            />
+                          </Pressable>
                       </View>
                     </CardHeader>
 
+                    {!isCollapsed && (
                     <CardContent className="gap-2">
                       {maxSetCount > 0 ? (
                         <View className="gap-2">
@@ -2182,6 +2273,7 @@ export default function ActiveWorkoutScreen() {
                         <Text className="text-sm font-semibold text-background">+ Add Set</Text>
                       </Button>
                     </CardContent>
+                    )}
                   </Card>
                   </Animated.View>
                 );

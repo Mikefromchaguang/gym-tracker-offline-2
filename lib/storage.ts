@@ -567,6 +567,7 @@ export const ActiveWorkoutStorage = {
     exercises?: any[];
     bodyweight?: number;
     disabledTimers?: string[];
+    collapsedDisplayKeys?: string[];
   } | null> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_WORKOUT);
@@ -585,6 +586,7 @@ export const ActiveWorkoutStorage = {
     exercises?: any[];
     bodyweight?: number;
     disabledTimers?: string[];
+    collapsedDisplayKeys?: string[];
   }): Promise<void> {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_WORKOUT, JSON.stringify(state));

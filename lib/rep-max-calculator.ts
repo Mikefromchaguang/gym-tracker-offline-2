@@ -1,7 +1,7 @@
 /**
  * Rep Max Calculator
  * 
- * Calculates estimated rep max weights based on best set performance,
+ * Calculates estimated rep max weights based on top 5 sets with recency weighting,
  * supplemented by actual failure set data points.
  * Uses the Epley formula as a baseline.
  */
@@ -19,8 +19,7 @@ export interface RepMaxInput {
   oneRepMax: number;
   bestSetWeight: number;
   bestSetReps: number;
-  // New: multiple sets for improved accuracy
-  topSets?: Array<{ weight: number; reps: number; timestamp: number }>;
+  topSets?: Array<{ weight: number; reps: number; timestamp: number }>; // Top 5 sets with timestamps
 }
 
 /**
@@ -44,27 +43,24 @@ export function calculateWeightAtReps(oneRepMax: number, reps: number): number {
 }
 
 /**
- * Calculate recency weight factor for a set based on how old it is.
- * More recent sets get higher weight in the calculation.
- * 
- * @param timestamp - Unix timestamp of the set
- * @returns Weight factor between 0.2 and 1.0
+ * Calculate recency weight factor based on how old the set is
+ * Recent sets (< 3 months) get full weight
+ * Older sets gradually decrease in influence
  */
-function calculateRecencyWeight(timestamp: number): number {
+function getRecencyWeight(timestamp: number): number {
   const now = Date.now();
-  const ageInDays = (now - timestamp) / (1000 * 60 * 60 * 24);
-  
-  if (ageInDays <= 90) return 1.0;        // Last 3 months: full weight
-  if (ageInDays <= 180) return 0.7;       // 3-6 months: 70% weight
-  if (ageInDays <= 365) return 0.5;       // 6-12 months: 50% weight
-  return 0.3;                              // 12+ months: 30% weight
+  const ageMs = now - timestamp;
+  const ageMonths = ageMs / (1000 * 60 * 60 * 24 * 30);
+
+  if (ageMonths <= 3) return 1.0;      // Full weight for recent (< 3 months)
+  if (ageMonths <= 6) return 0.8;      // 80% weight for 3-6 months
+  if (ageMonths <= 12) return 0.5;     // 50% weight for 6-12 months
+  return 0.2;                           // 20% weight for 12+ months
 }
 
 /**
- * Calculate rep max estimates from best set performance data.
- * This always returns estimates based on historical workout performance.
- * 
- * IMPROVED: Now uses top 3-5 sets with recency weighting for more accurate estimates.
+ * Calculate rep max estimates from top 5 sets with recency weighting.
+ * This provides more stable and accurate estimates than relying on a single best set.
  * 
  * @param input - Current 1RM and best set data from workout history
  * @param manualOverrides - Optional manual overrides for specific rep counts
@@ -81,54 +77,50 @@ export function calculateRepMaxEstimates(
     return null;
   }
 
-  // STEP 1: Derive the fatigue constant from top sets (or fallback to best set)
+  // STEP 1: Calculate weighted average fatigue constant from top sets
   let fatigueConstant: number;
 
   if (topSets && topSets.length > 0) {
-    // NEW LOGIC: Calculate weighted average fatigue constant from top 3-5 sets
-    let totalWeightedConstant = 0;
+    // Use top sets with recency weighting
     let totalWeight = 0;
-    let validSets = 0;
+    let weightedFatigueSum = 0;
 
     for (const set of topSets) {
-      if (set.reps === 1) continue; // Skip 1-rep sets for fatigue calculation
-      
+      if (set.reps === 1) {
+        // Skip 1-rep sets for fatigue constant calculation
+        continue;
+      }
+
+      const recencyWeight = getRecencyWeight(set.timestamp);
       const denominator = (oneRepMax / set.weight) - 1;
-      if (denominator <= 0 || !isFinite(denominator)) continue;
-      
-      const calculated = set.reps / denominator;
-      if (!isFinite(calculated) || calculated < 0 || isNaN(calculated)) continue;
-      
-      // Clamp individual constant
-      const clampedConstant = Math.max(15, Math.min(60, calculated));
-      
-      // Apply recency weighting
-      const recencyWeight = calculateRecencyWeight(set.timestamp);
-      
-      totalWeightedConstant += clampedConstant * recencyWeight;
-      totalWeight += recencyWeight;
-      validSets++;
+
+      if (denominator > 0 && isFinite(denominator)) {
+        const calculated = set.reps / denominator;
+        if (isFinite(calculated) && calculated > 0 && !isNaN(calculated)) {
+          // Clamp individual fatigue constant between 15 and 60
+          const clamped = Math.max(15, Math.min(60, calculated));
+          weightedFatigueSum += clamped * recencyWeight;
+          totalWeight += recencyWeight;
+        }
+      }
     }
 
-    if (validSets > 0 && totalWeight > 0) {
-      // Use weighted average
-      fatigueConstant = totalWeightedConstant / totalWeight;
+    if (totalWeight > 0) {
+      fatigueConstant = weightedFatigueSum / totalWeight;
     } else {
-      // Fallback to single best set logic
+      // Fallback to default if no valid sets
       fatigueConstant = 30;
     }
   } else {
-    // FALLBACK: Original single best set logic
+    // Fallback to single best set calculation
     if (bestSetReps === 1) {
       fatigueConstant = 30;
     } else {
       const denominator = (oneRepMax / bestSetWeight) - 1;
-      
       if (denominator <= 0 || !isFinite(denominator)) {
         fatigueConstant = 30;
       } else {
         const calculated = bestSetReps / denominator;
-        
         if (!isFinite(calculated) || calculated < 0 || isNaN(calculated)) {
           fatigueConstant = 30;
         } else {
@@ -200,92 +192,10 @@ export function processFailureDataForChart(
     return [];
   }
 
-  return failureData.map((dataPoint) => ({
-    reps: dataPoint.reps,
-    weight: Math.round(dataPoint.weight),
+  return failureData.map((data) => ({
+    reps: data.reps,
+    weight: data.weight,
     isActualData: true,
-    timestamp: dataPoint.timestamp,
+    timestamp: data.timestamp,
   }));
-}
-
-/**
- * @deprecated Use calculateRepMaxEstimates for estimates and processFailureDataForChart for failure points
- * Calculate rep max estimates from failure data points only.
- */
-export function calculateRepMaxFromFailureData(
-  failureData: FailureSetData[],
-  manualOverrides?: Record<number, number>
-): RepMaxEstimate[] | null {
-  if (!failureData || failureData.length === 0) {
-    return null;
-  }
-
-  // Step 1: Estimate 1RM from each failure data point, take the highest
-  let best1RM = 0;
-  for (const dataPoint of failureData) {
-    const estimated1RM = estimate1RMFromSet(dataPoint.weight, dataPoint.reps);
-    if (estimated1RM > best1RM) {
-      best1RM = estimated1RM;
-    }
-  }
-
-  if (best1RM <= 0) {
-    return null;
-  }
-
-  // Step 2: Build a map of actual data points (keyed by reps)
-  const actualDataMap = new Map<number, FailureSetData>();
-  for (const dataPoint of failureData) {
-    actualDataMap.set(dataPoint.reps, dataPoint);
-  }
-
-  // Step 3: Generate estimates for target rep counts
-  const targetReps = [1, 5, 10, 15, 20, 25];
-  const estimates: RepMaxEstimate[] = [];
-
-  for (const reps of targetReps) {
-    let weight: number;
-    let isActualData = false;
-    let timestamp: number | undefined;
-
-    // Check for manual override first
-    if (manualOverrides && manualOverrides[reps] !== undefined) {
-      weight = manualOverrides[reps];
-    }
-    // Check for actual failure data at this rep count
-    else if (actualDataMap.has(reps)) {
-      const dataPoint = actualDataMap.get(reps)!;
-      weight = dataPoint.weight;
-      isActualData = true;
-      timestamp = dataPoint.timestamp;
-    }
-    // Calculate estimated value from best 1RM
-    else {
-      weight = calculateWeightAtReps(best1RM, reps);
-    }
-
-    estimates.push({
-      reps,
-      weight: Math.round(weight),
-      isActualData,
-      timestamp,
-    });
-  }
-
-  // Step 4: Normalize to ensure monotonic decreasing curve
-  let previousWeight = Infinity;
-  for (let i = 0; i < estimates.length; i++) {
-    let weight = estimates[i].weight;
-
-    // Cap at 1RM
-    weight = Math.min(weight, Math.round(best1RM));
-
-    // Ensure strictly decreasing (allow equal for consecutive reps)
-    weight = Math.min(weight, previousWeight);
-
-    estimates[i].weight = weight;
-    previousWeight = weight;
-  }
-
-  return estimates;
 }

@@ -241,7 +241,7 @@ export default function HomeScreen() {
             onPress: async () => {
               await stopTimer();
               await clearWorkoutActive();
-              // Wait a tick to ensure state propagates before navigation
+              // Wait for state propagation before navigating to prevent race condition
               await new Promise(resolve => setTimeout(resolve, 0));
               router.push('/_hidden/active-workout');
             },
@@ -285,7 +285,7 @@ export default function HomeScreen() {
               const template = templates.find(t => t.id === templateId);
               await stopTimer();
               await clearWorkoutActive();
-              // Wait a tick to ensure state propagates before navigation
+              // Wait for state propagation before navigating to prevent race condition
               await new Promise(resolve => setTimeout(resolve, 0));
               router.push({
                 pathname: '/_hidden/active-workout',
@@ -505,7 +505,7 @@ export default function HomeScreen() {
         <View className="gap-6 pb-6">
           {/* Header */}
           <View className="gap-2">
-            <Text className="text-3xl font-bold text-foreground">Swole Revolution</Text>
+            <Text className="text-3xl font-bold text-foreground">Gym Tracker</Text>
             <Text className="text-base text-muted">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long',
@@ -516,7 +516,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Daily Quote */}
-          {(settings.showQuotes ?? true) && <DailyQuote />}
+          <DailyQuote />
 
           {/* Today's Stats */}
           <View className="gap-2">

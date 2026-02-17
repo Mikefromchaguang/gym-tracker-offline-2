@@ -58,6 +58,7 @@ interface GymContextState {
   activeWorkoutExercises: WorkoutExercise[];
   activeWorkoutBodyweight: number;
   activeWorkoutDisabledTimers: Set<string>;
+  activeWorkoutCollapsedDisplayKeys: Set<string>;
 }
 
 type GymContextAction =
@@ -78,7 +79,15 @@ type GymContextAction =
   | { type: 'DELETE_CUSTOM_EXERCISE'; payload: string }
   | { type: 'SET_WORKOUT_ACTIVE'; payload: { name: string; startTime: number; templateId?: string; templateName?: string } }
   | { type: 'CLEAR_WORKOUT_ACTIVE' }
-  | { type: 'UPDATE_ACTIVE_WORKOUT_DATA'; payload: { exercises: WorkoutExercise[]; bodyweight: number; disabledTimers: Set<string> } };
+  | {
+      type: 'UPDATE_ACTIVE_WORKOUT_DATA';
+      payload: {
+        exercises: WorkoutExercise[];
+        bodyweight: number;
+        disabledTimers: Set<string>;
+        collapsedDisplayKeys?: Set<string>;
+      };
+    };
 
 interface GymContextValue extends GymContextState {
   // Template operations
@@ -117,7 +126,7 @@ interface GymContextValue extends GymContextState {
   // Workout session operations
   setWorkoutActive: (name: string, startTime: number, templateId?: string, templateName?: string) => void;
   clearWorkoutActive: () => Promise<void>;
-  updateActiveWorkoutData: (exercises: WorkoutExercise[], bodyweight: number, disabledTimers: Set<string>) => void;
+  updateActiveWorkoutData: (exercises: WorkoutExercise[], bodyweight: number, disabledTimers: Set<string>, collapsedDisplayKeys?: Set<string>) => void;
 
   // Utility
   refreshData: () => Promise<void>;
@@ -137,7 +146,7 @@ const initialState: GymContextState = {
     defaultRestTime: 90, // Default 90 seconds rest time
     bodyMapGender: 'male', // Default to male body map
     weekStartDay: 1, // Default Monday (0 = Sunday, 1 = Monday, etc.)
-    showQuotes: true, // Default to showing quotes
+    showQuotes: true, // Show inspirational quotes by default
     lastUpdated: Date.now(),
   },
   customExercises: [],
@@ -146,6 +155,7 @@ const initialState: GymContextState = {
   activeWorkoutExercises: [],
   activeWorkoutBodyweight: 70,
   activeWorkoutDisabledTimers: new Set(),
+  activeWorkoutCollapsedDisplayKeys: new Set(),
   error: null,
   isWorkoutActive: false,
   activeWorkoutName: null,
@@ -217,6 +227,7 @@ function gymReducer(state: GymContextState, action: GymContextAction): GymContex
         // The active workout screen will populate these via updateActiveWorkoutData.
         activeWorkoutExercises: [],
         activeWorkoutDisabledTimers: new Set(),
+        activeWorkoutCollapsedDisplayKeys: new Set(),
       };
 
     case 'CLEAR_WORKOUT_ACTIVE':
@@ -230,6 +241,7 @@ function gymReducer(state: GymContextState, action: GymContextAction): GymContex
         activeWorkoutExercises: [],
         activeWorkoutBodyweight: 70,
         activeWorkoutDisabledTimers: new Set(),
+        activeWorkoutCollapsedDisplayKeys: new Set(),
       };
     
     case 'UPDATE_ACTIVE_WORKOUT_DATA':
@@ -238,6 +250,7 @@ function gymReducer(state: GymContextState, action: GymContextAction): GymContex
         activeWorkoutExercises: action.payload.exercises,
         activeWorkoutBodyweight: action.payload.bodyweight,
         activeWorkoutDisabledTimers: action.payload.disabledTimers,
+        activeWorkoutCollapsedDisplayKeys: action.payload.collapsedDisplayKeys ?? state.activeWorkoutCollapsedDisplayKeys,
       };
     default:
       return state;
@@ -474,6 +487,9 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
         const restoredDisabledTimers = Array.isArray((activeWorkoutState as any).disabledTimers)
           ? new Set<string>((activeWorkoutState as any).disabledTimers)
           : new Set<string>();
+        const restoredCollapsedDisplayKeys = Array.isArray((activeWorkoutState as any).collapsedDisplayKeys)
+          ? new Set<string>((activeWorkoutState as any).collapsedDisplayKeys)
+          : new Set<string>();
         const restoredExercises = Array.isArray((activeWorkoutState as any).exercises)
           ? ((activeWorkoutState as any).exercises as WorkoutExercise[])
           : [];
@@ -481,13 +497,14 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
           ? ((activeWorkoutState as any).bodyweight as number)
           : 70;
 
-        if (restoredExercises.length > 0 || restoredDisabledTimers.size > 0) {
+        if (restoredExercises.length > 0 || restoredDisabledTimers.size > 0 || restoredCollapsedDisplayKeys.size > 0) {
           dispatch({
             type: 'UPDATE_ACTIVE_WORKOUT_DATA',
             payload: {
               exercises: restoredExercises,
               bodyweight: restoredBodyweight,
               disabledTimers: restoredDisabledTimers,
+              collapsedDisplayKeys: restoredCollapsedDisplayKeys,
             },
           });
         }
@@ -1104,6 +1121,7 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       exercises: [],
       bodyweight: state.activeWorkoutBodyweight,
       disabledTimers: [],
+      collapsedDisplayKeys: [],
     }).catch(err => {
       console.error('Failed to persist workout active state:', err);
     });
@@ -1122,8 +1140,8 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updateActiveWorkoutData = useCallback((exercises: WorkoutExercise[], bodyweight: number, disabledTimers: Set<string>) => {
-    dispatch({ type: 'UPDATE_ACTIVE_WORKOUT_DATA', payload: { exercises, bodyweight, disabledTimers } });
+  const updateActiveWorkoutData = useCallback((exercises: WorkoutExercise[], bodyweight: number, disabledTimers: Set<string>, collapsedDisplayKeys?: Set<string>) => {
+    dispatch({ type: 'UPDATE_ACTIVE_WORKOUT_DATA', payload: { exercises, bodyweight, disabledTimers, collapsedDisplayKeys } });
 
     // Persist snapshot so active workout can be restored after app restart.
     // Important: do NOT recreate active workout storage after the workout was cleared.
@@ -1139,6 +1157,7 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       exercises,
       bodyweight,
       disabledTimers: Array.from(disabledTimers || []),
+      collapsedDisplayKeys: Array.from(collapsedDisplayKeys || []),
     }).catch(err => {
       console.error('Failed to persist active workout data:', err);
     });
