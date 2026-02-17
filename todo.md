@@ -1958,3 +1958,5 @@
 
 ## Recent Changes
 - [x] Rename app to "Swole Revolution"
+- [x] Update app slug to "swole-revolution" for APK installer
+- [x] Resize dumbbell logo to be smaller
