@@ -1964,3 +1964,4 @@
 - [x] Remove table view from estimated 1RM card on exercise details page (keep only graph)
 - [x] Improve rep max calculation: use top 3-5 sets with recency weighting instead of single best set
 - [x] Add preference option to hide inspirational quotes on homepage
+- [x] Update app icon to match reference design: white barbell on teal rounded square background
