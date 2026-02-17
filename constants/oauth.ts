@@ -3,7 +3,7 @@ import * as ReactNative from "react-native";
 
 // Extract scheme from bundle ID (last segment timestamp, prefixed with "manus")
 // e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const bundleId = "space.manus.gym.tracker.offline.2.t20260216230014";
+const bundleId = "space.manus.gym.tracker.local.t20260115003943";
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
 const schemeFromBundleId = `manus${timestamp}`;
 
@@ -63,23 +63,21 @@ const encodeState = (value: string) => {
   return value;
 };
 
-/**
- * Get the redirect URI for OAuth callback.
- * - Web: uses API server callback endpoint
- * - Native: uses deep link scheme
- */
-export const getRedirectUri = () => {
+export const getLoginUrl = () => {
+  let redirectUri: string;
+
   if (ReactNative.Platform.OS === "web") {
-    return `${getApiBaseUrl()}/api/oauth/callback`;
+    // Web platform: redirect to API server callback (not Metro bundler)
+    // The API server will then redirect back to the frontend with the session token
+    redirectUri = `${getApiBaseUrl()}/api/oauth/callback`;
   } else {
-    return Linking.createURL("/oauth/callback", {
+    // Native platform: use deep link scheme for mobile OAuth callback
+    // This allows the OS to redirect back to the app after authentication
+    redirectUri = Linking.createURL("/oauth/callback", {
       scheme: env.deepLinkScheme,
     });
   }
-};
 
-export const getLoginUrl = () => {
-  const redirectUri = getRedirectUri();
   const state = encodeState(redirectUri);
 
   const url = new URL(`${OAUTH_PORTAL_URL}/app-auth`);
@@ -90,42 +88,3 @@ export const getLoginUrl = () => {
 
   return url.toString();
 };
-
-/**
- * Start OAuth login flow.
- *
- * On native platforms (iOS/Android), open the system browser directly so
- * the OAuth callback returns via deep link to the app.
- *
- * On web, this simply redirects to the login URL.
- *
- * @returns Always null, the callback is handled via deep link.
- */
-export async function startOAuthLogin(): Promise<string | null> {
-  const loginUrl = getLoginUrl();
-
-  if (ReactNative.Platform.OS === "web") {
-    // On web, just redirect
-    if (typeof window !== "undefined") {
-      window.location.href = loginUrl;
-    }
-    return null;
-  }
-
-  const supported = await Linking.canOpenURL(loginUrl);
-  if (!supported) {
-    console.warn("[OAuth] Cannot open login URL: URL scheme not supported");
-    // 可考虑抛出错误或返回错误状态，让调用方处理
-    return null;
-  }
-
-  try {
-    await Linking.openURL(loginUrl);
-  } catch (error) {
-    console.error("[OAuth] Failed to open login URL:", error);
-    // 可考虑抛出错误让调用方处理
-  }
-
-  // The OAuth callback will reopen the app via deep link.
-  return null;
-}

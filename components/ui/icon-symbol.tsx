@@ -5,8 +5,7 @@ import { SymbolWeight, SymbolViewProps } from "expo-symbols";
 import { ComponentProps } from "react";
 import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 
-type IconMapping = Record<SymbolViewProps["name"], ComponentProps<typeof MaterialIcons>["name"]>;
-type IconSymbolName = keyof typeof MAPPING;
+type IconMapping = Partial<Record<SymbolViewProps["name"], ComponentProps<typeof MaterialIcons>["name"]>>;
 
 /**
  * Add your SF Symbols to Material Icons mappings here.
@@ -18,7 +17,46 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
-} as IconMapping;
+  "chevron.left": "chevron-left",
+  "chevron.up": "keyboard-arrow-up",
+  "chevron.down": "keyboard-arrow-down",
+  "play.fill": "play-arrow",
+  "gearshape": "settings",
+  "plus": "add",
+  "plus.circle": "add-circle-outline",
+  "plus.circle.fill": "add-circle",
+  "trash": "delete",
+  "pencil": "edit",
+  "stop.fill": "stop",
+  "checkmark": "check",
+  "checkmark.circle.fill": "check-circle",
+  "xmark.circle.fill": "cancel",
+  "xmark": "close",
+  "chart.bar.fill": "bar-chart",
+  "chart.line.uptrend.xyaxis": "trending-up",
+  "arrow.left": "arrow-back",
+  "arrow.up.right": "arrow-outward",
+  "arrow.down.right": "arrow-outward",
+  "arrow.triangle.2.circlepath": "sync",
+  "info.circle": "info",
+  "dumbbell": "fitness-center",
+  "line.3.horizontal": "drag-handle",
+  "slider.horizontal.3": "tune",
+  "clock": "access-time",
+  "clock.fill": "schedule",
+  "timer": "timer",
+  "arrow.counterclockwise": "refresh",
+  "person.fill": "person",
+  "square.and.arrow.up": "upload",
+  "square.and.arrow.down": "download",
+  "gearshape.fill": "settings",
+  "list.bullet": "list",
+  "ellipsis.circle": "more-horiz",
+  "minus": "remove",
+  "calendar": "event",
+} as const satisfies IconMapping;
+
+type IconSymbolName = keyof typeof MAPPING;
 
 /**
  * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
