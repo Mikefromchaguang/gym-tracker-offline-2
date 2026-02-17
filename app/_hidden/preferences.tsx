@@ -51,6 +51,14 @@ export default function PreferencesScreen() {
     }
   };
 
+  const handleShowQuotesChange = async () => {
+    const newValue = !(settings.showQuotes ?? true);
+    await updateSettings({ showQuotes: newValue });
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const handleWeekStartDayChange = async (day: WeekStartDay) => {
     await updateSettings({ weekStartDay: day });
     setShowWeekStartPicker(false);
@@ -212,6 +220,57 @@ export default function PreferencesScreen() {
             >
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
                 {settings.bodyMapGender === 'male' ? 'Female' : 'Male'}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Show Quotes */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: colors.primary + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <IconSymbol size={20} name="quote.bubble" color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Inspirational Quotes</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>
+                {(settings.showQuotes ?? true) ? 'Shown on homepage' : 'Hidden from homepage'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleShowQuotesChange}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: (settings.showQuotes ?? true) ? colors.primary : colors.surface,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: (settings.showQuotes ?? true) ? colors.background : colors.foreground }}>
+                {(settings.showQuotes ?? true) ? 'Hide' : 'Show'}
               </Text>
             </Pressable>
           </View>

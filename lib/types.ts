@@ -178,6 +178,7 @@ export interface AppSettings {
   defaultRestTime: number; // Default rest time in seconds for new exercises
   bodyMapGender: 'male' | 'female'; // Gender for body map visualization
   weekStartDay: WeekStartDay; // Day to start the week (0 = Sunday, 1 = Monday, etc.)
+  showQuotes?: boolean; // Whether to show inspirational quotes on homepage (default: true)
   lastUpdated: number;
   exerciseIdMigrationCompleted?: boolean; // Whether exercise ID migration has been completed
 }

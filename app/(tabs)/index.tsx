@@ -516,7 +516,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Daily Quote */}
-          <DailyQuote />
+          {(settings.showQuotes ?? true) && <DailyQuote />}
 
           {/* Today's Stats */}
           <View className="gap-2">

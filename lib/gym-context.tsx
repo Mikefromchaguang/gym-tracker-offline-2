@@ -137,6 +137,7 @@ const initialState: GymContextState = {
     defaultRestTime: 90, // Default 90 seconds rest time
     bodyMapGender: 'male', // Default to male body map
     weekStartDay: 1, // Default Monday (0 = Sunday, 1 = Monday, etc.)
+    showQuotes: true, // Default to showing quotes
     lastUpdated: Date.now(),
   },
   customExercises: [],
