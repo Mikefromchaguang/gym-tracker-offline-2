@@ -1955,3 +1955,6 @@
 - [x] Condense weekly stats card rows to single line layout
 - [x] Update "Favorite Exercise" label to "Favorite"
 - [ ] Test optimized layout for better vertical space usage
+
+## Recent Changes
+- [x] Rename app to "Swole Revolution"
