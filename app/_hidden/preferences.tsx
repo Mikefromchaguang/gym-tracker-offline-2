@@ -313,7 +313,7 @@ export default function PreferencesScreen() {
               ]}
             >
               <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
-                {settings.showQuotes ? 'Hide' : 'Show'}
+                Change
               </Text>
             </Pressable>
           </View>

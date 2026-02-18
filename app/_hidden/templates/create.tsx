@@ -6,6 +6,7 @@
 import { Text, View, Pressable, Alert, StyleSheet, Modal, TextInput, FlatList, ScrollView, LayoutAnimation, UIManager } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { LinearTransition } from 'react-native-reanimated';
+import Body from 'react-native-body-highlighter';
 
 import { ScreenContainer } from '@/components/screen-container';
 import { Button } from '@/components/ui/button';
@@ -33,6 +34,33 @@ import { ExerciseQuickActionsSheet } from '@/components/exercise-quick-actions-s
 import { ExerciseDetailModal } from '@/components/exercise-detail-modal';
 import { MergeSupersetModal } from '@/components/merge-superset-modal';
 import { groupExercisesForDisplay, moveDisplayItem, mergeExercisesToSuperset, splitSupersetToExercises, isExerciseInSuperset, type ExerciseDisplayItem } from '@/lib/superset';
+
+// Mapping from our muscle groups to body-highlighter muscle names
+const ROUTINE_MUSCLE_MAP: Partial<Record<MuscleGroup, string[]>> = {
+  'chest': ['chest'],
+  'upper-back': ['upper-back'],
+  'lower-back': ['lower-back'],
+  'lats': ['back-deltoids'],
+  // Deltoid split (front/side share the front-shoulder slug; rear uses back-shoulder slug)
+  'deltoids-front': ['deltoids'],
+  'deltoids-side': ['deltoids'],
+  'deltoids-rear': ['back-deltoids'],
+  // Legacy (pre-split) fallback
+  'deltoids': ['deltoids'],
+  'biceps': ['biceps'],
+  'triceps': ['triceps'],
+  'forearms': ['forearm'],
+  'abs': ['abs'],
+  'obliques': ['obliques'],
+  'quadriceps': ['quadriceps'],
+  'hamstring': ['hamstring'],
+  'gluteal': ['gluteal'],
+  'calves': ['calves'],
+  'trapezius': ['trapezius'],
+  'adductors': ['adductors'],
+  'tibialis': ['tibialis-anterior'],
+  'neck': ['neck'],
+};
 
 interface TemplateExerciseWithSets {
   id: string;
@@ -1858,6 +1886,62 @@ export default function TemplateCreateScreen() {
     }, 0);
   }, [exercises, currentBodyweight]);
 
+  const routineSummary = useMemo(() => {
+    const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets?.length ?? 0), 0);
+    const totalReps = exercises.reduce(
+      (sum, ex) => sum + (ex.sets?.reduce((inner, s) => inner + (s.reps ?? 0), 0) ?? 0),
+      0
+    );
+    const totalExercises = exercises.length;
+
+    return {
+      totalExercises,
+      totalSets,
+      totalReps,
+      totalVolumeDisplay: isNaN(totalTemplateVolume)
+        ? 0
+        : Math.round(convertWeight(totalTemplateVolume, settings.weightUnit)),
+      unit: settings.weightUnit,
+    };
+  }, [exercises, totalTemplateVolume, settings.weightUnit]);
+
+  const routineMuscleData = useMemo(() => {
+    const used = new Set<MuscleGroup>();
+
+    for (const ex of exercises) {
+      const name = (ex.name ?? '').trim();
+      if (!name) continue;
+
+      let muscleMeta: ExerciseMetadata | null = null;
+
+      if (ex.primaryMuscle) {
+        muscleMeta = {
+          name,
+          primaryMuscle: ex.primaryMuscle as MuscleGroup,
+          secondaryMuscles: (ex.secondaryMuscles || []) as MuscleGroup[],
+        } as any;
+      } else {
+        const customEx = customExercises.find((ce) => ce.name.toLowerCase() === name.toLowerCase());
+        const isCustom = !getExerciseMuscles(name);
+        muscleMeta = getEffectiveExerciseMuscles(name, predefinedExerciseCustomizations as any, isCustom, customEx) as any;
+      }
+
+      if (!muscleMeta) continue;
+      used.add(muscleMeta.primaryMuscle);
+      for (const m of muscleMeta.secondaryMuscles || []) used.add(m);
+    }
+
+    const bodyData: Array<{ slug: string; intensity: number }> = [];
+    for (const muscle of Object.keys(ROUTINE_MUSCLE_MAP) as MuscleGroup[]) {
+      const bodyMuscles = ROUTINE_MUSCLE_MAP[muscle];
+      if (!bodyMuscles) continue;
+      if (!used.has(muscle)) continue;
+      bodyMuscles.forEach((slug) => bodyData.push({ slug, intensity: 1 }));
+    }
+
+    return bodyData;
+  }, [exercises, customExercises, predefinedExerciseCustomizations]);
+
   // Static header - doesn't include template name input to avoid keyboard issues
   const ListHeaderComponent = useCallback(() => (
     <View className="gap-4 pb-4">
@@ -1865,12 +1949,79 @@ export default function TemplateCreateScreen() {
       <View className="gap-2">
         <View className="flex-row items-center justify-between">
           <View className="flex-1">
-            <Text className="text-2xl font-bold text-foreground">
-              {templateId ? 'Edit Routine' : 'Create Routine'}
-            </Text>
-            <Text className="text-sm text-muted mt-1">
-              Total Volume: {Math.round(convertWeight(totalTemplateVolume, settings.weightUnit))} {settings.weightUnit}
-            </Text>
+            <View
+              style={{
+                backgroundColor: colors.surface,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: colors.border,
+                padding: 12,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                {/* Body map (smaller) */}
+                <View
+                  style={{
+                    backgroundColor: colors.background,
+                    borderRadius: 12,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                    paddingVertical: 10,
+                    paddingHorizontal: 10,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                    <Body
+                      data={routineMuscleData}
+                      colors={['#FF4D4D']}
+                      scale={0.55}
+                      side="front"
+                      gender={(settings.bodyMapGender as any) || 'male'}
+                    />
+                    <Body
+                      data={routineMuscleData}
+                      colors={['#FF4D4D']}
+                      scale={0.55}
+                      side="back"
+                      gender={(settings.bodyMapGender as any) || 'male'}
+                    />
+                  </View>
+                </View>
+
+                {/* Summary stats */}
+                <View style={{ flex: 1, gap: 10 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Volume</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                        {routineSummary.totalVolumeDisplay} {routineSummary.unit}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Exercises</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                        {routineSummary.totalExercises}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Sets</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                        {routineSummary.totalSets}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Reps</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                        {routineSummary.totalReps}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+            </View>
           </View>
           <Pressable
             onPress={() => router.back()}
@@ -1883,7 +2034,7 @@ export default function TemplateCreateScreen() {
 
 
     </View>
-  ), [templateId, exercises.length, colors, router, totalTemplateVolume, settings.weightUnit]);
+  ), [colors, router, routineMuscleData, routineSummary, settings.bodyMapGender]);
 
   const ListFooterComponent = useCallback(() => (
     <View className="gap-4 pt-4 pb-6">
