@@ -16,7 +16,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useGym } from '@/lib/gym-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { usePreventRemove } from '@react-navigation/native';
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Exercise, getExerciseMuscles, getEffectiveExerciseMuscles, WorkoutTemplate, CompletedSet, PREDEFINED_EXERCISES, PREDEFINED_EXERCISES_WITH_MUSCLES, MuscleGroup, ExerciseType, ExerciseMetadata } from '@/lib/types';
 import { generateCustomExerciseId } from '@/lib/exercise-id-migration';
 import { PRIMARY_MUSCLE_GROUPS, getMuscleGroupDisplayName } from '@/lib/muscle-groups';
@@ -28,6 +28,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { convertWeight, formatWeight, formatVolume } from '@/lib/unit-conversion';
 import { calculateExerciseVolume, calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
+import { getExerciseContributions } from '@/lib/muscle-contribution';
 import { CreateExerciseModal } from '@/components/create-exercise-modal';
 import { GroupedExercisePicker } from '@/components/grouped-exercise-picker';
 import { AddSupersetModal, type AddSupersetModalResult } from '@/components/add-superset-modal';
@@ -142,6 +143,18 @@ export default function TemplateCreateScreen() {
   // Header swipe state (Summary <-> Muscles)
   const [headerPageIndex, setHeaderPageIndex] = useState(0);
   const headerPageWidth = Math.max(1, windowWidth - 32); // ScreenContainer has `p-4`
+  const [headerCardHeight, setHeaderCardHeight] = useState<number | null>(null);
+  const headerScrollRef = useRef<ScrollView>(null);
+
+  // Re-measure header height if width changes (e.g., rotation)
+  useEffect(() => {
+    setHeaderCardHeight(null);
+  }, [headerPageWidth]);
+
+  // Prevent occasional snap-back by enforcing the current page offset after re-renders.
+  useEffect(() => {
+    headerScrollRef.current?.scrollTo({ x: headerPageIndex * headerPageWidth, animated: false });
+  }, [headerPageIndex, headerPageWidth]);
 
   const toggleCollapsedDisplayKey = useCallback((key: string) => {
     setCollapsedDisplayKeys((prev) => {
@@ -1976,42 +1989,48 @@ export default function TemplateCreateScreen() {
     };
 
     for (const ex of exercises) {
-      const name = (ex.name ?? '').trim();
-      if (!name) continue;
+      const exName = (ex.name ?? '').trim();
+      if (!exName) continue;
 
       let muscleMeta: ExerciseMetadata | null = null;
       if (ex.primaryMuscle) {
         muscleMeta = {
-          name,
+          name: exName,
           primaryMuscle: ex.primaryMuscle as MuscleGroup,
           secondaryMuscles: (ex.secondaryMuscles || []) as MuscleGroup[],
+          muscleContributions: (predefinedExerciseCustomizations as any)?.[exName]?.muscleContributions,
         } as any;
       } else {
-        const customEx = customExercises.find((ce) => ce.name.toLowerCase() === name.toLowerCase());
-        const isCustom = !getExerciseMuscles(name);
-        muscleMeta = getEffectiveExerciseMuscles(name, predefinedExerciseCustomizations as any, isCustom, customEx) as any;
+        const customEx = customExercises.find((ce) => ce.name.toLowerCase() === exName.toLowerCase());
+        const isCustom = !getExerciseMuscles(exName);
+        muscleMeta = getEffectiveExerciseMuscles(exName, predefinedExerciseCustomizations as any, isCustom, customEx) as any;
       }
 
       if (!muscleMeta) continue;
 
-      const setsCount = ex.sets?.length ?? 0;
       const exerciseType = (ex.type || 'weighted') as ExerciseType;
-      const exerciseVolume = calculateTemplateExerciseVolume(ex.sets || [], exerciseType, currentBodyweight);
+      const contributions = getExerciseContributions(muscleMeta);
+      const primary = muscleMeta.primaryMuscle;
+      const secondaries = (muscleMeta.secondaryMuscles || []).filter(Boolean);
 
-      // Primary gets full volume/sets
-      const primaryStats = ensure(muscleMeta.primaryMuscle);
-      primaryStats.primarySets += setsCount;
-      primaryStats.primaryVolume += exerciseVolume;
+      // For template configs, count all working sets with reps; ignore warmups.
+      const workingSets = (ex.sets || []).filter((s) => s?.setType !== 'warmup' && !!s?.reps);
+      if (workingSets.length === 0) continue;
 
-      // Secondary muscles share volume evenly to avoid over-counting; sets count is full per-secondary.
-      const secondaryMuscles = (muscleMeta.secondaryMuscles || []).filter(Boolean);
-      if (secondaryMuscles.length > 0) {
-        const splitSecondaryVolume = exerciseVolume / secondaryMuscles.length;
-        for (const m of secondaryMuscles) {
-          const secondaryStats = ensure(m);
-          secondaryStats.secondarySets += setsCount;
-          secondaryStats.secondaryVolume += splitSecondaryVolume;
-        }
+      const totalExerciseVolume = calculateTemplateExerciseVolume(workingSets, exerciseType, currentBodyweight);
+      const primaryContrib = contributions[primary] ?? 100;
+
+      // Sets: primary gets full set count; secondary gets fractional sets based on contribution %.
+      const primaryStats = ensure(primary);
+      primaryStats.primarySets += workingSets.length;
+      primaryStats.primaryVolume += totalExerciseVolume * (primaryContrib / 100);
+
+      for (const muscle of secondaries) {
+        const secContrib = contributions[muscle] ?? 0;
+        if (secContrib <= 0) continue;
+        const secStats = ensure(muscle);
+        secStats.secondarySets += workingSets.length * (secContrib / 100);
+        secStats.secondaryVolume += totalExerciseVolume * (secContrib / 100);
       }
     }
 
@@ -2037,9 +2056,85 @@ export default function TemplateCreateScreen() {
           borderWidth: 1,
           borderColor: colors.border,
           overflow: 'hidden',
+          height: headerCardHeight ?? undefined,
         }}
       >
+        {/* Offscreen measure: lets the body map page dictate card height */}
+        <View
+          pointerEvents="none"
+          style={{ position: 'absolute', opacity: 0, left: -10000, top: 0, width: headerPageWidth }}
+          onLayout={(e) => {
+            const measured = e.nativeEvent.layout.height;
+            if (headerCardHeight == null && measured && measured > 0) setHeaderCardHeight(measured);
+          }}
+        >
+          <View style={{ padding: 12, paddingBottom: 26 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  paddingVertical: 6,
+                  paddingHorizontal: 6,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Body
+                    data={routineMuscleData}
+                    colors={['#FF4D4D']}
+                    scale={0.42}
+                    side="front"
+                    gender={(settings.bodyMapGender as any) || 'male'}
+                  />
+                  <Body
+                    data={routineMuscleData}
+                    colors={['#FF4D4D']}
+                    scale={0.42}
+                    side="back"
+                    gender={(settings.bodyMapGender as any) || 'male'}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                    Volume ({routineSummary.unit})
+                  </Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalVolumeDisplay}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalExercises}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalSets}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalReps}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        </View>
+
         <ScrollView
+          ref={headerScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -2051,7 +2146,7 @@ export default function TemplateCreateScreen() {
           }}
         >
           {/* Page 1: Body map + summary */}
-          <View style={{ width: headerPageWidth, padding: 12 }}>
+          <View style={{ width: headerPageWidth, padding: 12, paddingBottom: 26 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {/* Body map */}
               <View
@@ -2118,25 +2213,51 @@ export default function TemplateCreateScreen() {
           </View>
 
           {/* Page 2: Muscle breakdown */}
-          <View style={{ width: headerPageWidth, padding: 12 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>Muscle Groups</Text>
-              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Volume ({settings.weightUnit})</Text>
-            </View>
-
+          <View style={{ width: headerPageWidth, padding: 12, paddingBottom: 26, height: headerCardHeight ?? undefined }}>
             {routineMuscleBreakdown.length === 0 ? (
               <Text style={{ color: colors.muted, fontSize: 12 }}>
                 Add exercises to see muscle breakdown.
               </Text>
             ) : (
-              <View style={{ gap: 10 }}>
+              <ScrollView
+                showsVerticalScrollIndicator={true}
+                style={{ flex: 1 }}
+                contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+              >
                 {routineMuscleBreakdown.map((row) => {
-                  const primaryVol = Math.round(convertWeight(row.primaryVolume, settings.weightUnit));
-                  const secondaryVol = Math.round(convertWeight(row.secondaryVolume, settings.weightUnit));
+                  const totalSets = row.primarySets + row.secondarySets;
+                  const totalVolume = row.primaryVolume + row.secondaryVolume;
+
+                  const totalSetsText = totalSets % 1 === 0 ? `${totalSets}` : totalSets.toFixed(1);
+                  const totalVolDisplay = Math.round(convertWeight(totalVolume, settings.weightUnit));
+
+                  const primaryVolDisplay = Math.max(0, row.primaryVolume);
+                  const secondaryVolDisplay = Math.max(0, row.secondaryVolume);
+                  const splitDenom = primaryVolDisplay + secondaryVolDisplay;
+                  const primaryPct = splitDenom > 0 ? (primaryVolDisplay / splitDenom) * 100 : 0;
+                  const secondaryPct = splitDenom > 0 ? (secondaryVolDisplay / splitDenom) * 100 : 0;
+
+                  // Mirror Analytics bar colors: primary (darker) + secondary (lighter) based on total set count.
+                  let primaryColor: string;
+                  let secondaryColor: string;
+                  if (totalSets < 10) {
+                    primaryColor = '#F59E0B';
+                    secondaryColor = '#FCD34D';
+                  } else if (totalSets <= 20) {
+                    primaryColor = '#22C55E';
+                    secondaryColor = '#86EFAC';
+                  } else {
+                    primaryColor = '#EF4444';
+                    secondaryColor = '#FCA5A5';
+                  }
+
                   return (
                     <View
                       key={row.muscle}
                       style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 10,
                         backgroundColor: colors.background,
                         borderRadius: 12,
                         borderWidth: 1,
@@ -2145,36 +2266,67 @@ export default function TemplateCreateScreen() {
                         paddingHorizontal: 12,
                       }}
                     >
-                      <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
-                        {row.name}
+                      <View style={{ flex: 1, minWidth: 90 }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}
+                        >
+                          {row.name}
+                        </Text>
+                      </View>
+
+                      <View
+                        style={{
+                          width: 110,
+                          height: 8,
+                          borderRadius: 999,
+                          overflow: 'hidden',
+                          backgroundColor: colors.border,
+                          flexDirection: 'row',
+                        }}
+                      >
+                        {splitDenom > 0 ? (
+                          <>
+                            <View style={{ width: `${primaryPct}%`, backgroundColor: primaryColor }} />
+                            <View style={{ width: `${secondaryPct}%`, backgroundColor: secondaryColor }} />
+                          </>
+                        ) : null}
+                      </View>
+
+                      <Text
+                        numberOfLines={1}
+                        style={{ width: 54, textAlign: 'right', color: colors.muted, fontSize: 11, fontWeight: '800' }}
+                      >
+                        {totalSetsText}s
                       </Text>
 
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                        <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
-                          Primary: {row.primarySets} sets
-                        </Text>
-                        <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}>
-                          {primaryVol}
-                        </Text>
-                      </View>
-
-                      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginTop: 2 }}>
-                        <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
-                          Secondary: {row.secondarySets} sets
-                        </Text>
-                        <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}>
-                          {secondaryVol}
-                        </Text>
-                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={{ width: 64, textAlign: 'right', color: colors.foreground, fontSize: 11, fontWeight: '900' }}
+                      >
+                        {totalVolDisplay}
+                      </Text>
                     </View>
                   );
                 })}
-              </View>
+              </ScrollView>
             )}
           </View>
         </ScrollView>
 
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 10 }}>
+        {/* Page indicator (kept within body-map-defined height) */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 10,
+            flexDirection: 'row',
+            justifyContent: 'center',
+            gap: 6,
+          }}
+        >
           {[0, 1].map((i) => (
             <View
               key={i}
@@ -2191,7 +2343,7 @@ export default function TemplateCreateScreen() {
 
 
     </View>
-  ), [colors, headerPageIndex, headerPageWidth, routineMuscleBreakdown, routineMuscleData, routineSummary, settings.bodyMapGender, settings.weightUnit]);
+  ), [colors, headerCardHeight, headerPageIndex, headerPageWidth, routineMuscleBreakdown, routineMuscleData, routineSummary, settings.bodyMapGender, settings.weightUnit]);
 
   const ListFooterComponent = useCallback(() => (
     <View className="gap-4 pt-4 pb-6">
