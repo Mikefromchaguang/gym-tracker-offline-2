@@ -2138,6 +2138,7 @@ export default function TemplateCreateScreen() {
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          directionalLockEnabled
           scrollEventThrottle={16}
           onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
             const x = e.nativeEvent.contentOffset.x;
@@ -2220,9 +2221,10 @@ export default function TemplateCreateScreen() {
               </Text>
             ) : (
               <ScrollView
+                nestedScrollEnabled
                 showsVerticalScrollIndicator={true}
                 style={{ flex: 1 }}
-                contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+                contentContainerStyle={{ paddingBottom: 8 }}
               >
                 {routineMuscleBreakdown.map((row) => {
                   const totalSets = row.primarySets + row.secondarySets;
@@ -2236,6 +2238,10 @@ export default function TemplateCreateScreen() {
                   const splitDenom = primaryVolDisplay + secondaryVolDisplay;
                   const primaryPct = splitDenom > 0 ? (primaryVolDisplay / splitDenom) * 100 : 0;
                   const secondaryPct = splitDenom > 0 ? (secondaryVolDisplay / splitDenom) * 100 : 0;
+
+                  // Fixed bar width (similar to Analytics, but consistent across rows)
+                  const barWidth = Math.max(140, Math.min(240, headerPageWidth - 210));
+                  const barHeight = 22;
 
                   // Mirror Analytics bar colors: primary (darker) + secondary (lighter) based on total set count.
                   let primaryColor: string;
@@ -2252,60 +2258,58 @@ export default function TemplateCreateScreen() {
                   }
 
                   return (
-                    <View
-                      key={row.muscle}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 10,
-                        backgroundColor: colors.background,
-                        borderRadius: 12,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                        paddingVertical: 10,
-                        paddingHorizontal: 12,
-                      }}
-                    >
-                      <View style={{ flex: 1, minWidth: 90 }}>
+                    <View key={row.muscle}>
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: 10,
+                          paddingVertical: 10,
+                        }}
+                      >
                         <Text
                           numberOfLines={1}
-                          style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}
+                          style={{ flex: 1, color: colors.foreground, fontSize: 13, fontWeight: '800' }}
                         >
                           {row.name}
                         </Text>
+
+                        <View
+                          style={{
+                            width: barWidth,
+                            height: barHeight,
+                            borderRadius: 10,
+                            overflow: 'hidden',
+                            flexDirection: 'row',
+                            backgroundColor: colors.border,
+                          }}
+                        >
+                          {splitDenom > 0 ? (
+                            <>
+                              <View style={{ width: `${primaryPct}%`, backgroundColor: primaryColor }} />
+                              <View style={{ width: `${secondaryPct}%`, backgroundColor: secondaryColor }} />
+                            </>
+                          ) : null}
+                        </View>
+
+                        <View style={{ width: 86, alignItems: 'flex-end' }}>
+                          <Text
+                            numberOfLines={1}
+                            style={{ color: colors.foreground, fontSize: 12, fontWeight: '900' }}
+                          >
+                            {totalVolDisplay}
+                          </Text>
+                          <Text
+                            numberOfLines={1}
+                            style={{ color: colors.muted, fontSize: 11, fontWeight: '800', marginTop: 2 }}
+                          >
+                            {totalSetsText} sets
+                          </Text>
+                        </View>
                       </View>
 
-                      <View
-                        style={{
-                          width: 110,
-                          height: 8,
-                          borderRadius: 999,
-                          overflow: 'hidden',
-                          backgroundColor: colors.border,
-                          flexDirection: 'row',
-                        }}
-                      >
-                        {splitDenom > 0 ? (
-                          <>
-                            <View style={{ width: `${primaryPct}%`, backgroundColor: primaryColor }} />
-                            <View style={{ width: `${secondaryPct}%`, backgroundColor: secondaryColor }} />
-                          </>
-                        ) : null}
-                      </View>
-
-                      <Text
-                        numberOfLines={1}
-                        style={{ width: 54, textAlign: 'right', color: colors.muted, fontSize: 11, fontWeight: '800' }}
-                      >
-                        {totalSetsText}s
-                      </Text>
-
-                      <Text
-                        numberOfLines={1}
-                        style={{ width: 64, textAlign: 'right', color: colors.foreground, fontSize: 11, fontWeight: '900' }}
-                      >
-                        {totalVolDisplay}
-                      </Text>
+                      <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.6 }} />
                     </View>
                   );
                 })}
