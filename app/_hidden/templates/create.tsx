@@ -3,7 +3,8 @@
  * Includes drag-and-drop reordering and simple exercise picker modal
  */
 
-import { Text, View, Pressable, Alert, StyleSheet, Modal, TextInput, FlatList, ScrollView, LayoutAnimation, UIManager } from 'react-native';
+import { Text, View, Pressable, Alert, StyleSheet, Modal, TextInput, FlatList, ScrollView, LayoutAnimation, UIManager, useWindowDimensions } from 'react-native';
+import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import Body from 'react-native-body-highlighter';
@@ -88,6 +89,7 @@ export default function TemplateCreateScreen() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { addTemplate, updateTemplate, templates, workouts, settings, customExercises, addCustomExercise, getMostRecentExerciseData, getExercisePRData, predefinedExerciseCustomizations } = useGym();
   const { templateId, newExerciseName } = useLocalSearchParams();
 
@@ -136,6 +138,10 @@ export default function TemplateCreateScreen() {
 
   // Collapsed state for exercise/superset cards (keyed by ExerciseDisplayItem.key)
   const [collapsedDisplayKeys, setCollapsedDisplayKeys] = useState<Set<string>>(new Set());
+
+  // Header swipe state (Summary <-> Muscles)
+  const [headerPageIndex, setHeaderPageIndex] = useState(0);
+  const headerPageWidth = Math.max(1, windowWidth - 32); // ScreenContainer has `p-4`
 
   const toggleCollapsedDisplayKey = useCallback((key: string) => {
     setCollapsedDisplayKeys((prev) => {
@@ -353,12 +359,15 @@ export default function TemplateCreateScreen() {
           };
         });
         
-        setExercises(exercisesWithSets);
+                setExercises(exercisesWithSets);
+                // Match active workout behavior: start with all cards collapsed when opening an existing routine
+                setCollapsedDisplayKeys(new Set(groupExercisesForDisplay(exercisesWithSets).map((item) => item.key)));
       }
     } else {
       // Reset state when creating new template
       setTemplateName('');
       setExercises([]);
+              setCollapsedDisplayKeys(new Set());
     }
   }, [templateId, templates]);
 
@@ -1942,101 +1951,247 @@ export default function TemplateCreateScreen() {
     return bodyData;
   }, [exercises, customExercises, predefinedExerciseCustomizations]);
 
+  const routineMuscleBreakdown = useMemo(() => {
+    type BreakdownRow = {
+      muscle: MuscleGroup;
+      name: string;
+      primarySets: number;
+      secondarySets: number;
+      primaryVolume: number;
+      secondaryVolume: number;
+    };
+
+    const byMuscle = new Map<MuscleGroup, Omit<BreakdownRow, 'muscle' | 'name'>>();
+
+    const ensure = (muscle: MuscleGroup) => {
+      if (!byMuscle.has(muscle)) {
+        byMuscle.set(muscle, {
+          primarySets: 0,
+          secondarySets: 0,
+          primaryVolume: 0,
+          secondaryVolume: 0,
+        });
+      }
+      return byMuscle.get(muscle)!;
+    };
+
+    for (const ex of exercises) {
+      const name = (ex.name ?? '').trim();
+      if (!name) continue;
+
+      let muscleMeta: ExerciseMetadata | null = null;
+      if (ex.primaryMuscle) {
+        muscleMeta = {
+          name,
+          primaryMuscle: ex.primaryMuscle as MuscleGroup,
+          secondaryMuscles: (ex.secondaryMuscles || []) as MuscleGroup[],
+        } as any;
+      } else {
+        const customEx = customExercises.find((ce) => ce.name.toLowerCase() === name.toLowerCase());
+        const isCustom = !getExerciseMuscles(name);
+        muscleMeta = getEffectiveExerciseMuscles(name, predefinedExerciseCustomizations as any, isCustom, customEx) as any;
+      }
+
+      if (!muscleMeta) continue;
+
+      const setsCount = ex.sets?.length ?? 0;
+      const exerciseType = (ex.type || 'weighted') as ExerciseType;
+      const exerciseVolume = calculateTemplateExerciseVolume(ex.sets || [], exerciseType, currentBodyweight);
+
+      // Primary gets full volume/sets
+      const primaryStats = ensure(muscleMeta.primaryMuscle);
+      primaryStats.primarySets += setsCount;
+      primaryStats.primaryVolume += exerciseVolume;
+
+      // Secondary muscles share volume evenly to avoid over-counting; sets count is full per-secondary.
+      const secondaryMuscles = (muscleMeta.secondaryMuscles || []).filter(Boolean);
+      if (secondaryMuscles.length > 0) {
+        const splitSecondaryVolume = exerciseVolume / secondaryMuscles.length;
+        for (const m of secondaryMuscles) {
+          const secondaryStats = ensure(m);
+          secondaryStats.secondarySets += setsCount;
+          secondaryStats.secondaryVolume += splitSecondaryVolume;
+        }
+      }
+    }
+
+    const rows: BreakdownRow[] = Array.from(byMuscle.entries())
+      .map(([muscle, stats]) => ({
+        muscle,
+        name: getMuscleGroupDisplayName(muscle),
+        ...stats,
+      }))
+      .filter((r) => (r.primarySets + r.secondarySets) > 0 || (r.primaryVolume + r.secondaryVolume) > 0)
+      .sort((a, b) => (b.primaryVolume + b.secondaryVolume) - (a.primaryVolume + a.secondaryVolume));
+
+    return rows;
+  }, [currentBodyweight, customExercises, exercises, predefinedExerciseCustomizations]);
+
   // Static header - doesn't include template name input to avoid keyboard issues
   const ListHeaderComponent = useCallback(() => (
     <View className="gap-4 pb-4">
-      {/* Header */}
-      <View className="gap-2">
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1">
-            <View
-              style={{
-                backgroundColor: colors.surface,
-                borderRadius: 14,
-                borderWidth: 1,
-                borderColor: colors.border,
-                padding: 12,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                {/* Body map (smaller) */}
-                <View
-                  style={{
-                    backgroundColor: colors.background,
-                    borderRadius: 12,
-                    borderWidth: 1,
-                    borderColor: colors.border,
-                    paddingVertical: 6,
-                    paddingHorizontal: 6,
-                  }}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                    <Body
-                      data={routineMuscleData}
-                      colors={['#FF4D4D']}
-                      scale={0.42}
-                      side="front"
-                      gender={(settings.bodyMapGender as any) || 'male'}
-                    />
-                    <Body
-                      data={routineMuscleData}
-                      colors={['#FF4D4D']}
-                      scale={0.42}
-                      side="back"
-                      gender={(settings.bodyMapGender as any) || 'male'}
-                    />
-                  </View>
+      <View
+        style={{
+          backgroundColor: colors.surface,
+          borderRadius: 14,
+          borderWidth: 1,
+          borderColor: colors.border,
+          overflow: 'hidden',
+        }}
+      >
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          scrollEventThrottle={16}
+          onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const x = e.nativeEvent.contentOffset.x;
+            const idx = headerPageWidth > 0 ? Math.round(x / headerPageWidth) : 0;
+            setHeaderPageIndex(Math.max(0, Math.min(1, idx)));
+          }}
+        >
+          {/* Page 1: Body map + summary */}
+          <View style={{ width: headerPageWidth, padding: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {/* Body map */}
+              <View
+                style={{
+                  backgroundColor: colors.background,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  paddingVertical: 6,
+                  paddingHorizontal: 6,
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+                  <Body
+                    data={routineMuscleData}
+                    colors={['#FF4D4D']}
+                    scale={0.42}
+                    side="front"
+                    gender={(settings.bodyMapGender as any) || 'male'}
+                  />
+                  <Body
+                    data={routineMuscleData}
+                    colors={['#FF4D4D']}
+                    scale={0.42}
+                    side="back"
+                    gender={(settings.bodyMapGender as any) || 'male'}
+                  />
+                </View>
+              </View>
+
+              {/* Summary stats (vertical list) */}
+              <View style={{ flex: 1, gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                    Volume ({routineSummary.unit})
+                  </Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalVolumeDisplay}
+                  </Text>
                 </View>
 
-                {/* Summary stats */}
-                <View style={{ flex: 1, gap: 10 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
-                        Volume ({routineSummary.unit})
-                      </Text>
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                        {routineSummary.totalVolumeDisplay}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                        {routineSummary.totalExercises}
-                      </Text>
-                    </View>
-                  </View>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalExercises}
+                  </Text>
+                </View>
 
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                        {routineSummary.totalSets}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                        {routineSummary.totalReps}
-                      </Text>
-                    </View>
-                  </View>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalSets}
+                  </Text>
+                </View>
+
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
+                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                    {routineSummary.totalReps}
+                  </Text>
                 </View>
               </View>
             </View>
           </View>
-          <Pressable
-            onPress={() => router.back()}
-            style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
-          >
-            <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
-          </Pressable>
+
+          {/* Page 2: Muscle breakdown */}
+          <View style={{ width: headerPageWidth, padding: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>Muscle Groups</Text>
+              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Volume ({settings.weightUnit})</Text>
+            </View>
+
+            {routineMuscleBreakdown.length === 0 ? (
+              <Text style={{ color: colors.muted, fontSize: 12 }}>
+                Add exercises to see muscle breakdown.
+              </Text>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {routineMuscleBreakdown.map((row) => {
+                  const primaryVol = Math.round(convertWeight(row.primaryVolume, settings.weightUnit));
+                  const secondaryVol = Math.round(convertWeight(row.secondaryVolume, settings.weightUnit));
+                  return (
+                    <View
+                      key={row.muscle}
+                      style={{
+                        backgroundColor: colors.background,
+                        borderRadius: 12,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                        paddingVertical: 10,
+                        paddingHorizontal: 12,
+                      }}
+                    >
+                      <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800', marginBottom: 6 }}>
+                        {row.name}
+                      </Text>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+                        <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                          Primary: {row.primarySets} sets
+                        </Text>
+                        <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}>
+                          {primaryVol}
+                        </Text>
+                      </View>
+
+                      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginTop: 2 }}>
+                        <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                          Secondary: {row.secondarySets} sets
+                        </Text>
+                        <Text style={{ color: colors.foreground, fontSize: 12, fontWeight: '800' }}>
+                          {secondaryVol}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        </ScrollView>
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, paddingBottom: 10 }}>
+          {[0, 1].map((i) => (
+            <View
+              key={i}
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 3,
+                backgroundColor: headerPageIndex === i ? colors.foreground : colors.border,
+              }}
+            />
+          ))}
         </View>
       </View>
 
 
     </View>
-  ), [colors, router, routineMuscleData, routineSummary, settings.bodyMapGender]);
+  ), [colors, headerPageIndex, headerPageWidth, routineMuscleBreakdown, routineMuscleData, routineSummary, settings.bodyMapGender, settings.weightUnit]);
 
   const ListFooterComponent = useCallback(() => (
     <View className="gap-4 pt-4 pb-6">
@@ -2126,6 +2281,20 @@ export default function TemplateCreateScreen() {
 
   return (
     <ScreenContainer className="p-4">
+      {/* Page Header */}
+      <View className="flex-row items-center justify-between mb-4">
+        <Text className="text-2xl font-bold text-foreground">
+          {templateId ? 'Edit Routine' : 'Create Routine'}
+        </Text>
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={8}
+          style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+        >
+          <IconSymbol size={26} name="xmark.circle.fill" color={colors.muted} />
+        </Pressable>
+      </View>
+
       {/* Routine Name Input - outside list to prevent keyboard closing */}
       <View className="gap-2 mb-4">
         <Text className="text-sm font-semibold text-foreground">Routine Name</Text>
