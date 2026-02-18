@@ -2231,90 +2231,67 @@ export default function TemplateCreateScreen() {
                   const totalVolume = row.primaryVolume + row.secondaryVolume;
 
                   const totalSetsText = totalSets % 1 === 0 ? `${totalSets}` : totalSets.toFixed(1);
-                  const totalVolDisplay = Math.round(convertWeight(totalVolume, settings.weightUnit));
-
                   const primaryVolDisplay = Math.max(0, row.primaryVolume);
                   const secondaryVolDisplay = Math.max(0, row.secondaryVolume);
                   const splitDenom = primaryVolDisplay + secondaryVolDisplay;
                   const primaryPct = splitDenom > 0 ? (primaryVolDisplay / splitDenom) * 100 : 0;
                   const secondaryPct = splitDenom > 0 ? (secondaryVolDisplay / splitDenom) * 100 : 0;
 
-                  // Fixed bar width (similar to Analytics, but consistent across rows)
-                  const barWidth = Math.max(140, Math.min(240, headerPageWidth - 210));
-                  const barHeight = 22;
+                  // One-line row layout (modeled after Analytics Current Week Sets)
+                  const rowGap = 8;
+                  const labelWidth = 80;
+                  // Wider than Analytics because we show both volume + sets
+                  const statsWidth = 138;
+                  const innerContentWidth = Math.max(1, headerPageWidth - 24); // Page has padding: 12 left + 12 right
+                  const barSlotWidth = Math.max(40, innerContentWidth - labelWidth - statsWidth - rowGap * 2);
+                  const barHeight = 16;
 
-                  // Mirror Analytics bar colors: primary (darker) + secondary (lighter) based on total set count.
-                  let primaryColor: string;
-                  let secondaryColor: string;
-                  if (totalSets < 10) {
-                    primaryColor = '#F59E0B';
-                    secondaryColor = '#FCD34D';
-                  } else if (totalSets <= 20) {
-                    primaryColor = '#22C55E';
-                    secondaryColor = '#86EFAC';
-                  } else {
-                    primaryColor = '#EF4444';
-                    secondaryColor = '#FCA5A5';
-                  }
+                  // Neutral greys in the routine editor (no heatmap coloring needed here)
+                  const primaryColor = '#6B7280'; // Gray-500
+                  const secondaryColor = '#9CA3AF'; // Gray-400
 
                   return (
-                    <View key={row.muscle}>
-                      <View
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: 10,
-                          paddingVertical: 10,
-                        }}
+                    <View
+                      key={row.muscle}
+                      style={{ flexDirection: 'row', alignItems: 'center', gap: rowGap, paddingVertical: 8 }}
+                    >
+                      <Text
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                        style={{ color: colors.foreground, fontSize: 12, fontWeight: '500', width: labelWidth }}
                       >
-                        <Text
-                          numberOfLines={1}
-                          style={{ flex: 1, color: colors.foreground, fontSize: 13, fontWeight: '800' }}
-                        >
-                          {row.name}
-                        </Text>
+                        {row.name}
+                      </Text>
 
+                      <View style={{ width: barSlotWidth, height: barHeight, justifyContent: 'center' }}>
                         <View
                           style={{
-                            width: barWidth,
                             height: barHeight,
-                            borderRadius: 10,
+                            borderRadius: 4,
                             overflow: 'hidden',
                             flexDirection: 'row',
                             backgroundColor: colors.border,
+                            opacity: splitDenom > 0 ? 1 : 0.5,
                           }}
                         >
                           {splitDenom > 0 ? (
                             <>
-                              <View style={{ width: `${primaryPct}%`, backgroundColor: primaryColor }} />
-                              <View style={{ width: `${secondaryPct}%`, backgroundColor: secondaryColor }} />
+                              <View style={{ width: `${primaryPct}%`, backgroundColor: primaryColor, opacity: 1 }} />
+                              <View style={{ width: `${secondaryPct}%`, backgroundColor: secondaryColor, opacity: 1 }} />
                             </>
                           ) : null}
                         </View>
-
-                        <View style={{ width: 86, alignItems: 'flex-end' }}>
-                          <Text
-                            numberOfLines={1}
-                            style={{ color: colors.foreground, fontSize: 12, fontWeight: '900' }}
-                          >
-                            {totalVolDisplay}
-                          </Text>
-                          <Text
-                            numberOfLines={1}
-                            style={{ color: colors.muted, fontSize: 11, fontWeight: '800', marginTop: 2 }}
-                          >
-                            {totalSetsText} sets
-                          </Text>
-                        </View>
                       </View>
 
-                      <View style={{ height: 1, backgroundColor: colors.border, opacity: 0.6 }} />
+                      <View style={{ width: statsWidth, alignItems: 'flex-end' }}>
+                        <Text
+                          numberOfLines={1}
+                          style={{ color: colors.foreground, fontSize: 11, fontWeight: '600' }}
+                        >
+                          {formatVolume(totalVolume, settings.weightUnit)}, {totalSetsText} sets
+                        </Text>
+                      </View>
                     </View>
-                  );
-                })}
-              </ScrollView>
-            )}
           </View>
         </ScrollView>
 
