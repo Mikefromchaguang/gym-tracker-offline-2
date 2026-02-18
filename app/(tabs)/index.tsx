@@ -2,7 +2,20 @@
  * Home Screen - Start workouts and manage routines
  */
 
-import { ScrollView, Text, View, Pressable, Alert, RefreshControl, Modal } from 'react-native';
+import {
+  ScrollView,
+  Text,
+  View,
+  Pressable,
+  Alert,
+  RefreshControl,
+  Modal,
+  TextInput,
+  Platform,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ScreenContainer } from '@/components/screen-container';
@@ -17,9 +30,7 @@ import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useBodyweight } from '@/hooks/use-bodyweight';
 import { BodyWeightStorage } from '@/lib/storage';
-import { TextInput } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { Platform } from 'react-native';
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { convertWeight, formatWeight, formatVolume, convertWeightBetweenUnits, KG_TO_LBS, LBS_TO_KG } from '@/lib/unit-conversion';
 import { calculateSetVolume } from '@/lib/volume-calculation';
@@ -33,6 +44,7 @@ export default function HomeScreen() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { templates, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
   const { bodyWeightKg } = useBodyweight(); // For volume calculations (always in kg)
   const [refreshing, setRefreshing] = useState(false);
@@ -46,11 +58,42 @@ export default function HomeScreen() {
   const [manualDate, setManualDate] = useState<string>('');
   const [weightHistory, setWeightHistory] = useState<Array<{ date: string; weight: number; timestamp: number }>>([]);
   const [localTemplates, setLocalTemplates] = useState<WorkoutTemplate[]>([]);
+  const [currentRoutineIndex, setCurrentRoutineIndex] = useState(0);
+
+  const routineCardSpacing = 12;
+  const routineCardWidth = useMemo(() => {
+    // ScreenContainer uses p-4 (16px each side) so content width is windowWidth - 32.
+    const containerWidth = Math.max(0, windowWidth - 32);
+    const computed = Math.round(containerWidth * 0.86); // show a small peek of the next card
+    return Math.max(260, Math.min(420, computed));
+  }, [windowWidth]);
+
+  const routineSnapInterval = useMemo(
+    () => routineCardWidth + routineCardSpacing,
+    [routineCardWidth]
+  );
 
   // Sync templates from context to local state
   useEffect(() => {
     setLocalTemplates(templates);
   }, [templates]);
+
+  useEffect(() => {
+    setCurrentRoutineIndex((idx) => {
+      const maxIndex = Math.max(0, localTemplates.length - 1);
+      return Math.min(idx, maxIndex);
+    });
+  }, [localTemplates.length]);
+
+  const handleRoutineScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const rawIndex = routineSnapInterval > 0 ? Math.round(x / routineSnapInterval) : 0;
+      const maxIndex = Math.max(0, localTemplates.length - 1);
+      setCurrentRoutineIndex(Math.max(0, Math.min(rawIndex, maxIndex)));
+    },
+    [routineSnapInterval, localTemplates.length]
+  );
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -613,7 +656,14 @@ export default function HomeScreen() {
           {/* Routines Section */}
           <View className="gap-3">
             <View className="flex-row items-center justify-between">
-              <Text className="text-lg font-semibold text-foreground">Workout Routines</Text>
+              <View className="flex-row items-end gap-2">
+                <Text className="text-lg font-semibold text-foreground">Workout Routines</Text>
+                {localTemplates.length > 1 ? (
+                  <Text className="text-sm text-muted">
+                    {currentRoutineIndex + 1} / {localTemplates.length}
+                  </Text>
+                ) : null}
+              </View>
               <View className="flex-row items-center gap-3">
                 <Pressable
                   onPress={handleImportTemplate}
@@ -637,27 +687,41 @@ export default function HomeScreen() {
             </View>
 
             {localTemplates.length > 0 ? (
-              <View className="gap-2">
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                snapToInterval={routineSnapInterval}
+                snapToAlignment="start"
+                disableIntervalMomentum
+                nestedScrollEnabled
+                onMomentumScrollEnd={handleRoutineScrollEnd}
+                contentContainerStyle={{ paddingRight: 4 }}
+              >
                 {localTemplates.map((template, index) => (
-                  <Animated.View
+                  <View
                     key={template.id}
-                    layout={Platform.OS === 'web' ? undefined : LinearTransition.duration(120)}
+                    style={{ width: routineCardWidth, marginRight: index === localTemplates.length - 1 ? 0 : routineCardSpacing }}
                   >
-                    <TemplateCard
-                      template={template}
-                      index={index}
-                      totalCount={localTemplates.length}
-                      onMoveUp={handleMoveUp}
-                      onMoveDown={handleMoveDown}
-                      onEdit={handleEditTemplate}
-                      onDelete={handleDeleteTemplate}
-                      onStartWorkout={handleSelectTemplate}
-                      onExport={handleExportTemplate}
-                      onDuplicate={handleDuplicateTemplate}
-                    />
-                  </Animated.View>
+                    <Animated.View
+                      layout={Platform.OS === 'web' ? undefined : LinearTransition.duration(120)}
+                    >
+                      <TemplateCard
+                        template={template}
+                        index={index}
+                        totalCount={localTemplates.length}
+                        onMoveUp={handleMoveUp}
+                        onMoveDown={handleMoveDown}
+                        onEdit={handleEditTemplate}
+                        onDelete={handleDeleteTemplate}
+                        onStartWorkout={handleSelectTemplate}
+                        onExport={handleExportTemplate}
+                        onDuplicate={handleDuplicateTemplate}
+                      />
+                    </Animated.View>
+                  </View>
                 ))}
-              </View>
+              </ScrollView>
             ) : (
               <Card>
                 <CardContent className="items-center gap-2 py-8">
