@@ -1947,7 +1947,7 @@ export default function TemplateCreateScreen() {
     <View className="gap-4 pb-4">
       {/* Header */}
       <View className="gap-2">
-        <View className="flex-row items-center justify-between">
+        <View className="flex-row items-start justify-between">
           <View className="flex-1">
             <View
               style={{
@@ -1966,22 +1966,22 @@ export default function TemplateCreateScreen() {
                     borderRadius: 12,
                     borderWidth: 1,
                     borderColor: colors.border,
-                    paddingVertical: 10,
-                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    paddingHorizontal: 6,
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
                     <Body
                       data={routineMuscleData}
                       colors={['#FF4D4D']}
-                      scale={0.55}
+                      scale={0.42}
                       side="front"
                       gender={(settings.bodyMapGender as any) || 'male'}
                     />
                     <Body
                       data={routineMuscleData}
                       colors={['#FF4D4D']}
-                      scale={0.55}
+                      scale={0.42}
                       side="back"
                       gender={(settings.bodyMapGender as any) || 'male'}
                     />
@@ -1992,14 +1992,16 @@ export default function TemplateCreateScreen() {
                 <View style={{ flex: 1, gap: 10 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Volume</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
-                        {routineSummary.totalVolumeDisplay} {routineSummary.unit}
+                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                        Volume ({routineSummary.unit})
+                      </Text>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
+                        {routineSummary.totalVolumeDisplay}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Exercises</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
                         {routineSummary.totalExercises}
                       </Text>
                     </View>
@@ -2007,14 +2009,14 @@ export default function TemplateCreateScreen() {
 
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 10 }}>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Sets</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
                         {routineSummary.totalSets}
                       </Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Reps</Text>
-                      <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '800' }}>
+                      <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
+                      <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
                         {routineSummary.totalReps}
                       </Text>
                     </View>
