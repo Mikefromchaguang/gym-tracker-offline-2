@@ -106,6 +106,18 @@ export default function TemplateCreateScreen() {
   const [showMergeSupersetModal, setShowMergeSupersetModal] = useState(false);
   const [mergeSupersetSourceId, setMergeSupersetSourceId] = useState<string | null>(null);
 
+  // Collapsed state for exercise/superset cards (keyed by ExerciseDisplayItem.key)
+  const [collapsedDisplayKeys, setCollapsedDisplayKeys] = useState<Set<string>>(new Set());
+
+  const toggleCollapsedDisplayKey = useCallback((key: string) => {
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   const displayItems = useMemo(() => groupExercisesForDisplay(exercises), [exercises]);
 
   const syncTemplateExerciseToLastSession = useCallback(
@@ -627,6 +639,16 @@ export default function TemplateCreateScreen() {
         text: 'Remove',
         style: 'destructive',
         onPress: () => {
+          const base = exercises.find((ex) => ex.id === exerciseId);
+          setCollapsedDisplayKeys((prev) => {
+            const next = new Set(prev);
+            if (base?.groupType === 'superset' && typeof base.groupId === 'string') {
+              next.delete(base.groupId);
+            } else if (base?.id) {
+              next.delete(base.id);
+            }
+            return next;
+          });
           setExercises((prev) => {
             const base = prev.find((ex) => ex.id === exerciseId);
             if (base?.groupType === 'superset' && typeof base.groupId === 'string') {
@@ -637,7 +659,7 @@ export default function TemplateCreateScreen() {
         },
       },
     ]);
-  }, []);
+  }, [exercises]);
 
   const handleReplaceExercise = useCallback((exerciseId: string, newExerciseName: string) => {
     setExercises((prev) =>
@@ -807,6 +829,18 @@ export default function TemplateCreateScreen() {
 
     const groupId = generateId();
 
+    // Preserve collapse state: if BOTH source and target were collapsed, keep the resulting superset collapsed.
+    const sourceId = exercises[sourceIndex]?.id;
+    const targetId = exercises[targetIndex]?.id;
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      const shouldCollapse = !!sourceId && !!targetId && next.has(sourceId) && next.has(targetId);
+      if (sourceId) next.delete(sourceId);
+      if (targetId) next.delete(targetId);
+      if (shouldCollapse) next.add(groupId);
+      return next;
+    });
+
     setExercises((prev) => {
       // Apply rest timer to both exercises before merging
       const updated = prev.map((ex, i) => {
@@ -839,6 +873,15 @@ export default function TemplateCreateScreen() {
     if (sourceIndex === -1) return;
 
     const groupId = generateId();
+
+    // New exercise should be expanded by default; ensure the new superset isn't auto-collapsed.
+    const sourceId = exercises[sourceIndex]?.id;
+    setCollapsedDisplayKeys((prev) => {
+      const next = new Set(prev);
+      if (sourceId) next.delete(sourceId);
+      next.delete(groupId);
+      return next;
+    });
 
     // Build the new exercise
     const customEx = customExercises.find(e => e.name.toLowerCase() === exerciseName.toLowerCase());
@@ -905,6 +948,11 @@ export default function TemplateCreateScreen() {
     const ex = exercises.find((e) => e.id === exerciseId);
     if (!ex || !ex.groupId) return;
 
+    const groupId = ex.groupId;
+    const memberIds = exercises
+      .filter((e) => e.groupType === 'superset' && e.groupId === groupId)
+      .map((e) => e.id);
+
     Alert.alert(
       'Split Superset?',
       'This will separate the exercises into individual cards, preserving all set data.',
@@ -913,6 +961,15 @@ export default function TemplateCreateScreen() {
         {
           text: 'Split',
           onPress: () => {
+            setCollapsedDisplayKeys((prev) => {
+              const next = new Set(prev);
+              const wasCollapsed = next.has(groupId);
+              next.delete(groupId);
+              if (wasCollapsed) {
+                memberIds.forEach((id) => next.add(id));
+              }
+              return next;
+            });
             setExercises((prev) => splitSupersetToExercises(prev, ex.groupId!));
             if (Platform.OS !== 'web') {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1422,6 +1479,7 @@ export default function TemplateCreateScreen() {
     ({ item, index }: { item: ExerciseDisplayItem; index: number }) => {
       const displayIndex = index;
       const reorderLayout = Platform.OS === 'web' ? undefined : LinearTransition.duration(120);
+      const isCollapsed = collapsedDisplayKeys.has(item.key);
 
       if (item.kind === 'single') {
         const exerciseIndex = item.indices[0];
@@ -1432,7 +1490,147 @@ export default function TemplateCreateScreen() {
           <Animated.View style={styles.exerciseContainer} layout={reorderLayout}>
             <Card>
               <CardHeader>
-                <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center gap-2 flex-1">
+                    <View style={{ flexDirection: 'column', marginRight: 4, marginLeft: -4 }}>
+                      <Pressable
+                        onPress={() => handleMoveDisplayItemUp(displayIndex)}
+                        disabled={displayIndex === 0}
+                        style={({ pressed }) => ({
+                          padding: 4,
+                          opacity: displayIndex === 0 ? 0.3 : pressed ? 0.6 : 1,
+                        })}
+                      >
+                        <IconSymbol size={16} name="chevron.up" color={displayIndex === 0 ? colors.muted : colors.foreground} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleMoveDisplayItemDown(displayIndex)}
+                        disabled={displayIndex === displayItems.length - 1}
+                        style={({ pressed }) => ({
+                          padding: 4,
+                          opacity: displayIndex === displayItems.length - 1 ? 0.3 : pressed ? 0.6 : 1,
+                        })}
+                      >
+                        <IconSymbol size={16} name="chevron.down" color={displayIndex === displayItems.length - 1 ? colors.muted : colors.foreground} />
+                      </Pressable>
+                    </View>
+
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <Pressable
+                          onPress={() => openExerciseQuickActions(ex.id)}
+                          hitSlop={8}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                        >
+                          <CardTitle>{ex.name}</CardTitle>
+                        </Pressable>
+                        <Text className="text-sm text-muted">
+                          {(() => {
+                            const totalVolume = calculateTemplateExerciseVolume(
+                              ex.sets,
+                              ex.type || 'weighted',
+                              currentBodyweight
+                            );
+                            return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
+                          })()}
+                        </Text>
+                      </View>
+                      <View className="flex-row items-center gap-2 flex-wrap">
+                        {(() => {
+                          const prData = getExercisePRData(ex.name, currentBodyweight, ex.type);
+                          const isBodyweight = ex.type === 'bodyweight';
+                          const hasPR = !isBodyweight && prData.prWeight > 0;
+
+                          return (
+                            <>
+                              <Text className="text-xs text-muted">
+                                PR: {hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}
+                              </Text>
+                              {!isBodyweight && (
+                                <>
+                                  <Text className="text-xs text-muted">•</Text>
+                                  <Text className="text-xs text-muted">
+                                    1RM: {prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}
+                                  </Text>
+                                </>
+                              )}
+                              <Text className="text-xs text-muted">•</Text>
+                              <Text className="text-xs text-muted">
+                                Best: {prData.bestSetWeight > 0 || prData.bestSetReps > 0 ? (
+                                  isBodyweight
+                                    ? `${prData.bestSetReps} reps`
+                                    : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
+                                ) : '--'}
+                              </Text>
+                              {ex.type === 'doubled' && (
+                                <>
+                                  <Text className="text-xs text-muted">•</Text>
+                                  <Text className="text-xs text-muted">Enter for one side only</Text>
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
+                      </View>
+                    </View>
+                  </View>
+
+                  <Pressable
+                    onPress={() => toggleCollapsedDisplayKey(item.key)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={isCollapsed ? 'Expand exercise card' : 'Collapse exercise card'}
+                    style={({ pressed }) => ({ padding: 6, opacity: pressed ? 0.6 : 1 })}
+                  >
+                    <IconSymbol
+                      size={18}
+                      name={isCollapsed ? 'chevron.right' : 'chevron.down'}
+                      color={colors.muted}
+                    />
+                  </Pressable>
+                </View>
+              </CardHeader>
+
+              {!isCollapsed && (
+                <CardContent className="gap-3">
+                  {ex.sets.length > 0 ? (
+                    <View className="gap-1">
+                      {ex.sets.map((set, setIndex) => {
+                        const exerciseType = ex.type || 'weighted';
+                        return renderSetRow(exerciseIndex, set, setIndex, exerciseType);
+                      })}
+                    </View>
+                  ) : (
+                    <Text className="text-xs text-muted text-center py-2">No sets added yet</Text>
+                  )}
+
+                  <Button variant="secondary" size="sm" onPress={() => handleAddSet(exerciseIndex)} className="w-full">
+                    <IconSymbol size={16} name="plus" color={colors.foreground} />
+                    <Text className="text-sm font-semibold text-foreground">Add Set</Text>
+                  </Button>
+                </CardContent>
+              )}
+            </Card>
+          </Animated.View>
+        );
+      }
+
+      const [aIndex, bIndex] = item.indices;
+      const exA = exercises[aIndex];
+      const exB = exercises[bIndex];
+      if (!exA || !exB) return null;
+
+      const maxSetCount = Math.max(exA.sets.length, exB.sets.length);
+      const supersetVolume =
+        calculateTemplateExerciseVolume(exA.sets, exA.type || 'weighted', currentBodyweight) +
+        calculateTemplateExerciseVolume(exB.sets, exB.type || 'weighted', currentBodyweight);
+
+      return (
+        <Animated.View style={styles.exerciseContainer} layout={reorderLayout}>
+          <Card>
+            <CardHeader>
+              <View className="flex-row items-start justify-between">
+                <View className="flex-row items-start gap-2 flex-1">
                   <View style={{ flexDirection: 'column', marginRight: 4, marginLeft: -4 }}>
                     <Pressable
                       onPress={() => handleMoveDisplayItemUp(displayIndex)}
@@ -1457,278 +1655,172 @@ export default function TemplateCreateScreen() {
                   </View>
 
                   <View className="flex-1">
-                    <View className="flex-row items-center gap-2">
+                    <View className="flex-row items-center gap-1 flex-wrap">
+                      <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
                       <Pressable
-                        onPress={() => openExerciseQuickActions(ex.id)}
+                        onPress={() => openExerciseQuickActions(exA.id)}
                         hitSlop={8}
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                       >
-                        <CardTitle>{ex.name}</CardTitle>
+                        <CardTitle>{exA.name}</CardTitle>
                       </Pressable>
                       <Text className="text-sm text-muted">
                         {(() => {
                           const totalVolume = calculateTemplateExerciseVolume(
-                            ex.sets,
-                            ex.type || 'weighted',
+                            exA.sets,
+                            exA.type || 'weighted',
                             currentBodyweight
                           );
                           return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                         })()}
                       </Text>
                     </View>
-                    <View className="flex-row items-center gap-2 flex-wrap">
+                    <Text
+                      className="text-xs text-muted"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ marginLeft: 18, marginTop: -1 }}
+                    >
                       {(() => {
-                        const prData = getExercisePRData(ex.name, currentBodyweight, ex.type);
-                        const isBodyweight = ex.type === 'bodyweight';
+                        const prData = getExercisePRData(exA.name, currentBodyweight, exA.type);
+                        const isBodyweight = exA.type === 'bodyweight';
                         const hasPR = !isBodyweight && prData.prWeight > 0;
 
-                        return (
-                          <>
-                            <Text className="text-xs text-muted">
-                              PR: {hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}
-                            </Text>
-                            {!isBodyweight && (
-                              <>
-                                <Text className="text-xs text-muted">•</Text>
-                                <Text className="text-xs text-muted">
-                                  1RM: {prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}
-                                </Text>
-                              </>
-                            )}
-                            <Text className="text-xs text-muted">•</Text>
-                            <Text className="text-xs text-muted">
-                              Best: {prData.bestSetWeight > 0 || prData.bestSetReps > 0 ? (
-                                isBodyweight
-                                  ? `${prData.bestSetReps} reps`
-                                  : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
-                              ) : '--'}
-                            </Text>
-                            {ex.type === 'doubled' && (
-                              <>
-                                <Text className="text-xs text-muted">•</Text>
-                                <Text className="text-xs text-muted">Enter for one side only</Text>
-                              </>
-                            )}
-                          </>
-                        );
+                        const prText = `PR: ${hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}`;
+                        const oneRmText = !isBodyweight
+                          ? `1RM: ${prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}`
+                          : null;
+                        const bestText = `Best: ${prData.bestSetWeight > 0 || prData.bestSetReps > 0
+                          ? (
+                            isBodyweight
+                              ? `${prData.bestSetReps} reps`
+                              : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
+                          )
+                          : '--'
+                        }`;
+                        const doubledNote = exA.type === 'doubled' ? 'One side only' : null;
+
+                        return [prText, oneRmText, bestText, doubledNote].filter(Boolean).join(' • ');
                       })()}
+                    </Text>
+
+                    <View className="flex-row items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
+                      <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
+                      <Pressable
+                        onPress={() => openExerciseQuickActions(exB.id)}
+                        hitSlop={8}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                      >
+                        <CardTitle>{exB.name}</CardTitle>
+                      </Pressable>
+                      <Text className="text-sm text-muted">
+                        {(() => {
+                          const totalVolume = calculateTemplateExerciseVolume(
+                            exB.sets,
+                            exB.type || 'weighted',
+                            currentBodyweight
+                          );
+                          return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
+                        })()}
+                      </Text>
                     </View>
+                    <Text
+                      className="text-xs text-muted"
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                      style={{ marginLeft: 18, marginTop: -1 }}
+                    >
+                      {(() => {
+                        const prData = getExercisePRData(exB.name, currentBodyweight, exB.type);
+                        const isBodyweight = exB.type === 'bodyweight';
+                        const hasPR = !isBodyweight && prData.prWeight > 0;
+
+                        const prText = `PR: ${hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}`;
+                        const oneRmText = !isBodyweight
+                          ? `1RM: ${prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}`
+                          : null;
+                        const bestText = `Best: ${prData.bestSetWeight > 0 || prData.bestSetReps > 0
+                          ? (
+                            isBodyweight
+                              ? `${prData.bestSetReps} reps`
+                              : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
+                          )
+                          : '--'
+                        }`;
+                        const doubledNote = exB.type === 'doubled' ? 'One side only' : null;
+
+                        return [prText, oneRmText, bestText, doubledNote].filter(Boolean).join(' • ');
+                      })()}
+                    </Text>
                   </View>
                 </View>
-              </CardHeader>
 
+                <Pressable
+                  onPress={() => toggleCollapsedDisplayKey(item.key)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={isCollapsed ? 'Expand superset card' : 'Collapse superset card'}
+                  style={({ pressed }) => ({ padding: 6, opacity: pressed ? 0.6 : 1 })}
+                >
+                  <IconSymbol
+                    size={18}
+                    name={isCollapsed ? 'chevron.right' : 'chevron.down'}
+                    color={colors.muted}
+                  />
+                </Pressable>
+              </View>
+            </CardHeader>
+
+            {!isCollapsed && (
               <CardContent className="gap-3">
-                {ex.sets.length > 0 ? (
-                  <View className="gap-1">
-                    {ex.sets.map((set, setIndex) => {
-                      const exerciseType = ex.type || 'weighted';
-                      return renderSetRow(exerciseIndex, set, setIndex, exerciseType);
+                {maxSetCount > 0 ? (
+                  <View className="gap-2">
+                    {Array.from({ length: maxSetCount }).map((_, setIndex) => {
+                      const setA = exA.sets[setIndex];
+                      const setB = exB.sets[setIndex];
+
+                      if (!setA || !setB) {
+                        return (
+                          <View key={setIndex} style={{ paddingVertical: 8 }}>
+                            <Text style={{ color: '#EF4444', fontSize: 12 }}>
+                              Superset sets are out of sync. Add/remove a set to re-sync.
+                            </Text>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <View key={setIndex} style={{ gap: 6 }}>
+                          <Pressable
+                            onPress={(event) => {
+                              if (Platform.OS !== 'web') {
+                                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                              }
+                              const { pageX, pageY } = event.nativeEvent;
+                              setSetMenuPosition({ x: pageX, y: pageY });
+                              setShowSetMenu({ exerciseIndex: aIndex, setIndex });
+                            }}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          >
+                            <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Set {setIndex + 1}</Text>
+                          </Pressable>
+
+                          {renderMiniSetRow(aIndex, setA, setIndex, exA.type || 'weighted', 'A', '#3B82F6')}
+                          {renderMiniSetRow(bIndex, setB, setIndex, exB.type || 'weighted', 'B', '#F59E0B')}
+                        </View>
+                      );
                     })}
                   </View>
                 ) : (
                   <Text className="text-xs text-muted text-center py-2">No sets added yet</Text>
                 )}
 
-                <Button variant="secondary" size="sm" onPress={() => handleAddSet(exerciseIndex)} className="w-full">
+                <Button variant="secondary" size="sm" onPress={() => handleAddSet(aIndex)} className="w-full">
                   <IconSymbol size={16} name="plus" color={colors.foreground} />
                   <Text className="text-sm font-semibold text-foreground">Add Set</Text>
                 </Button>
               </CardContent>
-            </Card>
-          </Animated.View>
-        );
-      }
-
-      const [aIndex, bIndex] = item.indices;
-      const exA = exercises[aIndex];
-      const exB = exercises[bIndex];
-      if (!exA || !exB) return null;
-
-      const maxSetCount = Math.max(exA.sets.length, exB.sets.length);
-      const supersetVolume =
-        calculateTemplateExerciseVolume(exA.sets, exA.type || 'weighted', currentBodyweight) +
-        calculateTemplateExerciseVolume(exB.sets, exB.type || 'weighted', currentBodyweight);
-
-      return (
-        <Animated.View style={styles.exerciseContainer} layout={reorderLayout}>
-          <Card>
-            <CardHeader>
-              <View className="flex-row items-start gap-2">
-                <View style={{ flexDirection: 'column', marginRight: 4, marginLeft: -4 }}>
-                  <Pressable
-                    onPress={() => handleMoveDisplayItemUp(displayIndex)}
-                    disabled={displayIndex === 0}
-                    style={({ pressed }) => ({
-                      padding: 4,
-                      opacity: displayIndex === 0 ? 0.3 : pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <IconSymbol size={16} name="chevron.up" color={displayIndex === 0 ? colors.muted : colors.foreground} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => handleMoveDisplayItemDown(displayIndex)}
-                    disabled={displayIndex === displayItems.length - 1}
-                    style={({ pressed }) => ({
-                      padding: 4,
-                      opacity: displayIndex === displayItems.length - 1 ? 0.3 : pressed ? 0.6 : 1,
-                    })}
-                  >
-                    <IconSymbol size={16} name="chevron.down" color={displayIndex === displayItems.length - 1 ? colors.muted : colors.foreground} />
-                  </Pressable>
-                </View>
-
-                <View className="flex-1">
-                  <View className="flex-row items-center gap-1 flex-wrap">
-                    <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
-                    <Pressable
-                      onPress={() => openExerciseQuickActions(exA.id)}
-                      hitSlop={8}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <CardTitle>{exA.name}</CardTitle>
-                    </Pressable>
-                    <Text className="text-sm text-muted">
-                      {(() => {
-                        const totalVolume = calculateTemplateExerciseVolume(
-                          exA.sets,
-                          exA.type || 'weighted',
-                          currentBodyweight
-                        );
-                        return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
-                      })()}
-                    </Text>
-                  </View>
-                  <Text
-                    className="text-xs text-muted"
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ marginLeft: 18, marginTop: -1 }}
-                  >
-                    {(() => {
-                      const prData = getExercisePRData(exA.name, currentBodyweight, exA.type);
-                      const isBodyweight = exA.type === 'bodyweight';
-                      const hasPR = !isBodyweight && prData.prWeight > 0;
-
-                      const prText = `PR: ${hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}`;
-                      const oneRmText = !isBodyweight
-                        ? `1RM: ${prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}`
-                        : null;
-                      const bestText = `Best: ${prData.bestSetWeight > 0 || prData.bestSetReps > 0
-                        ? (
-                          isBodyweight
-                            ? `${prData.bestSetReps} reps`
-                            : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
-                        )
-                        : '--'
-                      }`;
-                      const doubledNote = exA.type === 'doubled' ? 'One side only' : null;
-
-                      return [prText, oneRmText, bestText, doubledNote].filter(Boolean).join(' • ');
-                    })()}
-                  </Text>
-
-                  <View className="flex-row items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
-                    <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
-                    <Pressable
-                      onPress={() => openExerciseQuickActions(exB.id)}
-                      hitSlop={8}
-                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                    >
-                      <CardTitle>{exB.name}</CardTitle>
-                    </Pressable>
-                    <Text className="text-sm text-muted">
-                      {(() => {
-                        const totalVolume = calculateTemplateExerciseVolume(
-                          exB.sets,
-                          exB.type || 'weighted',
-                          currentBodyweight
-                        );
-                        return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
-                      })()}
-                    </Text>
-                  </View>
-                  <Text
-                    className="text-xs text-muted"
-                    numberOfLines={1}
-                    ellipsizeMode="tail"
-                    style={{ marginLeft: 18, marginTop: -1 }}
-                  >
-                    {(() => {
-                      const prData = getExercisePRData(exB.name, currentBodyweight, exB.type);
-                      const isBodyweight = exB.type === 'bodyweight';
-                      const hasPR = !isBodyweight && prData.prWeight > 0;
-
-                      const prText = `PR: ${hasPR ? `${Math.round(convertWeight(prData.prWeight, settings.weightUnit))} ${settings.weightUnit}` : '--'}`;
-                      const oneRmText = !isBodyweight
-                        ? `1RM: ${prData.estimated1RM > 0 ? `${Math.round(convertWeight(prData.estimated1RM, settings.weightUnit))} ${settings.weightUnit}` : '--'}`
-                        : null;
-                      const bestText = `Best: ${prData.bestSetWeight > 0 || prData.bestSetReps > 0
-                        ? (
-                          isBodyweight
-                            ? `${prData.bestSetReps} reps`
-                            : `${Math.round(convertWeight(prData.bestSetWeight, settings.weightUnit))} ${settings.weightUnit} × ${prData.bestSetReps}`
-                        )
-                        : '--'
-                      }`;
-                      const doubledNote = exB.type === 'doubled' ? 'One side only' : null;
-
-                      return [prText, oneRmText, bestText, doubledNote].filter(Boolean).join(' • ');
-                    })()}
-                  </Text>
-                </View>
-
-                <View />
-              </View>
-            </CardHeader>
-
-            <CardContent className="gap-3">
-              {maxSetCount > 0 ? (
-                <View className="gap-2">
-                  {Array.from({ length: maxSetCount }).map((_, setIndex) => {
-                    const setA = exA.sets[setIndex];
-                    const setB = exB.sets[setIndex];
-
-                    if (!setA || !setB) {
-                      return (
-                        <View key={setIndex} style={{ paddingVertical: 8 }}>
-                          <Text style={{ color: '#EF4444', fontSize: 12 }}>
-                            Superset sets are out of sync. Add/remove a set to re-sync.
-                          </Text>
-                        </View>
-                      );
-                    }
-
-                    return (
-                      <View key={setIndex} style={{ gap: 6 }}>
-                        <Pressable
-                          onPress={(event) => {
-                            if (Platform.OS !== 'web') {
-                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                            }
-                            const { pageX, pageY } = event.nativeEvent;
-                            setSetMenuPosition({ x: pageX, y: pageY });
-                            setShowSetMenu({ exerciseIndex: aIndex, setIndex });
-                          }}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
-                        >
-                          <Text style={{ color: colors.muted, fontSize: 12, fontWeight: '700' }}>Set {setIndex + 1}</Text>
-                        </Pressable>
-
-                        {renderMiniSetRow(aIndex, setA, setIndex, exA.type || 'weighted', 'A', '#3B82F6')}
-                        {renderMiniSetRow(bIndex, setB, setIndex, exB.type || 'weighted', 'B', '#F59E0B')}
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : (
-                <Text className="text-xs text-muted text-center py-2">No sets added yet</Text>
-              )}
-
-              <Button variant="secondary" size="sm" onPress={() => handleAddSet(aIndex)} className="w-full">
-                <IconSymbol size={16} name="plus" color={colors.foreground} />
-                <Text className="text-sm font-semibold text-foreground">Add Set</Text>
-              </Button>
-            </CardContent>
+            )}
           </Card>
         </Animated.View>
       );
@@ -1736,6 +1828,7 @@ export default function TemplateCreateScreen() {
     [
       exercises,
       displayItems.length,
+      collapsedDisplayKeys,
       colors,
       currentBodyweight,
       settings.weightUnit,
@@ -1748,6 +1841,7 @@ export default function TemplateCreateScreen() {
       handleAddSet,
       renderSetRow,
       renderMiniSetRow,
+      toggleCollapsedDisplayKey,
     ]
   );
 

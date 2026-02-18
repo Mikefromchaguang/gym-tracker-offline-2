@@ -166,7 +166,7 @@ export function TemplateCard({
                     opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
                   })}
                 >
-                  <IconSymbol size={16} name="chevron.up" color={isFirst ? colors.muted : colors.foreground} />
+                  <IconSymbol size={16} name="chevron.left" color={isFirst ? colors.muted : colors.foreground} />
                 </Pressable>
                 <Pressable
                   onPress={handleMoveDown}
@@ -176,7 +176,7 @@ export function TemplateCard({
                     opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
                   })}
                 >
-                  <IconSymbol size={16} name="chevron.down" color={isLast ? colors.muted : colors.foreground} />
+                  <IconSymbol size={16} name="chevron.right" color={isLast ? colors.muted : colors.foreground} />
                 </Pressable>
               </View>
             )}
@@ -184,25 +184,12 @@ export function TemplateCard({
             <View className="flex-1">
               <CardTitle className="text-base">{template.name}</CardTitle>
               <CardDescription>
-                {template.exercises.length} exercises • {totalSets} sets • {isNaN(totalVolume) ? '0' : Math.round(convertWeight(totalVolume, settings.weightUnit))} {settings.weightUnit} vol
+                {template.exercises.length} exercises • {totalSets} sets • {isNaN(totalVolume) ? '0' : Math.round(convertWeight(totalVolume, settings.weightUnit))} {settings.weightUnit}
               </CardDescription>
             </View>
             
             {/* Edit + menu */}
             <View className="flex-row gap-2">
-              <Pressable
-                onPress={handleEdit}
-                style={({ pressed }) => [{
-                  padding: 6,
-                  borderRadius: 999,
-                  backgroundColor: colors.surface,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  opacity: pressed ? 0.7 : 1,
-                }]}
-              >
-                <IconSymbol size={18} name="pencil" color={colors.primary} />
-              </Pressable>
               <Pressable
                 onPress={handleMenuPress}
                 style={({ pressed }) => [{
