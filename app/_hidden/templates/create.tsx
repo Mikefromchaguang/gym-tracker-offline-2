@@ -2292,8 +2292,11 @@ export default function TemplateCreateScreen() {
                         </Text>
                       </View>
                     </View>
+                  );
+                })}
+              </ScrollView>
+            )}
           </View>
-        </ScrollView>
 
         {/* Page indicator (kept within body-map-defined height) */}
         <View
