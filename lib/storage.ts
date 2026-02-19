@@ -4,10 +4,12 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { WorkoutTemplate, CompletedWorkout, AppSettings, WeightUnit, ExerciseMetadata, BodyWeightLog, ExerciseVolumeLog, MuscleGroup, ExerciseType, FailureSetData } from './types';
+import { WorkoutTemplate, CompletedWorkout, AppSettings, WeightUnit, ExerciseMetadata, BodyWeightLog, ExerciseVolumeLog, MuscleGroup, ExerciseType, FailureSetData, WeekPlan } from './types';
 
 export const STORAGE_KEYS = {
   TEMPLATES: 'gym_tracker_templates',
+  WEEK_PLANS: 'gym_tracker_week_plans',
+  ACTIVE_WEEK_PLAN_ID: 'gym_tracker_active_week_plan_id',
   WORKOUTS: 'gym_tracker_workouts',
   SETTINGS: 'gym_tracker_settings',
   CUSTOM_EXERCISES: 'gym_tracker_custom_exercises',
@@ -176,6 +178,84 @@ export const TemplateStorage = {
     } catch (error) {
       console.error('Error duplicating template:', error);
       return null;
+    }
+  },
+};
+
+/**
+ * Week Plans Storage
+ */
+export const WeekPlanStorage = {
+  async getAll(): Promise<WeekPlan[]> {
+    try {
+      const data = await AsyncStorage.getItem(STORAGE_KEYS.WEEK_PLANS);
+      return data ? (JSON.parse(data) as WeekPlan[]) : [];
+    } catch (error) {
+      console.error('Error loading week plans:', error);
+      return [];
+    }
+  },
+
+  async getById(id: string): Promise<WeekPlan | null> {
+    try {
+      const plans = await this.getAll();
+      return plans.find((p) => p.id === id) || null;
+    } catch (error) {
+      console.error('Error loading week plan:', error);
+      return null;
+    }
+  },
+
+  async save(plan: WeekPlan): Promise<void> {
+    try {
+      const plans = await this.getAll();
+      const index = plans.findIndex((p) => p.id === plan.id);
+
+      if (index >= 0) plans[index] = plan;
+      else plans.push(plan);
+
+      await AsyncStorage.setItem(STORAGE_KEYS.WEEK_PLANS, JSON.stringify(plans));
+    } catch (error) {
+      console.error('Error saving week plan:', error);
+      throw error;
+    }
+  },
+
+  async delete(id: string): Promise<void> {
+    try {
+      const plans = await this.getAll();
+      const filtered = plans.filter((p) => p.id !== id);
+      await AsyncStorage.setItem(STORAGE_KEYS.WEEK_PLANS, JSON.stringify(filtered));
+
+      const activeId = await this.getActivePlanId();
+      if (activeId === id) {
+        await this.setActivePlanId(filtered[0]?.id ?? null);
+      }
+    } catch (error) {
+      console.error('Error deleting week plan:', error);
+      throw error;
+    }
+  },
+
+  async getActivePlanId(): Promise<string | null> {
+    try {
+      return await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_WEEK_PLAN_ID);
+    } catch (error) {
+      console.error('Error loading active week plan id:', error);
+      return null;
+    }
+  },
+
+  async setActivePlanId(id: string | null): Promise<void> {
+    try {
+      if (!id) {
+        await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_WEEK_PLAN_ID);
+        return;
+      }
+      await AsyncStorage.setItem(STORAGE_KEYS.ACTIVE_WEEK_PLAN_ID, id);
+    } catch (error) {
+      console.error('Error saving active week plan id:', error);
+      throw error;
     }
   },
 };

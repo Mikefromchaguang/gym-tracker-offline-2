@@ -14,9 +14,10 @@ import {
   Exercise,
   CompletedSet,
   ExerciseType,
+  WeekPlan,
 } from './types';
 import { calculateSetVolume } from './volume-calculation';
-import { generateId, TemplateStorage, WorkoutStorage, SettingsStorage, CustomExerciseStorage, PredefinedExerciseCustomizationStorage, BodyWeightStorage, ActiveWorkoutStorage, STORAGE_KEYS } from './storage';
+import { generateId, TemplateStorage, WeekPlanStorage, WorkoutStorage, SettingsStorage, CustomExerciseStorage, PredefinedExerciseCustomizationStorage, BodyWeightStorage, ActiveWorkoutStorage, STORAGE_KEYS } from './storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { runMuscleGroupMigration } from './migrate-muscle-groups';
 import { runExerciseIdMigration } from './exercise-id-migration';
@@ -42,6 +43,8 @@ export interface RestTimerState {
 
 interface GymContextState {
   templates: WorkoutTemplate[];
+  weekPlans: WeekPlan[];
+  activeWeekPlanId: string | null;
   workouts: CompletedWorkout[];
   settings: AppSettings;
   customExercises: ExerciseMetadata[];
@@ -65,11 +68,16 @@ type GymContextAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_TEMPLATES'; payload: WorkoutTemplate[] }
+  | { type: 'SET_WEEK_PLANS'; payload: WeekPlan[] }
+  | { type: 'SET_ACTIVE_WEEK_PLAN_ID'; payload: string | null }
   | { type: 'SET_WORKOUTS'; payload: CompletedWorkout[] }
   | { type: 'SET_SETTINGS'; payload: AppSettings }
   | { type: 'SET_CUSTOM_EXERCISES'; payload: ExerciseMetadata[] }
   | { type: 'SET_PREDEFINED_EXERCISE_CUSTOMIZATIONS'; payload: Record<string, { primaryMuscle?: any; secondaryMuscles?: any[]; muscleContributions?: Record<string, number>; exerciseType?: ExerciseType; type?: ExerciseType }> }
   | { type: 'ADD_TEMPLATE'; payload: WorkoutTemplate }
+  | { type: 'ADD_WEEK_PLAN'; payload: WeekPlan }
+  | { type: 'UPDATE_WEEK_PLAN'; payload: WeekPlan }
+  | { type: 'DELETE_WEEK_PLAN'; payload: string }
   | { type: 'UPDATE_TEMPLATE'; payload: WorkoutTemplate }
   | { type: 'DELETE_TEMPLATE'; payload: string }
   | { type: 'ADD_WORKOUT'; payload: CompletedWorkout }
@@ -96,6 +104,12 @@ interface GymContextValue extends GymContextState {
   deleteTemplate: (id: string) => Promise<void>;
   duplicateTemplate: (id: string) => Promise<WorkoutTemplate | null>;
   reorderTemplates: (templates: WorkoutTemplate[]) => Promise<void>;
+
+  // Week plan operations
+  addWeekPlan: (plan: WeekPlan) => Promise<void>;
+  updateWeekPlan: (plan: WeekPlan) => Promise<void>;
+  deleteWeekPlan: (id: string) => Promise<void>;
+  setActiveWeekPlan: (id: string | null) => Promise<void>;
 
   // Workout operations
   addWorkout: (workout: CompletedWorkout) => Promise<void>;
@@ -139,6 +153,8 @@ const GymContext = createContext<GymContextValue | undefined>(undefined);
 
 const initialState: GymContextState = {
   templates: [],
+  weekPlans: [],
+  activeWeekPlanId: null,
   workouts: [],
   settings: {
     weightUnit: 'kg',
@@ -172,6 +188,10 @@ function gymReducer(state: GymContextState, action: GymContextAction): GymContex
       return { ...state, error: action.payload };
     case 'SET_TEMPLATES':
       return { ...state, templates: action.payload };
+    case 'SET_WEEK_PLANS':
+      return { ...state, weekPlans: action.payload };
+    case 'SET_ACTIVE_WEEK_PLAN_ID':
+      return { ...state, activeWeekPlanId: action.payload };
     case 'SET_WORKOUTS':
       return { ...state, workouts: action.payload };
     case 'SET_SETTINGS':
@@ -189,6 +209,19 @@ function gymReducer(state: GymContextState, action: GymContextAction): GymContex
       return { ...state, predefinedExerciseCustomizations: action.payload };
     case 'ADD_TEMPLATE':
       return { ...state, templates: [...state.templates, action.payload] };
+    case 'ADD_WEEK_PLAN':
+      return { ...state, weekPlans: [...state.weekPlans, action.payload] };
+    case 'UPDATE_WEEK_PLAN':
+      return {
+        ...state,
+        weekPlans: state.weekPlans.map((p) => (p.id === action.payload.id ? action.payload : p)),
+      };
+    case 'DELETE_WEEK_PLAN':
+      return {
+        ...state,
+        weekPlans: state.weekPlans.filter((p) => p.id !== action.payload),
+        activeWeekPlanId: state.activeWeekPlanId === action.payload ? null : state.activeWeekPlanId,
+      };
     case 'UPDATE_TEMPLATE':
       return {
         ...state,
@@ -456,8 +489,10 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true });
       dispatch({ type: 'SET_ERROR', payload: null });
 
-      const [templates, workouts, settings, customExercises, predefinedCustomizations, activeWorkoutState] = await Promise.all([
+      const [templates, weekPlans, activeWeekPlanId, workouts, settings, customExercises, predefinedCustomizations, activeWorkoutState] = await Promise.all([
         TemplateStorage.getAll(),
+        WeekPlanStorage.getAll(),
+        WeekPlanStorage.getActivePlanId(),
         WorkoutStorage.getAll(),
         SettingsStorage.get(),
         CustomExerciseStorage.getAll(),
@@ -466,6 +501,8 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       dispatch({ type: 'SET_TEMPLATES', payload: templates });
+      dispatch({ type: 'SET_WEEK_PLANS', payload: weekPlans });
+      dispatch({ type: 'SET_ACTIVE_WEEK_PLAN_ID', payload: activeWeekPlanId });
       dispatch({ type: 'SET_WORKOUTS', payload: workouts });
       dispatch({ type: 'SET_SETTINGS', payload: settings });
       dispatch({ type: 'SET_CUSTOM_EXERCISES', payload: customExercises });
@@ -575,6 +612,72 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       dispatch({
         type: 'SET_ERROR',
         payload: error instanceof Error ? error.message : 'Failed to reorder templates',
+      });
+      throw error;
+    }
+  }, []);
+
+  const addWeekPlan = useCallback(async (plan: WeekPlan) => {
+    try {
+      const newPlan: WeekPlan = {
+        ...plan,
+        id: plan.id || generateId(),
+        createdAt: plan.createdAt || Date.now(),
+        updatedAt: Date.now(),
+      };
+      await WeekPlanStorage.save(newPlan);
+      dispatch({ type: 'ADD_WEEK_PLAN', payload: newPlan });
+
+      if (!state.activeWeekPlanId) {
+        await WeekPlanStorage.setActivePlanId(newPlan.id);
+        dispatch({ type: 'SET_ACTIVE_WEEK_PLAN_ID', payload: newPlan.id });
+      }
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to add week plan',
+      });
+      throw error;
+    }
+  }, [state.activeWeekPlanId]);
+
+  const updateWeekPlan = useCallback(async (plan: WeekPlan) => {
+    try {
+      const updated = { ...plan, updatedAt: Date.now() };
+      await WeekPlanStorage.save(updated);
+      dispatch({ type: 'UPDATE_WEEK_PLAN', payload: updated });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to update week plan',
+      });
+      throw error;
+    }
+  }, []);
+
+  const deleteWeekPlan = useCallback(async (id: string) => {
+    try {
+      await WeekPlanStorage.delete(id);
+      dispatch({ type: 'DELETE_WEEK_PLAN', payload: id });
+      const activeId = await WeekPlanStorage.getActivePlanId();
+      dispatch({ type: 'SET_ACTIVE_WEEK_PLAN_ID', payload: activeId });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to delete week plan',
+      });
+      throw error;
+    }
+  }, []);
+
+  const setActiveWeekPlan = useCallback(async (id: string | null) => {
+    try {
+      await WeekPlanStorage.setActivePlanId(id);
+      dispatch({ type: 'SET_ACTIVE_WEEK_PLAN_ID', payload: id });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to select week plan',
       });
       throw error;
     }
@@ -1170,6 +1273,10 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     deleteTemplate,
     duplicateTemplate,
     reorderTemplates,
+    addWeekPlan,
+    updateWeekPlan,
+    deleteWeekPlan,
+    setActiveWeekPlan,
     addWorkout,
     updateWorkout,
     deleteWorkout,

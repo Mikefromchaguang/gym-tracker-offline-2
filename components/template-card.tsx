@@ -15,6 +15,7 @@ interface TemplateCardProps {
   template: WorkoutTemplate;
   index: number;
   totalCount: number;
+  isScheduledToday?: boolean;
   onMoveUp?: (index: number) => void;
   onMoveDown?: (index: number) => void;
   onEdit: (templateId: string) => void;
@@ -28,6 +29,7 @@ export function TemplateCard({
   template,
   index,
   totalCount,
+  isScheduledToday = false,
   onMoveUp,
   onMoveDown,
   onEdit,
@@ -182,7 +184,14 @@ export function TemplateCard({
             )}
             
             <View className="flex-1">
-              <CardTitle className="text-base">{template.name}</CardTitle>
+              <View className="flex-row items-center gap-2 flex-wrap">
+                <CardTitle className="text-base">{template.name}</CardTitle>
+                {isScheduledToday ? (
+                  <View className="bg-primary px-2 py-1 rounded-full">
+                    <Text className="text-xs font-semibold text-background">Today</Text>
+                  </View>
+                ) : null}
+              </View>
               <CardDescription>
                 {template.exercises.length} exercises • {totalSets} sets • {isNaN(totalVolume) ? '0' : Math.round(convertWeight(totalVolume, settings.weightUnit))} {settings.weightUnit}
               </CardDescription>

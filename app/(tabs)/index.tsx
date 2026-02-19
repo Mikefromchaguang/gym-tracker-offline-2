@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const { templates, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
+  const { templates, weekPlans, activeWeekPlanId, setActiveWeekPlan, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
   const { bodyWeightKg } = useBodyweight(); // For volume calculations (always in kg)
   const [refreshing, setRefreshing] = useState(false);
   const [bodyWeight, setBodyWeight] = useState<string>('');
@@ -59,6 +59,7 @@ export default function HomeScreen() {
   const [weightHistory, setWeightHistory] = useState<Array<{ date: string; weight: number; timestamp: number }>>([]);
   const [localTemplates, setLocalTemplates] = useState<WorkoutTemplate[]>([]);
   const [currentRoutineIndex, setCurrentRoutineIndex] = useState(0);
+  const [currentPlanIndex, setCurrentPlanIndex] = useState(0);
 
   const routineCardSpacing = 12;
   const routineCardWidth = useMemo(() => {
@@ -73,6 +74,18 @@ export default function HomeScreen() {
     [routineCardWidth]
   );
 
+  const activeWeekPlan = useMemo(() => {
+    if (weekPlans.length === 0) return null;
+    return weekPlans.find((p) => p.id === activeWeekPlanId) || weekPlans[0];
+  }, [weekPlans, activeWeekPlanId]);
+
+  const todayRoutineIds = useMemo(() => {
+    if (!activeWeekPlan) return new Set<string>();
+    const today = new Date().getDay();
+    const day = activeWeekPlan.days.find((d) => d.dayIndex === today);
+    return new Set(day?.routineIds || []);
+  }, [activeWeekPlan]);
+
   // Sync templates from context to local state
   useEffect(() => {
     setLocalTemplates(templates);
@@ -85,6 +98,13 @@ export default function HomeScreen() {
     });
   }, [localTemplates.length]);
 
+  useEffect(() => {
+    setCurrentPlanIndex((idx) => {
+      const maxIndex = Math.max(0, weekPlans.length - 1);
+      return Math.min(idx, maxIndex);
+    });
+  }, [weekPlans.length]);
+
   const handleRoutineScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
@@ -94,6 +114,20 @@ export default function HomeScreen() {
     },
     [routineSnapInterval, localTemplates.length]
   );
+
+  const handlePlanScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const x = e.nativeEvent.contentOffset.x;
+      const rawIndex = routineSnapInterval > 0 ? Math.round(x / routineSnapInterval) : 0;
+      const maxIndex = Math.max(0, weekPlans.length - 1);
+      setCurrentPlanIndex(Math.max(0, Math.min(rawIndex, maxIndex)));
+    },
+    [routineSnapInterval, weekPlans.length]
+  );
+
+  const handleOpenPlans = useCallback(() => {
+    router.push('/_hidden/week-plans');
+  }, [router]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -710,6 +744,7 @@ export default function HomeScreen() {
                         template={template}
                         index={index}
                         totalCount={localTemplates.length}
+                        isScheduledToday={todayRoutineIds.has(template.id)}
                         onMoveUp={handleMoveUp}
                         onMoveDown={handleMoveDown}
                         onEdit={handleEditTemplate}
@@ -729,6 +764,135 @@ export default function HomeScreen() {
                   <Text className="text-center text-muted">
                     No routines yet. Create one to get started!
                   </Text>
+                </CardContent>
+              </Card>
+            )}
+          </View>
+
+          {/* Week Planner Section */}
+          <View className="gap-3">
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-end gap-2">
+                <Text className="text-lg font-semibold text-foreground">Week Planner</Text>
+                {weekPlans.length > 1 ? (
+                  <Text className="text-sm text-muted">
+                    {currentPlanIndex + 1} / {weekPlans.length}
+                  </Text>
+                ) : null}
+              </View>
+              <Pressable
+                onPress={handleOpenPlans}
+                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
+              >
+                <View className="flex-row items-center gap-1">
+                  <IconSymbol size={18} name="calendar" color={colors.primary} />
+                  <Text className="text-sm font-semibold text-primary">Open</Text>
+                </View>
+              </Pressable>
+            </View>
+
+            {weekPlans.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                decelerationRate="fast"
+                snapToInterval={routineSnapInterval}
+                snapToAlignment="start"
+                disableIntervalMomentum
+                nestedScrollEnabled
+                onMomentumScrollEnd={handlePlanScrollEnd}
+                contentContainerStyle={{ paddingRight: 4 }}
+              >
+                {weekPlans.map((plan, index) => {
+                  const totalSessions = plan.days.reduce((acc, d) => acc + d.routineIds.length, 0);
+                  const todayCount = plan.days.find((d) => d.dayIndex === new Date().getDay())?.routineIds.length || 0;
+                  const isActive = activeWeekPlan?.id === plan.id;
+
+                  return (
+                    <View
+                      key={plan.id}
+                      style={{ width: routineCardWidth, marginRight: index === weekPlans.length - 1 ? 0 : routineCardSpacing }}
+                    >
+                      <Card>
+                        <CardHeader>
+                          <View className="flex-row items-center justify-between">
+                            <View className="flex-1">
+                              <CardTitle className="text-base">{plan.name}</CardTitle>
+                              <CardDescription>
+                                {totalSessions} sessions • Today: {todayCount}
+                              </CardDescription>
+                            </View>
+                            {isActive ? (
+                              <View className="bg-primary px-2 py-1 rounded-full">
+                                <Text className="text-xs font-semibold text-background">Active</Text>
+                              </View>
+                            ) : null}
+                          </View>
+                        </CardHeader>
+                        <CardContent className="gap-2">
+                          <Text className="text-xs text-muted">
+                            {plan.days
+                              .filter((d) => d.routineIds.length > 0)
+                              .slice(0, 3)
+                              .map((d) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.dayIndex]} ${d.routineIds.length}`)
+                              .join(' • ') || 'No routines assigned'}
+                          </Text>
+
+                          <View className="flex-row gap-2 pt-2">
+                            {!isActive ? (
+                              <Pressable
+                                onPress={() => setActiveWeekPlan(plan.id)}
+                                style={({ pressed }) => [{
+                                  flex: 1,
+                                  paddingVertical: 8,
+                                  paddingHorizontal: 12,
+                                  backgroundColor: colors.surface,
+                                  borderRadius: 6,
+                                  borderWidth: 1,
+                                  borderColor: colors.border,
+                                  alignItems: 'center',
+                                  opacity: pressed ? 0.8 : 1,
+                                }]}
+                              >
+                                <Text className="text-xs font-semibold text-foreground">Set Active</Text>
+                              </Pressable>
+                            ) : null}
+                            <Pressable
+                              onPress={() => router.push({ pathname: '/_hidden/week-plans/edit', params: { planId: plan.id } })}
+                              style={({ pressed }) => [{
+                                flex: 1,
+                                paddingVertical: 8,
+                                paddingHorizontal: 12,
+                                backgroundColor: colors.primary,
+                                borderRadius: 6,
+                                borderWidth: 1,
+                                borderColor: colors.primary,
+                                alignItems: 'center',
+                                opacity: pressed ? 0.8 : 1,
+                              }]}
+                            >
+                              <Text className="text-xs font-semibold text-background">Edit Plan</Text>
+                            </Pressable>
+                          </View>
+                        </CardContent>
+                      </Card>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Card>
+                <CardContent className="items-center gap-2 py-8">
+                  <IconSymbol size={32} name="calendar" color={colors.muted} />
+                  <Text className="text-center text-muted">
+                    No week planner yet. Create one to organize your routines.
+                  </Text>
+                  <Pressable
+                    onPress={handleOpenPlans}
+                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                  >
+                    <Text className="text-sm font-semibold text-primary">Create Plan</Text>
+                  </Pressable>
                 </CardContent>
               </Card>
             )}

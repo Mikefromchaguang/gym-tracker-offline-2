@@ -103,6 +103,25 @@ export interface WorkoutTemplate {
 }
 
 /**
+ * Weekly plan day assignment (0 = Sunday ... 6 = Saturday)
+ */
+export interface WeekPlanDay {
+  dayIndex: WeekStartDay;
+  routineIds: string[];
+}
+
+/**
+ * Week plan - reusable weekly schedule of routine IDs
+ */
+export interface WeekPlan {
+  id: string;
+  name: string;
+  days: WeekPlanDay[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/**
  * A single set of an exercise during a workout
  */
 export interface CompletedSet {

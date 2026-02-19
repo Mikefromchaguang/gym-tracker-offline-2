@@ -2325,7 +2325,10 @@ export default function TemplateCreateScreen() {
           ))}
         </View>
       </View>
-    </View>  ), [colors, headerCardHeight, headerPageIndex, headerPageWidth, routineMuscleBreakdown, routineMuscleData, routineSummary, settings.bodyMapGender, settings.weightUnit]);
+
+
+    </View>
+  ), [colors, headerCardHeight, headerPageIndex, headerPageWidth, routineMuscleBreakdown, routineMuscleData, routineSummary, settings.bodyMapGender, settings.weightUnit]);
 
   const ListFooterComponent = useCallback(() => (
     <View className="gap-4 pt-4 pb-6">

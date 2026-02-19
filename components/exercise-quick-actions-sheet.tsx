@@ -157,7 +157,7 @@ export function ExerciseQuickActionsSheet({
             className="w-full"
           >
             <IconSymbol size={18} name="arrow.triangle.2.circlepath" color={colors.foreground} />
-            <Text className="text-base font-semibold text-foreground">Sync to last session</Text>
+            <Text className="text-base font-semibold text-foreground">Pull sets from last session</Text>
           </Button>
         )}
 
@@ -185,7 +185,7 @@ export function ExerciseQuickActionsSheet({
             }}
             className="w-full"
           >
-            <IconSymbol size={18} name="link" color={colors.foreground} />
+            <IconSymbol size={18} name="arrow.down.right" color={colors.foreground} />
             <Text className="text-base font-semibold text-foreground">Add to superset</Text>
           </Button>
         )}
@@ -199,7 +199,7 @@ export function ExerciseQuickActionsSheet({
             }}
             className="w-full"
           >
-            <IconSymbol size={18} name="arrow.up.left.and.arrow.down.right" color={colors.foreground} />
+            <IconSymbol size={18} name="arrow.left" color={colors.foreground} />
             <Text className="text-base font-semibold text-foreground">Split superset</Text>
           </Button>
         )}
