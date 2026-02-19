@@ -11,6 +11,9 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@shared/*": [
+        "./shared/*"
       ]
     }
   },
@@ -23,16 +26,6 @@
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "server/**/*",
-    "drizzle/**/*",
-    "shared/**/*",
-    "drizzle.config.ts",
-    "hooks/use-auth.ts",
-    "lib/trpc.ts",
-    "lib/_core/api.ts",
-    "lib/_core/auth.ts",
-    "constants/oauth.ts",
-    "tests/auth.logout.test.ts"
+    "dist"
   ]
 }

@@ -1,6 +1,7 @@
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePreventRemove } from '@react-navigation/native';
 import Body from 'react-native-body-highlighter';
 import { ScreenContainer } from '@/components/screen-container';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,11 +79,18 @@ export default function EditWeekPlanScreen() {
   const [showRoutinePicker, setShowRoutinePicker] = useState(false);
   const [pickerDayIndex, setPickerDayIndex] = useState<WeekStartDay>(1);
   const [saving, setSaving] = useState(false);
+  const [allowRemove, setAllowRemove] = useState(false);
+  const [initialName, setInitialName] = useState('');
+  const [initialDaysSignature, setInitialDaysSignature] = useState('[]');
 
   useEffect(() => {
     if (!editingPlan) {
-      setName('My Week Planner');
-      setDays(buildEmptyDays());
+      const defaultName = 'My Week Planner';
+      const defaultDays = buildEmptyDays();
+      setName(defaultName);
+      setDays(defaultDays);
+      setInitialName(defaultName);
+      setInitialDaysSignature(JSON.stringify(defaultDays));
       return;
     }
 
@@ -92,7 +100,63 @@ export default function EditWeekPlanScreen() {
       routineIds: editingPlan.days.find((x) => x.dayIndex === d.dayIndex)?.routineIds ?? [],
     }));
     setDays(merged);
+    setInitialName(editingPlan.name);
+    setInitialDaysSignature(JSON.stringify(merged));
   }, [editingPlan]);
+
+  const hasUnsavedChanges = useMemo(() => {
+    const currentName = name.trim();
+    const baseName = initialName.trim();
+    if (currentName !== baseName) return true;
+    return JSON.stringify(days) !== initialDaysSignature;
+  }, [name, days, initialName, initialDaysSignature]);
+
+  const handleBackPress = useCallback(() => {
+    if (!hasUnsavedChanges) {
+      router.back();
+      return;
+    }
+
+    Alert.alert(
+      'Discard changes?',
+      'You have unsaved changes. Are you sure you want to discard them?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            setAllowRemove(true);
+            setTimeout(() => {
+              router.back();
+              setAllowRemove(false);
+            }, 0);
+          },
+        },
+      ]
+    );
+  }, [hasUnsavedChanges, router]);
+
+  usePreventRemove(hasUnsavedChanges && !allowRemove, () => {
+    Alert.alert(
+      'Discard changes?',
+      'You have unsaved changes. Are you sure you want to discard them?',
+      [
+        { text: 'Cancel', style: 'cancel', onPress: () => {} },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            setAllowRemove(true);
+            setTimeout(() => {
+              router.back();
+              setAllowRemove(false);
+            }, 0);
+          },
+        },
+      ]
+    );
+  });
 
   const orderedDays = useMemo(() => {
     const start = settings.weekStartDay ?? 1;
@@ -304,7 +368,8 @@ export default function EditWeekPlanScreen() {
         await addWeekPlan(payload);
       }
 
-      router.back();
+      // Use replace instead of back to avoid closing app when this screen is the first route in stack.
+      router.replace('/_hidden/week-plans');
     } finally {
       setSaving(false);
     }
@@ -331,7 +396,7 @@ export default function EditWeekPlanScreen() {
         <View className="gap-4">
           <View className="gap-2">
             <View className="flex-row items-center justify-between">
-              <Pressable onPress={() => router.back()} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+              <Pressable onPress={handleBackPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
                 <IconSymbol name="chevron.left" size={28} color={colors.foreground} />
               </Pressable>
               {editingPlan ? (
@@ -369,9 +434,7 @@ export default function EditWeekPlanScreen() {
           <Card>
             <CardHeader>
               <CardTitle>Plan Summary</CardTitle>
-              <CardDescription>
-                {totalSessions} sessions • {planSummary.exercisesCount} exercises • {planSummary.setsCount} sets
-              </CardDescription>
+              <CardDescription>Planned weekly distribution</CardDescription>
             </CardHeader>
             <CardContent className="gap-3">
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -401,14 +464,23 @@ export default function EditWeekPlanScreen() {
                     <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{totalSessions}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
-                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{planSummary.repsCount}</Text>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{planSummary.exercisesCount}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{planSummary.setsCount}</Text>
                   </View>
                 </View>
               </View>
 
-              <View style={{ gap: 8 }}>
-                {muscleBreakdown.slice(0, 7).map((row) => {
+              <ScrollView
+                nestedScrollEnabled
+                style={{ maxHeight: 220 }}
+                contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+                showsVerticalScrollIndicator
+              >
+                {muscleBreakdown.map((row) => {
                   const totalSetsForMuscle = row.primarySets + row.secondarySets;
                   const rowWidthPct = (totalSetsForMuscle / maxSets) * 100;
                   const total = row.primarySets + row.secondarySets;
@@ -434,7 +506,7 @@ export default function EditWeekPlanScreen() {
                     </View>
                   );
                 })}
-              </View>
+              </ScrollView>
             </CardContent>
           </Card>
 
