@@ -138,8 +138,6 @@ Go to **Profile > Exercises** and tap an exercise with a **Data** tag to view st
 
 All core data is stored locally using AsyncStorage. No cloud sync required.
 
-An optional tRPC + Drizzle server is included—see `server/README.md` if needed.
-
 **Storage keys** (see `lib/storage.ts`):
 - `gym_tracker_templates`
 - `gym_tracker_workouts`
@@ -180,7 +178,7 @@ pnpm ios
 pnpm android
 ```
 
-Note: `pnpm ios` / `pnpm android` start Expo for that platform. If you need the local server at the same time, run `pnpm dev:server` in a second terminal.
+Note: `pnpm ios` / `pnpm android` start Expo for that platform.
 
 Generate a QR code for local testing (handy for physical devices):
 
@@ -197,8 +195,6 @@ app/
 components/            # UI + feature components
 lib/                   # Context, storage, business logic
 constants/             # Constants, theme, predefined data
-drizzle/               # Database schema and migrations (optional server)
-server/                # Optional tRPC + Drizzle backend
 scripts/               # Build and utility scripts
 ```
 
