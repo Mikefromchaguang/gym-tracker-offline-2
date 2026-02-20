@@ -31,6 +31,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { convertWeight, formatWeight, formatVolume, lbsToKg } from '@/lib/unit-conversion';
 import { calculateExerciseVolume, calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
+import { applyAutoProgressionOnStart, getIncreaseWeightSuggestion } from '@/lib/auto-progression';
 import { groupExercisesForDisplay, moveDisplayItem, mergeExercisesToSuperset, splitSupersetToExercises, isExerciseInSuperset } from '@/lib/superset';
 import { MergeSupersetModal } from '@/components/merge-superset-modal';
 
@@ -332,7 +333,51 @@ export default function ActiveWorkoutScreen() {
     if (templateId && typeof templateId === 'string') {
       const template = templates.find((t) => t.id === templateId);
       if (template) {
-        const exercisesWithSets: WorkoutExercise[] = template.exercises.map((ex) => {
+        let templateProgressionDidChange = false;
+
+        const progressedTemplateExercises: Exercise[] = template.exercises.map((ex) => {
+          const baseSetDetails = ex.setDetails && Array.isArray(ex.setDetails) && ex.setDetails.length > 0
+            ? ex.setDetails.map((setConfig) => ({
+                reps: setConfig.reps || 0,
+                weight: setConfig.weight || 0,
+                unit: setConfig.unit || ex.unit || settings.weightUnit,
+                setType: setConfig.setType,
+              }))
+            : Array.from({ length: ex.sets && ex.sets > 0 ? ex.sets : 1 }, () => ({
+                reps: ex.reps || 0,
+                weight: ex.weight || 0,
+                unit: ex.unit || settings.weightUnit,
+                setType: 'working' as const,
+              }));
+
+          const progressionResult = applyAutoProgressionOnStart(baseSetDetails, {
+            enabled: ex.autoProgressionEnabled,
+            minReps: ex.autoProgressionMinReps,
+            maxReps: ex.autoProgressionMaxReps,
+          });
+
+          if (progressionResult.didChange) {
+            templateProgressionDidChange = true;
+          }
+
+          const progressedSetDetails = progressionResult.sets.map((set) => ({
+            reps: set.reps,
+            weight: set.weight,
+            unit: set.unit,
+            setType: set.setType,
+          }));
+
+          return {
+            ...ex,
+            sets: progressedSetDetails.length,
+            reps: progressedSetDetails[0]?.reps ?? ex.reps,
+            weight: progressedSetDetails[0]?.weight ?? ex.weight,
+            unit: progressedSetDetails[0]?.unit ?? ex.unit,
+            setDetails: progressedSetDetails,
+          };
+        });
+
+        const exercisesWithSets: WorkoutExercise[] = progressedTemplateExercises.map((ex, exIndex) => {
           // Lookup exercise type from metadata (handles stale template data)
           const customEx = customExercises.find(ce => ce.name.toLowerCase() === ex.name.toLowerCase());
           const muscleMeta = getEffectiveExerciseMuscles(
@@ -343,58 +388,49 @@ export default function ActiveWorkoutScreen() {
           );
           const exerciseType = ex.type || muscleMeta?.type || muscleMeta?.exerciseType || 'weighted';
           
-          // Create CompletedSet objects from template data
-          let completedSets: CompletedSet[] = [];
-          
-          
-          // Strategy 1: Use setDetails if available and non-empty
-          if (ex.setDetails && Array.isArray(ex.setDetails) && ex.setDetails.length > 0) {
-            completedSets = ex.setDetails.map((setConfig, i) => ({
-              setNumber: i + 1,
-              reps: setConfig.reps || 0,
-              weight: setConfig.weight || 0,
-              unit: setConfig.unit || 'kg',
-              timestamp: Date.now(),
-              completed: false,
-              setType: setConfig.setType, // Preserve warmup/working set type from template
-            }));
-          }
-          // Strategy 2: Fall back to sets count with default values
-          else if (ex.sets && ex.sets > 0) {
-            completedSets = Array.from({ length: ex.sets }, (_, i) => ({
-              setNumber: i + 1,
-              reps: ex.reps || 0,
-              weight: ex.weight || 0,
-              unit: ex.unit || 'kg',
-              timestamp: Date.now(),
-              completed: false,
-            }));
-          }
-          // Strategy 3: Create at least one set as absolute fallback
-          else {
-            completedSets = [{
-              setNumber: 1,
-              reps: ex.reps || 0,
-              weight: ex.weight || 0,
-              unit: ex.unit || 'kg',
-              timestamp: Date.now(),
-              completed: false,
-            }];
-          }
+          const sourceSetDetails = ex.setDetails && Array.isArray(ex.setDetails) && ex.setDetails.length > 0
+            ? ex.setDetails
+            : Array.from({ length: ex.sets && ex.sets > 0 ? ex.sets : 1 }, () => ({
+                reps: ex.reps || 0,
+                weight: ex.weight || 0,
+                unit: ex.unit || 'kg',
+                setType: 'working' as const,
+              }));
+
+          const baselineSetDetails = template.exercises[exIndex]?.setDetails && Array.isArray(template.exercises[exIndex].setDetails) && template.exercises[exIndex].setDetails!.length > 0
+            ? template.exercises[exIndex].setDetails!
+            : Array.from({ length: template.exercises[exIndex]?.sets && template.exercises[exIndex].sets > 0 ? template.exercises[exIndex].sets : 1 }, () => ({
+                reps: template.exercises[exIndex]?.reps || 0,
+                weight: template.exercises[exIndex]?.weight || 0,
+                unit: template.exercises[exIndex]?.unit || 'kg',
+                setType: 'working' as const,
+              }));
+
+          const completedSets: CompletedSet[] = sourceSetDetails.map((setConfig, i) => ({
+            setNumber: i + 1,
+            reps: setConfig.reps || 0,
+            weight: setConfig.weight || 0,
+            unit: setConfig.unit || 'kg',
+            timestamp: Date.now(),
+            completed: false,
+            setType: setConfig.setType,
+          }));
+
+          const plannedSets: CompletedSet[] = baselineSetDetails.map((setConfig, i) => ({
+            setNumber: i + 1,
+            reps: setConfig.reps || 0,
+            weight: setConfig.weight || 0,
+            unit: setConfig.unit || 'kg',
+            timestamp: Date.now(),
+            completed: false,
+            setType: setConfig.setType,
+          }));
           
           return {
             ...ex,
             type: exerciseType, // Ensure type is set correctly
             completedSets,
-            plannedSets: completedSets.map((s) => ({
-              setNumber: s.setNumber,
-              reps: s.reps,
-              weight: s.weight,
-              unit: s.unit,
-              timestamp: s.timestamp,
-              completed: false,
-              setType: s.setType, // Preserve warmup/working set type
-            })),
+            plannedSets,
           };
         });
         setExercises(exercisesWithSets);
@@ -412,6 +448,16 @@ export default function ActiveWorkoutScreen() {
           }
         });
         setDisabledTimers(disabled);
+
+        if (templateProgressionDidChange) {
+          void updateTemplate({
+            ...template,
+            exercises: progressedTemplateExercises,
+            updatedAt: Date.now(),
+          }).catch((err) => {
+            console.error('[AutoProgression] Failed to persist routine progression:', err);
+          });
+        }
         
         setIsInitialized(true);
       } else {
@@ -437,6 +483,8 @@ export default function ActiveWorkoutScreen() {
     templateId,
     templates,
     customExercises,
+    updateTemplate,
+    settings.weightUnit,
     focusCounter,
     startTime,
   ]);
@@ -1321,8 +1369,17 @@ export default function ActiveWorkoutScreen() {
                 notes: ex.notes,
                 restTimer: ex.restTimer || 180,
                 timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
+                autoProgressionEnabled: ex.autoProgressionEnabled,
+                autoProgressionMinReps: ex.autoProgressionMinReps,
+                autoProgressionMaxReps: ex.autoProgressionMaxReps,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
+                setDetails: ex.completedSets.map((set) => ({
+                  reps: set.reps,
+                  weight: set.weight,
+                  unit: set.unit,
+                  setType: set.setType,
+                })),
               }));
 
               await addTemplate({
@@ -1386,8 +1443,17 @@ export default function ActiveWorkoutScreen() {
                 notes: ex.notes,
                 restTimer: ex.restTimer || 180,
                 timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
+                autoProgressionEnabled: ex.autoProgressionEnabled,
+                autoProgressionMinReps: ex.autoProgressionMinReps,
+                autoProgressionMaxReps: ex.autoProgressionMaxReps,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
+                setDetails: ex.completedSets.map((set) => ({
+                  reps: set.reps,
+                  weight: set.weight,
+                  unit: set.unit,
+                  setType: set.setType,
+                })),
               }));
 
               await updateTemplate({
@@ -1886,6 +1952,15 @@ export default function ActiveWorkoutScreen() {
                                 >
                                   <CardTitle className="text-base">{exercise.name}</CardTitle>
                                 </Pressable>
+                                {getIncreaseWeightSuggestion(exercise.completedSets, {
+                                  enabled: exercise.autoProgressionEnabled,
+                                  minReps: exercise.autoProgressionMinReps,
+                                  maxReps: exercise.autoProgressionMaxReps,
+                                }) ? (
+                                  <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                    <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                                  </View>
+                                ) : null}
                                 {(() => {
                                   const completedVolume = calculateExerciseVolume(
                                     exercise.completedSets,
@@ -2040,6 +2115,15 @@ export default function ActiveWorkoutScreen() {
                               >
                                 <CardTitle className="text-base">{exA.name}</CardTitle>
                               </Pressable>
+                              {getIncreaseWeightSuggestion(exA.completedSets, {
+                                enabled: exA.autoProgressionEnabled,
+                                minReps: exA.autoProgressionMinReps,
+                                maxReps: exA.autoProgressionMaxReps,
+                              }) ? (
+                                <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                  <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                                </View>
+                              ) : null}
                               {(() => {
                                 const completedVolume = calculateExerciseVolume(
                                   exA.completedSets,
@@ -2119,6 +2203,15 @@ export default function ActiveWorkoutScreen() {
                             >
                               <CardTitle className="text-base">{exB.name}</CardTitle>
                             </Pressable>
+                            {getIncreaseWeightSuggestion(exB.completedSets, {
+                              enabled: exB.autoProgressionEnabled,
+                              minReps: exB.autoProgressionMinReps,
+                              maxReps: exB.autoProgressionMaxReps,
+                            }) ? (
+                              <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                              </View>
+                            ) : null}
                             {(() => {
                               const completedVolume = calculateExerciseVolume(
                                 exB.completedSets,
@@ -2677,6 +2770,9 @@ export default function ActiveWorkoutScreen() {
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 90}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
+        autoProgressionEnabled={quickActionsMeta?.ex.autoProgressionEnabled ?? false}
+        autoProgressionMinReps={quickActionsMeta?.ex.autoProgressionMinReps ?? null}
+        autoProgressionMaxReps={quickActionsMeta?.ex.autoProgressionMaxReps ?? null}
         isInSuperset={quickActionsMeta?.isSuperset}
         onClose={() => {
           setShowExerciseQuickActions(false);
@@ -2706,6 +2802,63 @@ export default function ActiveWorkoutScreen() {
         onToggleRestTimerEnabled={() => {
           if (exerciseQuickActionsIndex === null) return;
           toggleRestTimerEnabledForIndex(exerciseQuickActionsIndex);
+        }}
+        onChangeAutoProgressionMinReps={(reps) => {
+          if (exerciseQuickActionsIndex === null) return;
+          setExercises((prev) => {
+            const next = [...prev];
+            const ex = next[exerciseQuickActionsIndex];
+            if (!ex) return prev;
+            const nextMin = reps ?? undefined;
+            if (
+              typeof nextMin === 'number' &&
+              typeof ex.autoProgressionMaxReps === 'number' &&
+              nextMin > ex.autoProgressionMaxReps
+            ) {
+              Alert.alert('Invalid range', 'Min reps cannot be greater than max reps.');
+              return prev;
+            }
+            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMinReps: nextMin };
+            return next;
+          });
+        }}
+        onChangeAutoProgressionMaxReps={(reps) => {
+          if (exerciseQuickActionsIndex === null) return;
+          setExercises((prev) => {
+            const next = [...prev];
+            const ex = next[exerciseQuickActionsIndex];
+            if (!ex) return prev;
+            const nextMax = reps ?? undefined;
+            if (
+              typeof nextMax === 'number' &&
+              typeof ex.autoProgressionMinReps === 'number' &&
+              nextMax < ex.autoProgressionMinReps
+            ) {
+              Alert.alert('Invalid range', 'Max reps cannot be less than min reps.');
+              return prev;
+            }
+            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMaxReps: nextMax };
+            return next;
+          });
+        }}
+        onToggleAutoProgressionEnabled={() => {
+          if (exerciseQuickActionsIndex === null) return;
+          setExercises((prev) => {
+            const next = [...prev];
+            const ex = next[exerciseQuickActionsIndex];
+            if (!ex) return prev;
+            const nextEnabled = !(ex.autoProgressionEnabled ?? false);
+            if (nextEnabled) {
+              const min = ex.autoProgressionMinReps;
+              const max = ex.autoProgressionMaxReps;
+              if (typeof min !== 'number' || typeof max !== 'number' || min < 1 || max < min) {
+                Alert.alert('Set rep range', 'Please enter a valid min and max rep range first.');
+                return prev;
+              }
+            }
+            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: nextEnabled };
+            return next;
+          });
         }}
         onAddToSuperset={() => {
           if (exerciseQuickActionsIndex === null) return;

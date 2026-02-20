@@ -80,6 +80,9 @@ export interface Exercise {
   notes?: string;
   restTimer?: number; // Rest time in seconds, default 180 (3 mins)
   timerEnabled?: boolean; // Whether rest timer is enabled for this exercise (default true)
+  autoProgressionEnabled?: boolean;
+  autoProgressionMinReps?: number;
+  autoProgressionMaxReps?: number;
   primaryMuscle?: MuscleGroup;
   secondaryMuscles?: MuscleGroup[];
   setDetails?: TemplateSetConfig[]; // Individual set configurations (reps/weight per set)

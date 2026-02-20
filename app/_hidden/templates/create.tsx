@@ -29,6 +29,7 @@ import { Platform } from 'react-native';
 import { convertWeight, formatWeight, formatVolume } from '@/lib/unit-conversion';
 import { calculateExerciseVolume, calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
 import { getExerciseContributions } from '@/lib/muscle-contribution';
+import { getIncreaseWeightSuggestion } from '@/lib/auto-progression';
 import { CreateExerciseModal } from '@/components/create-exercise-modal';
 import { GroupedExercisePicker } from '@/components/grouped-exercise-picker';
 import { AddSupersetModal, type AddSupersetModalResult } from '@/components/add-superset-modal';
@@ -76,6 +77,9 @@ interface TemplateExerciseWithSets {
   notes?: string;
   restTimer?: number;
   timerEnabled?: boolean; // Whether rest timer is enabled for this exercise
+  autoProgressionEnabled?: boolean;
+  autoProgressionMinReps?: number;
+  autoProgressionMaxReps?: number;
   primaryMuscle?: string;
   secondaryMuscles?: string[];
   tempId?: string;
@@ -364,6 +368,9 @@ export default function TemplateCreateScreen() {
             notes: ex.notes,
             restTimer: ex.restTimer,
             timerEnabled: ex.timerEnabled,
+            autoProgressionEnabled: ex.autoProgressionEnabled,
+            autoProgressionMinReps: ex.autoProgressionMinReps,
+            autoProgressionMaxReps: ex.autoProgressionMaxReps,
             primaryMuscle: ex.primaryMuscle as string | undefined,
             secondaryMuscles: ex.secondaryMuscles as string[] | undefined,
             groupType: ex.groupType,
@@ -523,6 +530,9 @@ export default function TemplateCreateScreen() {
       unit: settings.weightUnit,
       type: exerciseType,
       restTimer: opts?.restTimerSeconds ?? settings.defaultRestTime,
+      autoProgressionEnabled: false,
+      autoProgressionMinReps: undefined,
+      autoProgressionMaxReps: undefined,
       primaryMuscle: muscleMeta?.primaryMuscle as any,
       secondaryMuscles: muscleMeta?.secondaryMuscles as any,
       groupType: opts?.groupType,
@@ -1071,6 +1081,9 @@ export default function TemplateCreateScreen() {
       reps: 0,
       unit: settings.weightUnit,
       type: exerciseData.type,
+      autoProgressionEnabled: false,
+      autoProgressionMinReps: undefined,
+      autoProgressionMaxReps: undefined,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
     };
@@ -1144,6 +1157,9 @@ export default function TemplateCreateScreen() {
           notes: ex.notes,
           restTimer: ex.restTimer,
           timerEnabled: ex.timerEnabled,
+          autoProgressionEnabled: ex.autoProgressionEnabled,
+          autoProgressionMinReps: ex.autoProgressionMinReps,
+          autoProgressionMaxReps: ex.autoProgressionMaxReps,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1260,6 +1276,10 @@ export default function TemplateCreateScreen() {
           type: exerciseType,
           notes: ex.notes,
           restTimer: ex.restTimer,
+          timerEnabled: ex.timerEnabled,
+          autoProgressionEnabled: ex.autoProgressionEnabled,
+          autoProgressionMinReps: ex.autoProgressionMinReps,
+          autoProgressionMaxReps: ex.autoProgressionMaxReps,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1357,6 +1377,9 @@ export default function TemplateCreateScreen() {
                   notes: ex.notes,
                   restTimer: ex.restTimer,
                   timerEnabled: ex.timerEnabled,
+                  autoProgressionEnabled: ex.autoProgressionEnabled,
+                  autoProgressionMinReps: ex.autoProgressionMinReps,
+                  autoProgressionMaxReps: ex.autoProgressionMaxReps,
                   groupType: ex.groupType,
                   groupId: ex.groupId,
                   groupPosition: ex.groupPosition,
@@ -1574,6 +1597,15 @@ export default function TemplateCreateScreen() {
                         >
                           <CardTitle>{ex.name}</CardTitle>
                         </Pressable>
+                        {getIncreaseWeightSuggestion(ex.sets, {
+                          enabled: ex.autoProgressionEnabled,
+                          minReps: ex.autoProgressionMinReps,
+                          maxReps: ex.autoProgressionMaxReps,
+                        }) ? (
+                          <View className="bg-orange-500 px-2 py-1 rounded-full">
+                            <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                          </View>
+                        ) : null}
                         <Text className="text-sm text-muted">
                           {(() => {
                             const totalVolume = calculateTemplateExerciseVolume(
@@ -1714,6 +1746,15 @@ export default function TemplateCreateScreen() {
                       >
                         <CardTitle>{exA.name}</CardTitle>
                       </Pressable>
+                      {getIncreaseWeightSuggestion(exA.sets, {
+                        enabled: exA.autoProgressionEnabled,
+                        minReps: exA.autoProgressionMinReps,
+                        maxReps: exA.autoProgressionMaxReps,
+                      }) ? (
+                        <View className="bg-orange-500 px-2 py-1 rounded-full">
+                          <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                        </View>
+                      ) : null}
                       <Text className="text-sm text-muted">
                         {(() => {
                           const totalVolume = calculateTemplateExerciseVolume(
@@ -1763,6 +1804,15 @@ export default function TemplateCreateScreen() {
                       >
                         <CardTitle>{exB.name}</CardTitle>
                       </Pressable>
+                      {getIncreaseWeightSuggestion(exB.sets, {
+                        enabled: exB.autoProgressionEnabled,
+                        minReps: exB.autoProgressionMinReps,
+                        maxReps: exB.autoProgressionMaxReps,
+                      }) ? (
+                        <View className="bg-orange-500 px-2 py-1 rounded-full">
+                          <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
+                        </View>
+                      ) : null}
                       <Text className="text-sm text-muted">
                         {(() => {
                           const totalVolume = calculateTemplateExerciseVolume(
@@ -2478,6 +2528,9 @@ export default function TemplateCreateScreen() {
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 180}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
+        autoProgressionEnabled={quickActionsMeta?.ex.autoProgressionEnabled ?? false}
+        autoProgressionMinReps={quickActionsMeta?.ex.autoProgressionMinReps ?? null}
+        autoProgressionMaxReps={quickActionsMeta?.ex.autoProgressionMaxReps ?? null}
         isInSuperset={quickActionsMeta?.isSuperset}
         onClose={() => {
           setShowExerciseQuickActions(false);
@@ -2518,6 +2571,42 @@ export default function TemplateCreateScreen() {
           } else {
             handleUpdateExercise(meta.ex.id, { timerEnabled: nextEnabled });
           }
+        }}
+        onChangeAutoProgressionMinReps={(reps) => {
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          const nextMin = reps ?? undefined;
+          const currentMax = meta.ex.autoProgressionMaxReps;
+          if (typeof nextMin === 'number' && typeof currentMax === 'number' && nextMin > currentMax) {
+            Alert.alert('Invalid range', 'Min reps cannot be greater than max reps.');
+            return;
+          }
+          handleUpdateExercise(meta.ex.id, { autoProgressionMinReps: nextMin });
+        }}
+        onChangeAutoProgressionMaxReps={(reps) => {
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          const nextMax = reps ?? undefined;
+          const currentMin = meta.ex.autoProgressionMinReps;
+          if (typeof nextMax === 'number' && typeof currentMin === 'number' && nextMax < currentMin) {
+            Alert.alert('Invalid range', 'Max reps cannot be less than min reps.');
+            return;
+          }
+          handleUpdateExercise(meta.ex.id, { autoProgressionMaxReps: nextMax });
+        }}
+        onToggleAutoProgressionEnabled={() => {
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          const nextEnabled = !(meta.ex.autoProgressionEnabled ?? false);
+          if (nextEnabled) {
+            const min = meta.ex.autoProgressionMinReps;
+            const max = meta.ex.autoProgressionMaxReps;
+            if (typeof min !== 'number' || typeof max !== 'number' || min < 1 || max < min) {
+              Alert.alert('Set rep range', 'Please enter a valid min and max rep range first.');
+              return;
+            }
+          }
+          handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: nextEnabled });
         }}
         onAddToSuperset={() => {
           if (!exerciseQuickActionsId) return;

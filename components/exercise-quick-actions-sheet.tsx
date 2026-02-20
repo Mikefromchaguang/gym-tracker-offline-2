@@ -12,6 +12,9 @@ interface ExerciseQuickActionsSheetProps {
   restTimeSeconds?: number | null;
   defaultRestTimeSeconds?: number;
   restTimerEnabled?: boolean;
+  autoProgressionEnabled?: boolean;
+  autoProgressionMinReps?: number | null;
+  autoProgressionMaxReps?: number | null;
   /** Whether this exercise is part of a superset */
   isInSuperset?: boolean;
   onClose: () => void;
@@ -21,6 +24,9 @@ interface ExerciseQuickActionsSheetProps {
   onRemoveExercise?: () => void;
   onChangeRestTimeSeconds?: (seconds: number) => void;
   onToggleRestTimerEnabled?: () => void;
+  onChangeAutoProgressionMinReps?: (reps: number | null) => void;
+  onChangeAutoProgressionMaxReps?: (reps: number | null) => void;
+  onToggleAutoProgressionEnabled?: () => void;
   /** For non-superset exercises: add to a superset */
   onAddToSuperset?: () => void;
   /** For superset exercises: split into individual exercises */
@@ -33,6 +39,9 @@ export function ExerciseQuickActionsSheet({
   restTimeSeconds,
   defaultRestTimeSeconds,
   restTimerEnabled,
+  autoProgressionEnabled,
+  autoProgressionMinReps,
+  autoProgressionMaxReps,
   isInSuperset,
   onClose,
   onSeeDetails,
@@ -41,15 +50,26 @@ export function ExerciseQuickActionsSheet({
   onRemoveExercise,
   onChangeRestTimeSeconds,
   onToggleRestTimerEnabled,
+  onChangeAutoProgressionMinReps,
+  onChangeAutoProgressionMaxReps,
+  onToggleAutoProgressionEnabled,
   onAddToSuperset,
   onSplitSuperset,
 }: ExerciseQuickActionsSheetProps) {
   const colors = useColors();
   const [restDraft, setRestDraft] = useState('');
+  const [minRepsDraft, setMinRepsDraft] = useState('');
+  const [maxRepsDraft, setMaxRepsDraft] = useState('');
 
   const canEditRest = typeof onChangeRestTimeSeconds === 'function';
   const canToggleRest = typeof onToggleRestTimerEnabled === 'function' && typeof restTimerEnabled === 'boolean';
   const isRestDisabled = canToggleRest && restTimerEnabled === false;
+  const canEditAutoProgression =
+    typeof onChangeAutoProgressionMinReps === 'function' &&
+    typeof onChangeAutoProgressionMaxReps === 'function';
+  const canToggleAutoProgression =
+    typeof onToggleAutoProgressionEnabled === 'function' && typeof autoProgressionEnabled === 'boolean';
+  const isAutoProgressionDisabled = canToggleAutoProgression && autoProgressionEnabled === false;
 
   // Initialize the draft when the sheet opens for an exercise.
   // Important: do NOT re-initialize on every restTimeSeconds change (that fights user typing).
@@ -57,6 +77,12 @@ export function ExerciseQuickActionsSheet({
     if (!visible || !exerciseName) return;
     const initial = restTimeSeconds ?? defaultRestTimeSeconds ?? 0;
     setRestDraft(String(initial));
+    setMinRepsDraft(
+      autoProgressionMinReps && autoProgressionMinReps > 0 ? String(autoProgressionMinReps) : ''
+    );
+    setMaxRepsDraft(
+      autoProgressionMaxReps && autoProgressionMaxReps > 0 ? String(autoProgressionMaxReps) : ''
+    );
   }, [visible, exerciseName]);
 
   const handleRequestClose = useCallback(() => {
@@ -71,14 +97,121 @@ export function ExerciseQuickActionsSheet({
       }
     }
 
+    if (canEditAutoProgression) {
+      const minEmpty = minRepsDraft.trim().length === 0;
+      const maxEmpty = maxRepsDraft.trim().length === 0;
+
+      if (minEmpty) onChangeAutoProgressionMinReps?.(null);
+      if (maxEmpty) onChangeAutoProgressionMaxReps?.(null);
+
+      if ((minEmpty || maxEmpty) && canToggleAutoProgression && autoProgressionEnabled === true) {
+        onToggleAutoProgressionEnabled?.();
+      }
+    }
+
     onClose();
-  }, [canEditRest, canToggleRest, restDraft, restTimerEnabled, onToggleRestTimerEnabled, onChangeRestTimeSeconds, onClose]);
+  }, [
+    canEditRest,
+    canToggleRest,
+    restDraft,
+    restTimerEnabled,
+    onToggleRestTimerEnabled,
+    onChangeRestTimeSeconds,
+    canEditAutoProgression,
+    minRepsDraft,
+    maxRepsDraft,
+    onChangeAutoProgressionMinReps,
+    onChangeAutoProgressionMaxReps,
+    canToggleAutoProgression,
+    autoProgressionEnabled,
+    onToggleAutoProgressionEnabled,
+    onClose,
+  ]);
 
   if (!exerciseName) return null;
 
   return (
     <ModalBottomSheet visible={visible} onClose={handleRequestClose} title={exerciseName}>
       <View className="gap-3">
+        {(canEditAutoProgression || canToggleAutoProgression) && (
+          <View className="gap-2">
+            <Text className="text-sm text-muted">Auto-progression</Text>
+
+            <View style={isAutoProgressionDisabled ? { opacity: 0.5 } : undefined}>
+              <Text className="text-sm text-muted">Rep range</Text>
+              <View className="flex-row items-center gap-2">
+                {canEditAutoProgression && (
+                  <>
+                    <View className="flex-1">
+                      <Input
+                        placeholder="Min"
+                        value={minRepsDraft}
+                        keyboardType="numeric"
+                        editable={!isAutoProgressionDisabled}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          setMinRepsDraft(filtered);
+                          if (filtered.length > 0) {
+                            const parsed = parseInt(filtered, 10);
+                            if (!Number.isNaN(parsed)) {
+                              onChangeAutoProgressionMinReps?.(parsed);
+                            }
+                          } else {
+                            onChangeAutoProgressionMinReps?.(null);
+                          }
+                        }}
+                      />
+                    </View>
+                    <Text className="text-sm text-muted">-</Text>
+                    <View className="flex-1">
+                      <Input
+                        placeholder="Max"
+                        value={maxRepsDraft}
+                        keyboardType="numeric"
+                        editable={!isAutoProgressionDisabled}
+                        onChangeText={(text) => {
+                          const filtered = text.replace(/[^0-9]/g, '');
+                          setMaxRepsDraft(filtered);
+                          if (filtered.length > 0) {
+                            const parsed = parseInt(filtered, 10);
+                            if (!Number.isNaN(parsed)) {
+                              onChangeAutoProgressionMaxReps?.(parsed);
+                            }
+                          } else {
+                            onChangeAutoProgressionMaxReps?.(null);
+                          }
+                        }}
+                      />
+                    </View>
+                  </>
+                )}
+
+                {canToggleAutoProgression && (
+                  <Button
+                    variant="outline"
+                    onPress={() => {
+                      onToggleAutoProgressionEnabled?.();
+                    }}
+                    className="shrink-0"
+                  >
+                    <IconSymbol
+                      size={18}
+                      name="chart.line.uptrend.xyaxis"
+                      color={isAutoProgressionDisabled ? colors.muted : colors.foreground}
+                    />
+                    <Text
+                      className="text-base font-semibold"
+                      style={{ color: isAutoProgressionDisabled ? colors.muted : colors.foreground }}
+                    >
+                      {autoProgressionEnabled ? 'Disable' : 'Enable'}
+                    </Text>
+                  </Button>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
         {(canEditRest || canToggleRest) && (
           <View className="gap-2">
             <Text className="text-sm text-muted">Rest timer</Text>
