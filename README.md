@@ -1,6 +1,6 @@
-# Offline Gym Tracker
+# Free Forever Gym Tracker
 
-A local-first workout tracking app built with React Native + Expo, made exclusively with Manus and Github Copilot in VS Code. Create unlimited workout routines, customize unlimited exercises, and visually track your progress while keeping your data completely offline.
+A local-first workout tracking app built with React Native + Expo, made exclusively with Manus and Github Copilot in VS Code. Create unlimited workout routines, customize unlimited exercises, plan your training week, and visually track progress while keeping your data completely offline.
 
 ## What This App Is (and Isn't)
 
@@ -25,10 +25,15 @@ Just track, grind, and progress.
 
 ### 1. Initial Setup
 
-The app has three main sections:
+The app has three main tab sections:
 - **Home**: Log bodyweight, create/edit routines, start workouts
 - **Analytics**: View graphs and progression metrics
 - **Profile**: Configure exercises, app preferences, and manage data
+
+There are also hidden feature screens used from those tabs, including:
+- **Routine Builder** (create/edit routine)
+- **Active Workout**
+- **Week Planner** (weekly schedule editor)
 
 **First steps:**
 1. Go to **Profile > Preferences** and set your gender and weight unit (kg or lbs)
@@ -80,12 +85,35 @@ Muscle contributions power volume data in your analytics charts:
   - Set rest time and toggle rest timer on/off
 - Use arrows to reorder exercises
 
+**Routine builder highlights:**
+- Swipeable header with:
+  - Body map + summary stats (volume, exercises, sets, reps)
+  - Muscle distribution breakdown list
+- One-line muscle breakdown rows with neutral split bars (primary vs secondary)
+- Exercise quick actions include:
+  - See details
+  - Pull sets from last session
+  - Replace exercise
+  - Add to superset / Split superset
+  - Remove exercise
+
 **During workouts:**
 - Start a quick workout or use a routine
 - Mark sets complete as you go (only completed sets count toward volume and PRs)
 - Back out of an active workout to navigate freely, but return to the workout to complete it
 - Tap a set number to remove the set, mark it as a **Warmup** set (warmups don't count toward volume and PRs), or mark it as a **Failure** set (failure sets are used to estimate your max rep values)
 - ⚠️ **Known bug**: If you end a workout from the bottom-page active workout banner, it sometimes doesn't actually end. While in this state, if you start another workout, the title will rapidly switch back and forth indicating two active workouts. Close and reopen the app to fix this.
+
+### 3.5 Week Planner (Home)
+
+- Home includes a **Week Planner** card carousel
+- Create plans directly from Home via **New**
+- Reorder plan cards with left/right arrows (same interaction model as routine cards)
+- Plan card menu (`...`) includes:
+  - Duplicate
+  - Delete
+- Mark a plan as **Active** to control which routines are tagged **Today**
+- Routine cards show a **Today** badge when scheduled for the current day in the active plan
 
 ### 4. Track Your Progress
 
@@ -138,10 +166,10 @@ Go to **Profile > Exercises** and tap an exercise with a **Data** tag to view st
 
 All core data is stored locally using AsyncStorage. No cloud sync required.
 
-An optional tRPC + Drizzle server is included—see `server/README.md` if needed.
-
 **Storage keys** (see `lib/storage.ts`):
 - `gym_tracker_templates`
+- `gym_tracker_week_plans`
+- `gym_tracker_active_week_plan_id`
 - `gym_tracker_workouts`
 - `gym_tracker_settings`
 - `gym_tracker_custom_exercises`
@@ -149,6 +177,16 @@ An optional tRPC + Drizzle server is included—see `server/README.md` if needed
 - `gym_tracker_body_weight`
 - `gym_tracker_active_workout`
 - `gym_tracker_exercise_volume`
+- `gym_tracker_achievements`
+- `gym_tracker_exercise_detail_chart_prefs`
+- `gym_tracker_failure_set_data`
+
+### Data Management (Backup/Import/Export)
+
+- Full backup/export includes routines, week planner data, workouts, settings, exercises, and related local metadata
+- Restore/import supports:
+  - Full restore
+  - Selective restore categories (including routine + planner scheduling data)
 
 
 ## Development
@@ -197,10 +235,34 @@ app/
 components/            # UI + feature components
 lib/                   # Context, storage, business logic
 constants/             # Constants, theme, predefined data
-drizzle/               # Database schema and migrations (optional server)
-server/                # Optional tRPC + Drizzle backend
 scripts/               # Build and utility scripts
 ```
+
+### Module Notes (Recent Updates)
+
+- **Home**
+  - Week Planner section integrated
+  - Planner card menu actions (duplicate/delete)
+  - Planner card reordering
+  - Routine cards can show **Today** scheduling badge
+
+- **Routine Builder**
+  - Improved summary/muscle distribution header carousel
+  - Muscle distribution rows streamlined for readability
+  - Updated quick action icon clarity
+
+- **Active Workout**
+  - Uses consistent quick action sheet for exercise actions
+  - Rest timer and set-level status interactions preserved
+
+- **Week Planner**
+  - Create/edit-focused flow from Home (intermediary list flow removed)
+  - Unsaved-change protection and save navigation hardening
+  - Plan-level summary with body map + set distribution
+
+- **Profile / Data Management**
+  - Backup/import/export updated to include week planner state
+  - Import category messaging reflects routine + planner coupling
 
 ### Testing
 

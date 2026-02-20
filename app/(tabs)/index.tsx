@@ -685,7 +685,7 @@ export default function HomeScreen() {
         <View className="gap-6 pb-6">
           {/* Header */}
           <View className="gap-2">
-            <Text className="text-3xl font-bold text-foreground">Swole Revolution</Text>
+            <Text className="text-3xl font-bold text-foreground">Free Forever Gym Tracker</Text>
             <Text className="text-base text-muted">
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long',

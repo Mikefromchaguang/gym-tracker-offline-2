@@ -37,15 +37,15 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Socrates"
   },
   {
-    text: "Know thy limits, and then approach them carefully to avoid injury.",
+    text: "Know thy limits, and then approach them carefully.",
     author: "Socrates"
   },
   {
-    text: "He who conquers others is strong; he who conquers the barbell is stronger.",
+    text: "He who conquers the bar is strong; he who conquers himself is powerful.",
     author: "Laozi"
   },
   {
-    text: "No one steps under the same bar twice, for it is not the same bar, and he is not the same lifter.",
+    text: "No one steps under the same bar twice, for it is not the same bar, and he is not the same man.",
     author: "Heraclitus"
   },
   {
@@ -69,7 +69,7 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Plato"
   },
   {
-    text: "Virtue is a habit, and so is proper depth.",
+    text: "Virtue is a habit, as is proper depth.",
     author: "Aristotle"
   },
   {
@@ -81,7 +81,7 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Seneca"
   },
   {
-    text: "Freedom is wanting nothing except stronger pull ups.",
+    text: "Freedom is wanting nothing but PRs.",
     author: "Diogenes"
   },
   {
@@ -153,7 +153,7 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Marcus Aurelius"
   },
   {
-    text: "I cannot teach you strength; I can only show you my charts.",
+    text: "I cannot teach you strength; I can only show you my progression charts.",
     author: "Socrates"
   },
   {
@@ -169,11 +169,11 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Epictetus"
   },
   {
-    text: "No man is more misled than he who thinks the heaviest weight is not his mind.",
+    text: "No man is more misled than he who thinks the heaviest weight is not his own mind.",
     author: "Socrates"
   },
   {
-    text: "When the ego lifts, it is the body that breaks.",
+    text: "When the ego lifts, it is the body that falls.",
     author: "Zhuangzi"
   }
 ];

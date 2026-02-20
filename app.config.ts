@@ -12,8 +12,8 @@ const schemeFromBundleId = `manus${timestamp}`;
 
 const env = {
   // App branding - update these values directly (do not use env vars)
-  appName: "Swole Revolution",
-  appSlug: "swole-revolution",
+  appName: "Free Forever Gym Tracker",
+  appSlug: "free-forever-gym-tracker",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
   logoUrl: "https://private-us-east-1.manuscdn.com/sessionFile/9RV4mVnSQgaDWdhjNiAsYr/sandbox/BbJ1wzk2dSvwXxkUpd23xf-img-1_1771308463000_na1fn_c3dvbGUtcmV2b2x1dGlvbi1pY29uLXY0.png?Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvOVJWNG1WblNRZ2FEV2Roak5pQXNZci9zYW5kYm94L0JiSjF3emsyZFN2d1h4a1VwZDIzeGYtaW1nLTFfMTc3MTMwODQ2MzAwMF9uYTFmbl9jM2R2YkdVdGNtVjJiMngxZEdsdmJpMXBZMjl1TFhZMC5wbmc~eC1vc3MtcHJvY2Vzcz1pbWFnZS9yZXNpemUsd18xOTIwLGhfMTkyMC9mb3JtYXQsd2VicC9xdWFsaXR5LHFfODAiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3OTg3NjE2MDB9fX1dfQ__&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=PANMLEquSNB2NHuJkK~z8t9357ScWeyAWR9q9IY66Fth1~gis~qi11mM5Jd1sjVROUp0J6q72vRlKE9QIFYTDv30PytBj8GkhfQ82duLRy96Yoy-wsahqSe8E8IlYAxXs-IFq0vmfVhJvLkL~Bhb4MNvdAV7a0yAj5MHNO~2zzo4Wr12VagFiapOkNZvDZPTm6ed~bUnu~0YIIvhtzLv~SvibC8NWG3Ii3pSf-ujMF-lp3BUBT4NIY5QJ4BJLuwwiGvaRaa-bPgKpFDS3IeFR7jmjuOXqvzpblvhnJoEVdTpdHcigGp7sbmRs8U7SK4Wk~yRMh3YTH13WDsRaCXXDw__",
