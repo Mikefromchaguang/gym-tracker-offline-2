@@ -187,7 +187,7 @@ export function TemplateCard({
               <View className="flex-row items-center gap-2 flex-wrap">
                 <CardTitle className="text-base">{template.name}</CardTitle>
                 {isScheduledToday ? (
-                  <View className="bg-primary px-2 py-1 rounded-full">
+                  <View className="bg-orange-500 px-2 py-1 rounded-full">
                     <Text className="text-xs font-semibold text-background">Today</Text>
                   </View>
                 ) : null}
