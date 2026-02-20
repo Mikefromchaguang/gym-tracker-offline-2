@@ -241,7 +241,7 @@ export function CreateExerciseModal({
             {mode === 'create' ? 'Create Exercise' : 'Edit Exercise'}
           </Text>
           <Pressable onPress={handleClose} style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
-            <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
+            <IconSymbol size={24} name="xmark.circle.fill" color={colors.error} />
           </Pressable>
         </View>
 

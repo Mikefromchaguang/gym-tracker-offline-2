@@ -93,7 +93,7 @@ export default function TemplateDetailsScreen() {
               onPress={() => router.back()}
               style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
             >
-              <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
+              <IconSymbol size={24} name="xmark.circle.fill" color={colors.error} />
             </Pressable>
           </View>
 

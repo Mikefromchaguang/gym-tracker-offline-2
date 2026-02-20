@@ -35,7 +35,7 @@ import Animated, { LinearTransition } from 'react-native-reanimated';
 import { convertWeight, formatWeight, formatVolume, convertWeightBetweenUnits, KG_TO_LBS, LBS_TO_KG } from '@/lib/unit-conversion';
 import { calculateSetVolume } from '@/lib/volume-calculation';
 import { DailyQuote } from '@/components/daily-quote';
-import { WorkoutTemplate } from '@/lib/types';
+import { WeekPlan, WorkoutTemplate } from '@/lib/types';
 import { exportTemplate, importTemplate } from '@/lib/template-transfer';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const { templates, weekPlans, activeWeekPlanId, setActiveWeekPlan, addWeekPlan, deleteWeekPlan, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
+  const { templates, weekPlans, activeWeekPlanId, setActiveWeekPlan, addWeekPlan, deleteWeekPlan, reorderWeekPlans, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
   const { bodyWeightKg } = useBodyweight(); // For volume calculations (always in kg)
   const [refreshing, setRefreshing] = useState(false);
   const [bodyWeight, setBodyWeight] = useState<string>('');
@@ -58,6 +58,7 @@ export default function HomeScreen() {
   const [manualDate, setManualDate] = useState<string>('');
   const [weightHistory, setWeightHistory] = useState<Array<{ date: string; weight: number; timestamp: number }>>([]);
   const [localTemplates, setLocalTemplates] = useState<WorkoutTemplate[]>([]);
+  const [localWeekPlans, setLocalWeekPlans] = useState<WeekPlan[]>([]);
   const [currentRoutineIndex, setCurrentRoutineIndex] = useState(0);
   const [currentPlanIndex, setCurrentPlanIndex] = useState(0);
   const [showWeekPlanMenu, setShowWeekPlanMenu] = useState(false);
@@ -77,14 +78,14 @@ export default function HomeScreen() {
   );
 
   const activeWeekPlan = useMemo(() => {
-    if (weekPlans.length === 0) return null;
-    return weekPlans.find((p) => p.id === activeWeekPlanId) || weekPlans[0];
-  }, [weekPlans, activeWeekPlanId]);
+    if (localWeekPlans.length === 0) return null;
+    return localWeekPlans.find((p) => p.id === activeWeekPlanId) || localWeekPlans[0];
+  }, [localWeekPlans, activeWeekPlanId]);
 
   const selectedWeekPlan = useMemo(() => {
     if (!selectedWeekPlanId) return null;
-    return weekPlans.find((p) => p.id === selectedWeekPlanId) ?? null;
-  }, [weekPlans, selectedWeekPlanId]);
+    return localWeekPlans.find((p) => p.id === selectedWeekPlanId) ?? null;
+  }, [localWeekPlans, selectedWeekPlanId]);
 
   const todayRoutineIds = useMemo(() => {
     if (!activeWeekPlan) return new Set<string>();
@@ -99,6 +100,10 @@ export default function HomeScreen() {
   }, [templates]);
 
   useEffect(() => {
+    setLocalWeekPlans(weekPlans);
+  }, [weekPlans]);
+
+  useEffect(() => {
     setCurrentRoutineIndex((idx) => {
       const maxIndex = Math.max(0, localTemplates.length - 1);
       return Math.min(idx, maxIndex);
@@ -107,10 +112,10 @@ export default function HomeScreen() {
 
   useEffect(() => {
     setCurrentPlanIndex((idx) => {
-      const maxIndex = Math.max(0, weekPlans.length - 1);
+      const maxIndex = Math.max(0, localWeekPlans.length - 1);
       return Math.min(idx, maxIndex);
     });
-  }, [weekPlans.length]);
+  }, [localWeekPlans.length]);
 
   const handleRoutineScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -126,18 +131,18 @@ export default function HomeScreen() {
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const x = e.nativeEvent.contentOffset.x;
       const rawIndex = routineSnapInterval > 0 ? Math.round(x / routineSnapInterval) : 0;
-      const maxIndex = Math.max(0, weekPlans.length - 1);
+      const maxIndex = Math.max(0, localWeekPlans.length - 1);
       setCurrentPlanIndex(Math.max(0, Math.min(rawIndex, maxIndex)));
     },
-    [routineSnapInterval, weekPlans.length]
+    [routineSnapInterval, localWeekPlans.length]
   );
 
-  const handleOpenPlans = useCallback(() => {
-    router.push('/_hidden/week-plans');
+  const handleCreateWeekPlan = useCallback(() => {
+    router.push('/_hidden/week-plans/edit');
   }, [router]);
 
   const getNextWeekPlanCopyName = useCallback((name: string) => {
-    const existing = new Set(weekPlans.map((p) => p.name.trim().toLowerCase()));
+    const existing = new Set(localWeekPlans.map((p) => p.name.trim().toLowerCase()));
     let candidate = `${name} (Copy)`;
     let i = 2;
     while (existing.has(candidate.trim().toLowerCase())) {
@@ -145,7 +150,7 @@ export default function HomeScreen() {
       i += 1;
     }
     return candidate;
-  }, [weekPlans]);
+  }, [localWeekPlans]);
 
   const openWeekPlanMenu = useCallback((planId: string) => {
     if (Platform.OS !== 'web') {
@@ -637,6 +642,24 @@ export default function HomeScreen() {
     reorderTemplates(reordered);
   }, [localTemplates, reorderTemplates]);
 
+  const handleMovePlanLeft = useCallback((index: number) => {
+    if (index === 0) return;
+    const reordered = [...localWeekPlans];
+    const [removed] = reordered.splice(index, 1);
+    reordered.splice(index - 1, 0, removed);
+    setLocalWeekPlans(reordered);
+    reorderWeekPlans(reordered);
+  }, [localWeekPlans, reorderWeekPlans]);
+
+  const handleMovePlanRight = useCallback((index: number) => {
+    if (index === localWeekPlans.length - 1) return;
+    const reordered = [...localWeekPlans];
+    const [removed] = reordered.splice(index, 1);
+    reordered.splice(index + 1, 0, removed);
+    setLocalWeekPlans(reordered);
+    reorderWeekPlans(reordered);
+  }, [localWeekPlans, reorderWeekPlans]);
+
   // Calculate today's stats
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -854,24 +877,24 @@ export default function HomeScreen() {
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-end gap-2">
                 <Text className="text-lg font-semibold text-foreground">Week Planner</Text>
-                {weekPlans.length > 1 ? (
+                {localWeekPlans.length > 1 ? (
                   <Text className="text-sm text-muted">
-                    {currentPlanIndex + 1} / {weekPlans.length}
+                    {currentPlanIndex + 1} / {localWeekPlans.length}
                   </Text>
                 ) : null}
               </View>
               <Pressable
-                onPress={handleOpenPlans}
+                onPress={handleCreateWeekPlan}
                 style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
               >
                 <View className="flex-row items-center gap-1">
-                  <IconSymbol size={18} name="calendar" color={colors.primary} />
-                  <Text className="text-sm font-semibold text-primary">Open</Text>
+                  <IconSymbol size={20} name="plus.circle.fill" color={colors.primary} />
+                  <Text className="text-sm font-semibold text-primary">New</Text>
                 </View>
               </Pressable>
             </View>
 
-            {weekPlans.length > 0 ? (
+            {localWeekPlans.length > 0 ? (
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -883,19 +906,43 @@ export default function HomeScreen() {
                 onMomentumScrollEnd={handlePlanScrollEnd}
                 contentContainerStyle={{ paddingRight: 4 }}
               >
-                {weekPlans.map((plan, index) => {
+                {localWeekPlans.map((plan, index) => {
                   const totalSessions = plan.days.reduce((acc, d) => acc + d.routineIds.length, 0);
                   const todayCount = plan.days.find((d) => d.dayIndex === new Date().getDay())?.routineIds.length || 0;
                   const isActive = activeWeekPlan?.id === plan.id;
+                  const isFirst = index === 0;
+                  const isLast = index === localWeekPlans.length - 1;
 
                   return (
                     <View
                       key={plan.id}
-                      style={{ width: routineCardWidth, marginRight: index === weekPlans.length - 1 ? 0 : routineCardSpacing }}
+                      style={{ width: routineCardWidth, marginRight: index === localWeekPlans.length - 1 ? 0 : routineCardSpacing }}
                     >
                       <Card>
                         <CardHeader>
                           <View className="flex-row items-center justify-between">
+                            <View style={{ flexDirection: 'column', marginRight: 8, marginLeft: -4 }}>
+                              <Pressable
+                                onPress={() => handleMovePlanLeft(index)}
+                                disabled={isFirst}
+                                style={({ pressed }) => ({
+                                  padding: 4,
+                                  opacity: isFirst ? 0.3 : pressed ? 0.6 : 1,
+                                })}
+                              >
+                                <IconSymbol size={16} name="chevron.left" color={isFirst ? colors.muted : colors.foreground} />
+                              </Pressable>
+                              <Pressable
+                                onPress={() => handleMovePlanRight(index)}
+                                disabled={isLast}
+                                style={({ pressed }) => ({
+                                  padding: 4,
+                                  opacity: isLast ? 0.3 : pressed ? 0.6 : 1,
+                                })}
+                              >
+                                <IconSymbol size={16} name="chevron.right" color={isLast ? colors.muted : colors.foreground} />
+                              </Pressable>
+                            </View>
                             <View className="flex-1">
                               <CardTitle className="text-base">{plan.name}</CardTitle>
                               <CardDescription>
@@ -983,7 +1030,7 @@ export default function HomeScreen() {
                     No week planner yet. Create one to organize your routines.
                   </Text>
                   <Pressable
-                    onPress={handleOpenPlans}
+                    onPress={handleCreateWeekPlan}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                   >
                     <Text className="text-sm font-semibold text-primary">Create Plan</Text>

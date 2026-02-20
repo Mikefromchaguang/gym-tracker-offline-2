@@ -88,7 +88,7 @@ export function ChartSettingsModal({
                 { opacity: pressed ? 0.6 : 1 }
               ]}
             >
-              <IconSymbol name="xmark.circle.fill" size={24} color={colors.muted} />
+              <IconSymbol name="xmark.circle.fill" size={24} color={colors.error} />
             </Pressable>
           </View>
 

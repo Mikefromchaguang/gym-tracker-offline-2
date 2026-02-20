@@ -2059,85 +2059,13 @@ export default function TemplateCreateScreen() {
           height: headerCardHeight ?? undefined,
         }}
       >
-        {/* Offscreen measure: lets the body map page dictate card height */}
-        <View
-          pointerEvents="none"
-          style={{ position: 'absolute', opacity: 0, left: -10000, top: 0, width: headerPageWidth }}
-          onLayout={(e) => {
-            const measured = e.nativeEvent.layout.height;
-            if (headerCardHeight == null && measured && measured > 0) setHeaderCardHeight(measured);
-          }}
-        >
-          <View style={{ padding: 12, paddingBottom: 26 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-              <View
-                style={{
-                  backgroundColor: colors.background,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  paddingVertical: 6,
-                  paddingHorizontal: 6,
-                }}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-                  <Body
-                    data={routineMuscleData}
-                    colors={['#FF4D4D']}
-                    scale={0.42}
-                    side="front"
-                    gender={(settings.bodyMapGender as any) || 'male'}
-                  />
-                  <Body
-                    data={routineMuscleData}
-                    colors={['#FF4D4D']}
-                    scale={0.42}
-                    side="back"
-                    gender={(settings.bodyMapGender as any) || 'male'}
-                  />
-                </View>
-              </View>
-
-              <View style={{ flex: 1, gap: 8 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
-                    Volume ({routineSummary.unit})
-                  </Text>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                    {routineSummary.totalVolumeDisplay}
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Exercises</Text>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                    {routineSummary.totalExercises}
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sets</Text>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                    {routineSummary.totalSets}
-                  </Text>
-                </View>
-
-                <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Reps</Text>
-                  <Text style={{ color: colors.foreground, fontSize: 14, fontWeight: '800' }}>
-                    {routineSummary.totalReps}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
         <ScrollView
           ref={headerScrollRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
+          bounces={false}
+          overScrollMode="never"
           directionalLockEnabled
           scrollEventThrottle={16}
           onMomentumScrollEnd={(e: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -2147,7 +2075,15 @@ export default function TemplateCreateScreen() {
           }}
         >
           {/* Page 1: Body map + summary */}
-          <View style={{ width: headerPageWidth, padding: 12, paddingBottom: 26 }}>
+          <View
+            style={{ width: headerPageWidth, padding: 12, paddingBottom: 26 }}
+            onLayout={(e) => {
+              const measured = e.nativeEvent.layout.height;
+              if (headerCardHeight == null && measured && measured > 0) {
+                setHeaderCardHeight(measured);
+              }
+            }}
+          >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {/* Body map */}
               <View
@@ -2428,7 +2364,7 @@ export default function TemplateCreateScreen() {
           hitSlop={8}
           style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
         >
-          <IconSymbol size={26} name="xmark.circle.fill" color={colors.muted} />
+          <IconSymbol size={26} name="xmark.circle.fill" color={colors.error} />
         </Pressable>
       </View>
 
@@ -2684,7 +2620,7 @@ export default function TemplateCreateScreen() {
                 }}
                 style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
               >
-                <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
+                <IconSymbol size={24} name="xmark.circle.fill" color={colors.error} />
               </Pressable>
             </View>
 

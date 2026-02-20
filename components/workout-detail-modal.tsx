@@ -171,7 +171,7 @@ export function WorkoutDetailModal({ workout, visible, onClose }: WorkoutDetailM
                 opacity: pressed ? 0.7 : 1,
               })}
             >
-              <IconSymbol size={20} name="xmark.circle.fill" color={colors.muted} />
+              <IconSymbol size={20} name="xmark.circle.fill" color={colors.error} />
             </Pressable>
           </View>
         </View>

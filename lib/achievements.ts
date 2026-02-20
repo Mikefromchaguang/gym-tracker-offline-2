@@ -200,9 +200,9 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   {
     id: 'you_ok_bro',
     title: 'You OK Bro?',
-    description: 'Log a set with 20 or more reps',
-    message: 'Log a set with 20 or more reps',
-    isUnlocked: ({ workouts }) => hasSetWithRepsAtLeast(workouts, 20),
+    description: 'Log a set with 25 or more reps',
+    message: 'Log a set with 25 or more reps',
+    isUnlocked: ({ workouts }) => hasSetWithRepsAtLeast(workouts, 25),
   },
 ];
 

@@ -92,12 +92,12 @@ describe('Achievements', () => {
     expect(getDef('master_of_the_craft').isUnlocked({ workouts: [w] })).toBe(true);
   });
 
-  it('unlocks “You OK Bro?” when any set has 20+ reps', () => {
+  it('unlocks “You OK Bro?” when any set has 25+ reps', () => {
     const w = makeWorkout({
       id: '1',
       endTime: new Date(2026, 0, 1, 12, 0),
       exerciseNames: ['Bench Press'],
-      repsByExercise: { 'Bench Press': [10, 20] },
+      repsByExercise: { 'Bench Press': [10, 25] },
     });
 
     expect(getDef('you_ok_bro').isUnlocked({ workouts: [w] })).toBe(true);

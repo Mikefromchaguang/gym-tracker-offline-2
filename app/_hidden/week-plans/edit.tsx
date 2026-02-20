@@ -375,7 +375,7 @@ export default function EditWeekPlanScreen() {
       setInitialDaysSignature(JSON.stringify(days));
       setAllowRemove(true);
       setTimeout(() => {
-        router.replace('/_hidden/week-plans');
+        router.replace('/(tabs)');
       }, 0);
     } catch (error) {
       console.error('[WeekPlanner] Save failed:', error);
@@ -395,7 +395,7 @@ export default function EditWeekPlanScreen() {
         onPress: async () => {
           await deleteWeekPlan(editingPlan.id);
           setAllowRemove(true);
-          router.replace('/_hidden/week-plans');
+          router.replace('/(tabs)');
         },
       },
     ]);
@@ -410,13 +410,11 @@ export default function EditWeekPlanScreen() {
               <Pressable onPress={handleBackPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
                 <IconSymbol name="chevron.left" size={28} color={colors.foreground} />
               </Pressable>
-              {editingPlan ? (
-                <Pressable onPress={handleDelete} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-                  <IconSymbol name="trash" size={20} color={colors.error} />
-                </Pressable>
-              ) : <View style={{ width: 20 }} />}
+              <Pressable onPress={handleBackPress} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+                <IconSymbol name="xmark.circle.fill" size={24} color={colors.error} />
+              </Pressable>
             </View>
-            <Text className="text-3xl font-bold text-foreground">{editingPlan ? 'Edit Week Planner' : 'New Week Planner'}</Text>
+            <Text className="text-3xl font-bold text-foreground">{editingPlan ? 'Edit Week Plan' : 'New Week Planner'}</Text>
             <Text className="text-sm text-muted">Assign routines to each day and preview weekly muscle distribution</Text>
           </View>
 
@@ -549,7 +547,7 @@ export default function EditWeekPlanScreen() {
                           <View key={id} className="flex-row items-center justify-between">
                             <Text className="text-xs text-muted">Missing routine</Text>
                             <Pressable onPress={() => removeRoutineFromDay(dayIndex, id)}>
-                              <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                              <IconSymbol name="xmark.circle.fill" size={16} color={colors.error} />
                             </Pressable>
                           </View>
                         );
@@ -576,7 +574,7 @@ export default function EditWeekPlanScreen() {
                             <IconSymbol name="pencil" size={15} color={colors.primary} />
                           </Pressable>
                           <Pressable onPress={() => removeRoutineFromDay(dayIndex, id)}>
-                            <IconSymbol name="xmark.circle.fill" size={16} color={colors.muted} />
+                            <IconSymbol name="xmark.circle.fill" size={16} color={colors.error} />
                           </Pressable>
                         </View>
                       );

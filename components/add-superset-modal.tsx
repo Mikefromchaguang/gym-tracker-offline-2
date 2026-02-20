@@ -138,7 +138,7 @@ export function AddSupersetModal({
             onPress={handleBack}
             style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
           >
-            <IconSymbol name={step === 'pickA' ? 'xmark.circle.fill' : 'chevron.left'} size={22} color={colors.muted} />
+            <IconSymbol name={step === 'pickA' ? 'xmark.circle.fill' : 'chevron.left'} size={22} color={step === 'pickA' ? colors.error : colors.muted} />
           </Pressable>
           <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>{title}</Text>
           <View style={{ width: 30 }} />

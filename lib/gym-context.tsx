@@ -109,6 +109,7 @@ interface GymContextValue extends GymContextState {
   addWeekPlan: (plan: WeekPlan) => Promise<void>;
   updateWeekPlan: (plan: WeekPlan) => Promise<void>;
   deleteWeekPlan: (id: string) => Promise<void>;
+  reorderWeekPlans: (plans: WeekPlan[]) => Promise<void>;
   setActiveWeekPlan: (id: string | null) => Promise<void>;
 
   // Workout operations
@@ -665,6 +666,19 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       dispatch({
         type: 'SET_ERROR',
         payload: error instanceof Error ? error.message : 'Failed to delete week plan',
+      });
+      throw error;
+    }
+  }, []);
+
+  const reorderWeekPlans = useCallback(async (plans: WeekPlan[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.WEEK_PLANS, JSON.stringify(plans));
+      dispatch({ type: 'SET_WEEK_PLANS', payload: plans });
+    } catch (error) {
+      dispatch({
+        type: 'SET_ERROR',
+        payload: error instanceof Error ? error.message : 'Failed to reorder week plans',
       });
       throw error;
     }
@@ -1276,6 +1290,7 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     addWeekPlan,
     updateWeekPlan,
     deleteWeekPlan,
+    reorderWeekPlans,
     setActiveWeekPlan,
     addWorkout,
     updateWorkout,
