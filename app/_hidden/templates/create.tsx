@@ -1707,7 +1707,7 @@ export default function TemplateCreateScreen() {
                               style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
                             >
                               <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                                <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
                               </View>
                             </Pressable>
                           ) : null}
@@ -1875,7 +1875,7 @@ export default function TemplateCreateScreen() {
                             style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
                           >
                             <View className="bg-orange-500 px-2 py-1 rounded-full">
-                              <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                              <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
                             </View>
                           </Pressable>
                         ) : null}
@@ -1952,7 +1952,7 @@ export default function TemplateCreateScreen() {
                             style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
                           >
                             <View className="bg-orange-500 px-2 py-1 rounded-full">
-                              <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                              <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
                             </View>
                           </Pressable>
                         ) : null}
