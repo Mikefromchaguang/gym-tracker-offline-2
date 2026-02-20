@@ -2598,14 +2598,6 @@ export default function TemplateCreateScreen() {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextEnabled = !(meta.ex.autoProgressionEnabled ?? false);
-          if (nextEnabled) {
-            const min = meta.ex.autoProgressionMinReps;
-            const max = meta.ex.autoProgressionMaxReps;
-            if (typeof min !== 'number' || typeof max !== 'number' || min < 1 || max < min) {
-              Alert.alert('Set rep range', 'Please enter a valid min and max rep range first.');
-              return;
-            }
-          }
           handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: nextEnabled });
         }}
         onAddToSuperset={() => {

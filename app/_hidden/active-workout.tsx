@@ -2848,14 +2848,6 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextEnabled = !(ex.autoProgressionEnabled ?? false);
-            if (nextEnabled) {
-              const min = ex.autoProgressionMinReps;
-              const max = ex.autoProgressionMaxReps;
-              if (typeof min !== 'number' || typeof max !== 'number' || min < 1 || max < min) {
-                Alert.alert('Set rep range', 'Please enter a valid min and max rep range first.');
-                return prev;
-              }
-            }
             next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: nextEnabled };
             return next;
           });
