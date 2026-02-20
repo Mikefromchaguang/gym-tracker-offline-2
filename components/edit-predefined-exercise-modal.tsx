@@ -298,12 +298,12 @@ export function EditPredefinedExerciseModal({
               justifyContent: 'center',
               gap: 8,
               borderWidth: 1,
-              borderColor: (isResetting || !currentCustomization) ? colors.muted : colors.primary,
+              borderColor: (isResetting || !currentCustomization) ? colors.muted : colors.error,
               opacity: (pressed && !(isResetting || !currentCustomization)) ? 0.7 : 1,
             }]}
           >
-            <IconSymbol name="arrow.counterclockwise" size={18} color={(isResetting || !currentCustomization) ? colors.muted : colors.primary} />
-            <Text style={{ color: (isResetting || !currentCustomization) ? colors.muted : colors.primary, fontWeight: '600', fontSize: 14 }}>
+            <IconSymbol name="arrow.counterclockwise" size={18} color={(isResetting || !currentCustomization) ? colors.muted : colors.error} />
+            <Text style={{ color: (isResetting || !currentCustomization) ? colors.muted : colors.error, fontWeight: '600', fontSize: 14 }}>
               Reset to Defaults
             </Text>
           </Pressable>

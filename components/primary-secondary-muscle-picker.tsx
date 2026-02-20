@@ -135,7 +135,7 @@ export function PrimarySecondaryMusclePicker({
       <Text style={{ fontSize: 12, color: colors.muted }}>
         {mode === 'primary'
           ? 'Tap a muscle to set the primary.'
-          : 'Tap muscles to toggle secondaries (primary cannot be selected here).'}
+          : 'Tap muscles to toggle secondaries (primary can\'t be selected).'}
       </Text>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>

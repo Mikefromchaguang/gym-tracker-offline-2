@@ -1012,14 +1012,6 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
             <View className="flex-1">
               <Text className="text-2xl font-bold text-foreground">{exerciseNameStr}</Text>
             </View>
-            {currentExercise?.isModified && (
-              <Pressable
-                onPress={handleResetToDefault}
-                style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
-              >
-                <IconSymbol size={24} name="arrow.counterclockwise" color={colors.error} />
-              </Pressable>
-            )}
             {currentExercise && (
               <Pressable
                 onPress={() => {
