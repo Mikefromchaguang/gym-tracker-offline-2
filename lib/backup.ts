@@ -6,6 +6,7 @@
 
 import {
   TemplateStorage,
+  WeekPlanStorage,
   WorkoutStorage,
   SettingsStorage,
   CustomExerciseStorage,
@@ -16,6 +17,7 @@ import {
   STORAGE_KEYS,
 } from './storage';
 import { WorkoutTemplate, CompletedWorkout, AppSettings, ExerciseMetadata, BodyWeightLog, MuscleGroup, ExerciseVolumeLog } from './types';
+import type { WeekPlan } from './types';
 import { MUSCLE_GROUP_MIGRATION_MAP } from './muscle-groups';
 import { RestDayStorage, type RestDay } from './rest-day-storage';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -27,6 +29,8 @@ export interface BackupData {
   version: string;
   exportedAt: number;
   templates: WorkoutTemplate[];
+  weekPlans?: WeekPlan[];
+  activeWeekPlanId?: string | null;
   workouts: CompletedWorkout[];
   settings: AppSettings;
   customExercises: ExerciseMetadata[];
@@ -88,6 +92,8 @@ export async function exportAllData(): Promise<string> {
   try {
     const [
       templates,
+      weekPlans,
+      activeWeekPlanId,
       workouts,
       settings,
       customExercises,
@@ -98,6 +104,8 @@ export async function exportAllData(): Promise<string> {
       restDays,
     ] = await Promise.all([
       TemplateStorage.getAll(),
+      WeekPlanStorage.getAll(),
+      WeekPlanStorage.getActivePlanId(),
       WorkoutStorage.getAll(),
       SettingsStorage.get(),
       CustomExerciseStorage.getAll(),
@@ -131,6 +139,8 @@ export async function exportAllData(): Promise<string> {
       version: '2.0.0',
       exportedAt: Date.now(),
       templates,
+      weekPlans,
+      activeWeekPlanId,
       workouts,
       settings,
       customExercises,
@@ -165,6 +175,7 @@ export async function importBackupData(jsonString: string): Promise<void> {
 
     console.log('[Backup] Backup validation passed. Data counts:', {
       templates: backupData.templates.length,
+      weekPlans: backupData.weekPlans?.length || 0,
       workouts: backupData.workouts.length,
       customExercises: backupData.customExercises?.length || 0,
       bodyWeightLogs: backupData.bodyWeightLogs?.length || 0,
@@ -186,6 +197,16 @@ export async function importBackupData(jsonString: string): Promise<void> {
       await TemplateStorage.save(migratedTemplate);
     }
     console.log(`[Backup] Restored ${backupData.templates.length} templates`);
+
+    // Restore week plans
+    if (backupData.weekPlans) {
+      console.log('[Backup] Restoring week plans...');
+      for (const plan of backupData.weekPlans) {
+        await WeekPlanStorage.save(plan);
+      }
+      await WeekPlanStorage.setActivePlanId(backupData.activeWeekPlanId ?? backupData.weekPlans[0]?.id ?? null);
+      console.log(`[Backup] Restored ${backupData.weekPlans.length} week plans`);
+    }
 
     // Restore workouts (migrate muscle groups if present)
     console.log('[Backup] Restoring workouts...');
@@ -313,6 +334,7 @@ export interface BackupSummary {
     achievements: number;       // parsed from appStorage if present
     exerciseVolumeLogs: number;
     templates: number;
+    weekPlans: number;
     bodyWeightLogs: number;
     customExercises: number;
     predefinedCustomizations: number;
@@ -355,6 +377,7 @@ export function parseBackupFile(jsonString: string): { backup: BackupData; summa
         achievements: achievementsCount,
         exerciseVolumeLogs: backup.exerciseVolumeLogs?.length || 0,
         templates: backup.templates?.length || 0,
+        weekPlans: backup.weekPlans?.length || 0,
         bodyWeightLogs: backup.bodyWeightLogs?.length || 0,
         customExercises: backup.customExercises?.length || 0,
         predefinedCustomizations: backup.predefinedExerciseCustomizations
@@ -424,7 +447,11 @@ export async function importSelectedCategories(
       console.log('[Backup] Importing templates...');
       
       // Clear existing
-      await AsyncStorage.removeItem(STORAGE_KEYS.TEMPLATES);
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.TEMPLATES,
+        STORAGE_KEYS.WEEK_PLANS,
+        STORAGE_KEYS.ACTIVE_WEEK_PLAN_ID,
+      ]);
 
       // Import
       if (backup.templates) {
@@ -433,6 +460,15 @@ export async function importSelectedCategories(
           await TemplateStorage.save(migratedTemplate);
         }
         console.log(`[Backup] Imported ${backup.templates.length} templates`);
+      }
+
+      // Import week plans + active selection
+      if (backup.weekPlans) {
+        for (const plan of backup.weekPlans) {
+          await WeekPlanStorage.save(plan);
+        }
+        await WeekPlanStorage.setActivePlanId(backup.activeWeekPlanId ?? backup.weekPlans[0]?.id ?? null);
+        console.log(`[Backup] Imported ${backup.weekPlans.length} week plans`);
       }
     }
 
@@ -641,6 +677,8 @@ async function clearAllDataForImport(): Promise<void> {
       }),
       // Clear additional storage
       AsyncStorage.removeItem(STORAGE_KEYS.PREDEFINED_EXERCISE_CUSTOMIZATIONS),
+      AsyncStorage.removeItem(STORAGE_KEYS.WEEK_PLANS),
+      AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_WEEK_PLAN_ID),
       ActiveWorkoutStorage.clear(),
       RestDayStorage.clearAll(),
       // Clear UI prefs

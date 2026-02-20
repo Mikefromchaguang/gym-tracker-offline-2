@@ -42,10 +42,15 @@ const IMPORT_CATEGORIES: ImportCategory[] = [
   {
     id: 'templates',
     title: 'Routines',
-    description: 'Saved workout routines and their configurations.',
-    warning: 'Will replace all your current routines.',
+    description: 'Saved workout routines, week planner schedules, and their configurations.',
+    warning: 'Will replace all your current routines and week planner data.',
     icon: '📋',
-    getCount: (s) => s.counts.templates > 0 ? `${s.counts.templates} routines` : 'No data',
+    getCount: (s) => {
+      const parts = [];
+      if (s.counts.templates > 0) parts.push(`${s.counts.templates} routines`);
+      if (s.counts.weekPlans > 0) parts.push(`${s.counts.weekPlans} planners`);
+      return parts.length > 0 ? parts.join(', ') : 'No data';
+    },
   },
   {
     id: 'bodyWeight',

@@ -45,7 +45,7 @@ export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const { templates, weekPlans, activeWeekPlanId, setActiveWeekPlan, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
+  const { templates, weekPlans, activeWeekPlanId, setActiveWeekPlan, addWeekPlan, deleteWeekPlan, workouts, deleteTemplate, reorderTemplates, settings, customExercises, addTemplate, addCustomExercise, isWorkoutActive, duplicateTemplate, stopTimer, clearWorkoutActive } = useGym();
   const { bodyWeightKg } = useBodyweight(); // For volume calculations (always in kg)
   const [refreshing, setRefreshing] = useState(false);
   const [bodyWeight, setBodyWeight] = useState<string>('');
@@ -60,6 +60,8 @@ export default function HomeScreen() {
   const [localTemplates, setLocalTemplates] = useState<WorkoutTemplate[]>([]);
   const [currentRoutineIndex, setCurrentRoutineIndex] = useState(0);
   const [currentPlanIndex, setCurrentPlanIndex] = useState(0);
+  const [showWeekPlanMenu, setShowWeekPlanMenu] = useState(false);
+  const [selectedWeekPlanId, setSelectedWeekPlanId] = useState<string | null>(null);
 
   const routineCardSpacing = 12;
   const routineCardWidth = useMemo(() => {
@@ -78,6 +80,11 @@ export default function HomeScreen() {
     if (weekPlans.length === 0) return null;
     return weekPlans.find((p) => p.id === activeWeekPlanId) || weekPlans[0];
   }, [weekPlans, activeWeekPlanId]);
+
+  const selectedWeekPlan = useMemo(() => {
+    if (!selectedWeekPlanId) return null;
+    return weekPlans.find((p) => p.id === selectedWeekPlanId) ?? null;
+  }, [weekPlans, selectedWeekPlanId]);
 
   const todayRoutineIds = useMemo(() => {
     if (!activeWeekPlan) return new Set<string>();
@@ -128,6 +135,79 @@ export default function HomeScreen() {
   const handleOpenPlans = useCallback(() => {
     router.push('/_hidden/week-plans');
   }, [router]);
+
+  const getNextWeekPlanCopyName = useCallback((name: string) => {
+    const existing = new Set(weekPlans.map((p) => p.name.trim().toLowerCase()));
+    let candidate = `${name} (Copy)`;
+    let i = 2;
+    while (existing.has(candidate.trim().toLowerCase())) {
+      candidate = `${name} (Copy ${i})`;
+      i += 1;
+    }
+    return candidate;
+  }, [weekPlans]);
+
+  const openWeekPlanMenu = useCallback((planId: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedWeekPlanId(planId);
+    setShowWeekPlanMenu(true);
+  }, []);
+
+  const closeWeekPlanMenu = useCallback(() => {
+    setShowWeekPlanMenu(false);
+    setSelectedWeekPlanId(null);
+  }, []);
+
+  const handleDuplicateWeekPlan = useCallback(async () => {
+    if (!selectedWeekPlan) return;
+    try {
+      const now = Date.now();
+      await addWeekPlan({
+        id: `week_plan_${now}_${Math.random().toString(36).slice(2, 8)}`,
+        name: getNextWeekPlanCopyName(selectedWeekPlan.name),
+        days: selectedWeekPlan.days.map((day) => ({
+          dayIndex: day.dayIndex,
+          routineIds: [...day.routineIds],
+        })),
+        createdAt: now,
+        updatedAt: now,
+      });
+      closeWeekPlanMenu();
+      if (Platform.OS !== 'web') {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to duplicate week planner');
+    }
+  }, [selectedWeekPlan, addWeekPlan, getNextWeekPlanCopyName, closeWeekPlanMenu]);
+
+  const handleDeleteWeekPlan = useCallback(() => {
+    if (!selectedWeekPlan) return;
+    Alert.alert(
+      'Delete Week Planner',
+      `Are you sure you want to delete "${selectedWeekPlan.name}"?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteWeekPlan(selectedWeekPlan.id);
+              closeWeekPlanMenu();
+              if (Platform.OS !== 'web') {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete week planner');
+            }
+          },
+        },
+      ]
+    );
+  }, [selectedWeekPlan, deleteWeekPlan, closeWeekPlanMenu]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -822,11 +902,26 @@ export default function HomeScreen() {
                                 {totalSessions} sessions • Today: {todayCount}
                               </CardDescription>
                             </View>
-                            {isActive ? (
-                              <View className="bg-primary px-2 py-1 rounded-full">
-                                <Text className="text-xs font-semibold text-background">Active</Text>
-                              </View>
-                            ) : null}
+                            <View className="flex-row items-center gap-2">
+                              {isActive ? (
+                                <View className="bg-primary px-2 py-1 rounded-full">
+                                  <Text className="text-xs font-semibold text-background">Active</Text>
+                                </View>
+                              ) : null}
+                              <Pressable
+                                onPress={() => openWeekPlanMenu(plan.id)}
+                                style={({ pressed }) => [{
+                                  padding: 6,
+                                  borderRadius: 999,
+                                  backgroundColor: colors.surface,
+                                  borderWidth: 1,
+                                  borderColor: colors.border,
+                                  opacity: pressed ? 0.7 : 1,
+                                }]}
+                              >
+                                <IconSymbol size={18} name="ellipsis.circle" color={colors.muted} />
+                              </Pressable>
+                            </View>
                           </View>
                         </CardHeader>
                         <CardContent className="gap-2">
@@ -899,6 +994,56 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Modal
+        visible={showWeekPlanMenu}
+        transparent
+        animationType="fade"
+        onRequestClose={closeWeekPlanMenu}
+      >
+        <Pressable
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', paddingHorizontal: 16 }}
+          onPress={closeWeekPlanMenu}
+        >
+          <Pressable
+            onPress={(e) => e.stopPropagation()}
+            style={{
+              backgroundColor: colors.background,
+              borderRadius: 12,
+              padding: 8,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.25,
+              shadowRadius: 4,
+              elevation: 5,
+            }}
+          >
+            <Pressable
+              onPress={handleDuplicateWeekPlan}
+              style={({ pressed }) => [{
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                backgroundColor: pressed ? colors.surface : colors.background,
+                borderRadius: 8,
+              }]}
+            >
+              <Text style={{ color: colors.foreground, fontSize: 16 }}>Duplicate</Text>
+            </Pressable>
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+            <Pressable
+              onPress={handleDeleteWeekPlan}
+              style={({ pressed }) => [{
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                backgroundColor: pressed ? colors.surface : colors.background,
+                borderRadius: 8,
+              }]}
+            >
+              <Text style={{ color: colors.error, fontSize: 16 }}>Delete</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Body Weight History Modal */}
       <Modal

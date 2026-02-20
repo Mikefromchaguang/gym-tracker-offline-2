@@ -1,7 +1,7 @@
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePreventRemove } from '@react-navigation/native';
+import { useNavigation, usePreventRemove } from '@react-navigation/native';
 import Body from 'react-native-body-highlighter';
 import { ScreenContainer } from '@/components/screen-container';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +55,7 @@ const buildEmptyDays = (): WeekPlanDay[] =>
 
 export default function EditWeekPlanScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const colors = useColors();
   const { bodyWeightKg: currentBodyweight } = useBodyweight();
   const {
@@ -129,7 +130,6 @@ export default function EditWeekPlanScreen() {
             setAllowRemove(true);
             setTimeout(() => {
               router.back();
-              setAllowRemove(false);
             }, 0);
           },
         },
@@ -137,7 +137,7 @@ export default function EditWeekPlanScreen() {
     );
   }, [hasUnsavedChanges, router]);
 
-  usePreventRemove(hasUnsavedChanges && !allowRemove, () => {
+  usePreventRemove(hasUnsavedChanges && !allowRemove, ({ data }) => {
     Alert.alert(
       'Discard changes?',
       'You have unsaved changes. Are you sure you want to discard them?',
@@ -149,8 +149,7 @@ export default function EditWeekPlanScreen() {
           onPress: () => {
             setAllowRemove(true);
             setTimeout(() => {
-              router.back();
-              setAllowRemove(false);
+              navigation.dispatch(data.action);
             }, 0);
           },
         },
@@ -369,7 +368,11 @@ export default function EditWeekPlanScreen() {
       }
 
       // Use replace instead of back to avoid closing app when this screen is the first route in stack.
+      setAllowRemove(true);
       router.replace('/_hidden/week-plans');
+    } catch (error) {
+      console.error('[WeekPlanner] Save failed:', error);
+      Alert.alert('Save failed', 'There was a problem saving this plan. Please try again.');
     } finally {
       setSaving(false);
     }
