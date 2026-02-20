@@ -83,6 +83,7 @@ export interface Exercise {
   autoProgressionEnabled?: boolean;
   autoProgressionMinReps?: number;
   autoProgressionMaxReps?: number;
+  autoProgressionUseDefaultRange?: boolean;
   primaryMuscle?: MuscleGroup;
   secondaryMuscles?: MuscleGroup[];
   setDetails?: TemplateSetConfig[]; // Individual set configurations (reps/weight per set)
@@ -198,8 +199,10 @@ export interface AppSettings {
   weightUnit: WeightUnit;
   theme: 'light' | 'dark' | 'auto';
   defaultRestTime: number; // Default rest time in seconds for new exercises
+  autoProgressionEnabled: boolean;
   defaultAutoProgressionMinReps: number;
   defaultAutoProgressionMaxReps: number;
+  defaultAutoProgressionWeightIncrement: number;
   bodyMapGender: 'male' | 'female'; // Gender for body map visualization
   weekStartDay: WeekStartDay; // Day to start the week (0 = Sunday, 1 = Monday, etc.)
   showQuotes: boolean; // Whether to show inspirational quotes on home screen

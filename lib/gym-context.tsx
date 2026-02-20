@@ -161,6 +161,10 @@ const initialState: GymContextState = {
     weightUnit: 'kg',
     theme: 'auto',
     defaultRestTime: 90, // Default 90 seconds rest time
+    autoProgressionEnabled: false,
+    defaultAutoProgressionMinReps: 8,
+    defaultAutoProgressionMaxReps: 12,
+    defaultAutoProgressionWeightIncrement: 2.5,
     bodyMapGender: 'male', // Default to male body map
     weekStartDay: 1, // Default Monday (0 = Sunday, 1 = Monday, etc.)
     showQuotes: true, // Show inspirational quotes by default

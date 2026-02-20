@@ -80,6 +80,7 @@ interface TemplateExerciseWithSets {
   autoProgressionEnabled?: boolean;
   autoProgressionMinReps?: number;
   autoProgressionMaxReps?: number;
+  autoProgressionUseDefaultRange?: boolean;
   primaryMuscle?: string;
   secondaryMuscles?: string[];
   tempId?: string;
@@ -259,6 +260,7 @@ export default function TemplateCreateScreen() {
     const restTimerEnabled = isSuperset
       ? ex.timerEnabled !== false && (!mate || mate.timerEnabled !== false)
       : ex.timerEnabled !== false;
+    const autoProgressionEnabled = settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
 
     return {
       ex,
@@ -266,8 +268,9 @@ export default function TemplateCreateScreen() {
       isSuperset,
       restTimerSeconds,
       restTimerEnabled,
+      autoProgressionEnabled,
     };
-  }, [exerciseQuickActionsId, exercises, settings.defaultRestTime]);
+  }, [exerciseQuickActionsId, exercises, settings.defaultRestTime, settings.autoProgressionEnabled]);
 
   // Use centralized muscle groups
   const MUSCLE_GROUPS: MuscleGroup[] = PRIMARY_MUSCLE_GROUPS;
@@ -371,6 +374,7 @@ export default function TemplateCreateScreen() {
             autoProgressionEnabled: ex.autoProgressionEnabled,
             autoProgressionMinReps: ex.autoProgressionMinReps,
             autoProgressionMaxReps: ex.autoProgressionMaxReps,
+            autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
             primaryMuscle: ex.primaryMuscle as string | undefined,
             secondaryMuscles: ex.secondaryMuscles as string[] | undefined,
             groupType: ex.groupType,
@@ -530,16 +534,25 @@ export default function TemplateCreateScreen() {
       unit: settings.weightUnit,
       type: exerciseType,
       restTimer: opts?.restTimerSeconds ?? settings.defaultRestTime,
-      autoProgressionEnabled: false,
-      autoProgressionMinReps: undefined,
-      autoProgressionMaxReps: undefined,
+      autoProgressionEnabled: true,
+      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: true,
       primaryMuscle: muscleMeta?.primaryMuscle as any,
       secondaryMuscles: muscleMeta?.secondaryMuscles as any,
       groupType: opts?.groupType,
       groupId: opts?.groupId,
       groupPosition: opts?.groupPosition,
     };
-  }, [customExercises, predefinedExerciseCustomizations, getMostRecentExerciseData, settings.weightUnit, settings.defaultRestTime]);
+  }, [
+    customExercises,
+    predefinedExerciseCustomizations,
+    getMostRecentExerciseData,
+    settings.weightUnit,
+    settings.defaultRestTime,
+    settings.defaultAutoProgressionMinReps,
+    settings.defaultAutoProgressionMaxReps,
+  ]);
 
   const handleAddExerciseToTemplate = useCallback(async (exerciseName: string) => {
     const newExercise = await buildTemplateExerciseWithSets(exerciseName);
@@ -756,6 +769,60 @@ export default function TemplateCreateScreen() {
     },
     []
   );
+
+  const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseId: string) => {
+    const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
+    if (increment <= 0) {
+      Alert.alert('Invalid increment', 'Set a default weight increment in Preferences first.');
+      return;
+    }
+
+    const exercise = exercises.find((ex) => ex.id === exerciseId);
+    if (!exercise) return;
+
+    const minReps = exercise.autoProgressionUseDefaultRange === false
+      ? (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8)
+      : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8);
+
+    Alert.alert(
+      'Increase weight?',
+      `Increase all sets by ${increment}${settings.weightUnit} and reset reps to ${minReps}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: () => {
+            setExercises((prev) =>
+              prev.map((ex) => {
+                if (ex.id !== exerciseId) return ex;
+                const nextSets = ex.sets.map((set) => ({
+                  ...set,
+                  reps: minReps,
+                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                  isRepsPlaceholder: false,
+                  isWeightPlaceholder: false,
+                }));
+                return {
+                  ...ex,
+                  sets: nextSets,
+                  reps: minReps,
+                  weight: nextSets[0]?.weight ?? ex.weight,
+                };
+              })
+            );
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          },
+        },
+      ]
+    );
+  }, [
+    settings.defaultAutoProgressionWeightIncrement,
+    settings.defaultAutoProgressionMinReps,
+    settings.weightUnit,
+    exercises,
+  ]);
 
   const handleMoveDisplayItemUp = useCallback((displayIndex: number) => {
     if (displayIndex === 0) return;
@@ -1081,14 +1148,21 @@ export default function TemplateCreateScreen() {
       reps: 0,
       unit: settings.weightUnit,
       type: exerciseData.type,
-      autoProgressionEnabled: false,
-      autoProgressionMinReps: undefined,
-      autoProgressionMaxReps: undefined,
+      autoProgressionEnabled: true,
+      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: true,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
     };
     setExercises(prev => [...prev, exerciseToAdd]);
-  }, [customExercises, addCustomExercise, settings.weightUnit]);
+  }, [
+    customExercises,
+    addCustomExercise,
+    settings.weightUnit,
+    settings.defaultAutoProgressionMinReps,
+    settings.defaultAutoProgressionMaxReps,
+  ]);
 
 
 
@@ -1160,6 +1234,7 @@ export default function TemplateCreateScreen() {
           autoProgressionEnabled: ex.autoProgressionEnabled,
           autoProgressionMinReps: ex.autoProgressionMinReps,
           autoProgressionMaxReps: ex.autoProgressionMaxReps,
+          autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1280,6 +1355,7 @@ export default function TemplateCreateScreen() {
           autoProgressionEnabled: ex.autoProgressionEnabled,
           autoProgressionMinReps: ex.autoProgressionMinReps,
           autoProgressionMaxReps: ex.autoProgressionMaxReps,
+          autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1380,6 +1456,7 @@ export default function TemplateCreateScreen() {
                   autoProgressionEnabled: ex.autoProgressionEnabled,
                   autoProgressionMinReps: ex.autoProgressionMinReps,
                   autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                  autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
                   groupType: ex.groupType,
                   groupId: ex.groupId,
                   groupPosition: ex.groupPosition,
@@ -1589,33 +1666,52 @@ export default function TemplateCreateScreen() {
                     </View>
 
                     <View className="flex-1">
-                      <View className="flex-row items-center gap-2">
+                      <View className="flex-row items-center">
                         <Pressable
                           onPress={() => openExerciseQuickActions(ex.id)}
                           hitSlop={8}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0 }]}
                         >
-                          <CardTitle>{ex.name}</CardTitle>
+                          <Text
+                            className="text-lg font-bold text-foreground"
+                            numberOfLines={1}
+                            ellipsizeMode="tail"
+                          >
+                            {ex.name}
+                          </Text>
                         </Pressable>
-                        <Text className="text-sm text-muted">
-                          {(() => {
-                            const totalVolume = calculateTemplateExerciseVolume(
-                              ex.sets,
-                              ex.type || 'weighted',
-                              currentBodyweight
-                            );
-                            return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
-                          })()}
-                        </Text>
-                        {getIncreaseWeightSuggestion(ex.sets, {
-                          enabled: ex.autoProgressionEnabled,
-                          minReps: ex.autoProgressionMinReps,
-                          maxReps: ex.autoProgressionMaxReps,
-                        }) ? (
-                          <View className="bg-orange-500 px-2 py-1 rounded-full">
-                            <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                          </View>
-                        ) : null}
+                        <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                          <Text className="text-sm text-muted">
+                            {(() => {
+                              const totalVolume = calculateTemplateExerciseVolume(
+                                ex.sets,
+                                ex.type || 'weighted',
+                                currentBodyweight
+                              );
+                              return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
+                            })()}
+                          </Text>
+                          {getIncreaseWeightSuggestion(ex.sets, {
+                            enabled: settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false,
+                            minReps:
+                              ex.autoProgressionUseDefaultRange === false
+                                ? ex.autoProgressionMinReps
+                                : (ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                            maxReps:
+                              ex.autoProgressionUseDefaultRange === false
+                                ? ex.autoProgressionMaxReps
+                                : (ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                          }) ? (
+                            <Pressable
+                              onPress={() => handleApplyAutoProgressionWeightIncrease(ex.id)}
+                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                            >
+                              <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                              </View>
+                            </Pressable>
+                          ) : null}
+                        </View>
                       </View>
                       <View className="flex-row items-center gap-2 flex-wrap">
                         {(() => {
@@ -1737,34 +1833,53 @@ export default function TemplateCreateScreen() {
                   </View>
 
                   <View className="flex-1">
-                    <View className="flex-row items-center gap-1">
+                    <View className="flex-row items-center">
                       <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
                       <Pressable
                         onPress={() => openExerciseQuickActions(exA.id)}
                         hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                       >
-                        <CardTitle>{exA.name}</CardTitle>
+                        <Text
+                          className="text-lg font-bold text-foreground"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {exA.name}
+                        </Text>
                       </Pressable>
-                      <Text className="text-sm text-muted">
-                        {(() => {
-                          const totalVolume = calculateTemplateExerciseVolume(
-                            exA.sets,
-                            exA.type || 'weighted',
-                            currentBodyweight
-                          );
-                          return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
-                        })()}
-                      </Text>
-                      {getIncreaseWeightSuggestion(exA.sets, {
-                        enabled: exA.autoProgressionEnabled,
-                        minReps: exA.autoProgressionMinReps,
-                        maxReps: exA.autoProgressionMaxReps,
-                      }) ? (
-                        <View className="bg-orange-500 px-2 py-1 rounded-full">
-                          <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                        </View>
-                      ) : null}
+                      <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                        <Text className="text-sm text-muted">
+                          {(() => {
+                            const totalVolume = calculateTemplateExerciseVolume(
+                              exA.sets,
+                              exA.type || 'weighted',
+                              currentBodyweight
+                            );
+                            return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
+                          })()}
+                        </Text>
+                        {getIncreaseWeightSuggestion(exA.sets, {
+                          enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
+                          minReps:
+                            exA.autoProgressionUseDefaultRange === false
+                              ? exA.autoProgressionMinReps
+                              : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                          maxReps:
+                            exA.autoProgressionUseDefaultRange === false
+                              ? exA.autoProgressionMaxReps
+                              : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                        }) ? (
+                          <Pressable
+                            onPress={() => handleApplyAutoProgressionWeightIncrease(exA.id)}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                          >
+                            <View className="bg-orange-500 px-2 py-1 rounded-full">
+                              <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                            </View>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                     <Text
                       className="text-xs text-muted"
@@ -1795,34 +1910,53 @@ export default function TemplateCreateScreen() {
                       })()}
                     </Text>
 
-                    <View className="flex-row items-center gap-1" style={{ marginTop: 1 }}>
+                    <View className="flex-row items-center" style={{ marginTop: 1 }}>
                       <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
                       <Pressable
                         onPress={() => openExerciseQuickActions(exB.id)}
                         hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                       >
-                        <CardTitle>{exB.name}</CardTitle>
+                        <Text
+                          className="text-lg font-bold text-foreground"
+                          numberOfLines={1}
+                          ellipsizeMode="tail"
+                        >
+                          {exB.name}
+                        </Text>
                       </Pressable>
-                      <Text className="text-sm text-muted">
-                        {(() => {
-                          const totalVolume = calculateTemplateExerciseVolume(
-                            exB.sets,
-                            exB.type || 'weighted',
-                            currentBodyweight
-                          );
-                          return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
-                        })()}
-                      </Text>
-                      {getIncreaseWeightSuggestion(exB.sets, {
-                        enabled: exB.autoProgressionEnabled,
-                        minReps: exB.autoProgressionMinReps,
-                        maxReps: exB.autoProgressionMaxReps,
-                      }) ? (
-                        <View className="bg-orange-500 px-2 py-1 rounded-full">
-                          <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                        </View>
-                      ) : null}
+                      <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                        <Text className="text-sm text-muted">
+                          {(() => {
+                            const totalVolume = calculateTemplateExerciseVolume(
+                              exB.sets,
+                              exB.type || 'weighted',
+                              currentBodyweight
+                            );
+                            return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
+                          })()}
+                        </Text>
+                        {getIncreaseWeightSuggestion(exB.sets, {
+                          enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
+                          minReps:
+                            exB.autoProgressionUseDefaultRange === false
+                              ? exB.autoProgressionMinReps
+                              : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                          maxReps:
+                            exB.autoProgressionUseDefaultRange === false
+                              ? exB.autoProgressionMaxReps
+                              : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                        }) ? (
+                          <Pressable
+                            onPress={() => handleApplyAutoProgressionWeightIncrease(exB.id)}
+                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                          >
+                            <View className="bg-orange-500 px-2 py-1 rounded-full">
+                              <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                            </View>
+                          </Pressable>
+                        ) : null}
+                      </View>
                     </View>
                     <Text
                       className="text-xs text-muted"
@@ -2528,9 +2662,21 @@ export default function TemplateCreateScreen() {
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 180}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
-        autoProgressionEnabled={quickActionsMeta?.ex.autoProgressionEnabled ?? false}
-        autoProgressionMinReps={quickActionsMeta?.ex.autoProgressionMinReps ?? null}
-        autoProgressionMaxReps={quickActionsMeta?.ex.autoProgressionMaxReps ?? null}
+        autoProgressionEnabled={quickActionsMeta?.autoProgressionEnabled ?? false}
+        autoProgressionMinReps={
+          quickActionsMeta
+            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+              ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
+              : (quickActionsMeta.ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? null))
+            : null
+        }
+        autoProgressionMaxReps={
+          quickActionsMeta
+            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+              ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
+              : (quickActionsMeta.ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps ?? null))
+            : null
+        }
         isInSuperset={quickActionsMeta?.isSuperset}
         onClose={() => {
           setShowExerciseQuickActions(false);
@@ -2576,25 +2722,38 @@ export default function TemplateCreateScreen() {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextMin = reps ?? undefined;
-          handleUpdateExercise(meta.ex.id, { autoProgressionMinReps: nextMin });
+          handleUpdateExercise(meta.ex.id, {
+            autoProgressionMinReps: nextMin,
+            autoProgressionUseDefaultRange: false,
+          });
         }}
         onChangeAutoProgressionMaxReps={(reps) => {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextMax = reps ?? undefined;
-          handleUpdateExercise(meta.ex.id, { autoProgressionMaxReps: nextMax });
+          handleUpdateExercise(meta.ex.id, {
+            autoProgressionMaxReps: nextMax,
+            autoProgressionUseDefaultRange: false,
+          });
         }}
         onToggleAutoProgressionEnabled={() => {
           const meta = quickActionsMeta;
           if (!meta) return;
-          const nextEnabled = !(meta.ex.autoProgressionEnabled ?? false);
+          const nextEnabled = !meta.autoProgressionEnabled;
           if (nextEnabled) {
             const fallbackMin = settings.defaultAutoProgressionMinReps ?? 8;
             const fallbackMax = settings.defaultAutoProgressionMaxReps ?? 12;
             handleUpdateExercise(meta.ex.id, {
               autoProgressionEnabled: true,
-              autoProgressionMinReps: meta.ex.autoProgressionMinReps ?? fallbackMin,
-              autoProgressionMaxReps: meta.ex.autoProgressionMaxReps ?? fallbackMax,
+              autoProgressionMinReps:
+                meta.ex.autoProgressionUseDefaultRange === false
+                  ? meta.ex.autoProgressionMinReps
+                  : (meta.ex.autoProgressionMinReps ?? fallbackMin),
+              autoProgressionMaxReps:
+                meta.ex.autoProgressionUseDefaultRange === false
+                  ? meta.ex.autoProgressionMaxReps
+                  : (meta.ex.autoProgressionMaxReps ?? fallbackMax),
+              autoProgressionUseDefaultRange: meta.ex.autoProgressionUseDefaultRange === false ? false : true,
             });
           } else {
             handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: false });

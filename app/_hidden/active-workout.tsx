@@ -328,8 +328,6 @@ export default function ActiveWorkoutScreen() {
       return;
     }
 
-    // Otherwise, initialize from template or quick workout
-
     if (templateId && typeof templateId === 'string') {
       const template = templates.find((t) => t.id === templateId);
       if (template) {
@@ -351,9 +349,15 @@ export default function ActiveWorkoutScreen() {
               }));
 
           const progressionResult = applyAutoProgressionOnStart(baseSetDetails, {
-            enabled: ex.autoProgressionEnabled,
-            minReps: ex.autoProgressionMinReps,
-            maxReps: ex.autoProgressionMaxReps,
+            enabled: settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false,
+            minReps:
+              ex.autoProgressionUseDefaultRange === false
+                ? ex.autoProgressionMinReps
+                : (ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+            maxReps:
+              ex.autoProgressionUseDefaultRange === false
+                ? ex.autoProgressionMaxReps
+                : (ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
           });
 
           if (progressionResult.didChange) {
@@ -1210,6 +1214,68 @@ export default function ActiveWorkoutScreen() {
     });
   }, []);
 
+  const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseIndex: number) => {
+    const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
+    if (increment <= 0) {
+      Alert.alert('Invalid increment', 'Set a default weight increment in Preferences first.');
+      return;
+    }
+
+    const exercise = exercises[exerciseIndex];
+    if (!exercise) return;
+
+    const minReps = exercise.autoProgressionUseDefaultRange === false
+      ? (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8)
+      : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8);
+
+    Alert.alert(
+      'Increase weight?',
+      `Increase all sets by ${increment}${settings.weightUnit} and reset reps to ${minReps}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes',
+          onPress: () => {
+            setExercises((prev) =>
+              prev.map((ex, idx) => {
+                if (idx !== exerciseIndex) return ex;
+
+                const nextCompletedSets = ex.completedSets.map((set) => ({
+                  ...set,
+                  reps: minReps,
+                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                  isRepsPlaceholder: false,
+                  isWeightPlaceholder: false,
+                }));
+                const nextPlannedSets = ex.plannedSets?.map((set) => ({
+                  ...set,
+                  reps: minReps,
+                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                }));
+
+                return {
+                  ...ex,
+                  completedSets: nextCompletedSets,
+                  plannedSets: nextPlannedSets,
+                  reps: minReps,
+                  weight: nextCompletedSets[0]?.weight ?? ex.weight,
+                };
+              })
+            );
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          },
+        },
+      ]
+    );
+  }, [
+    settings.defaultAutoProgressionWeightIncrement,
+    settings.defaultAutoProgressionMinReps,
+    settings.weightUnit,
+    exercises,
+  ]);
+
   const quickActionsMeta = useMemo(() => {
     if (exerciseQuickActionsIndex === null) return null;
     const ex = exercises[exerciseQuickActionsIndex];
@@ -1222,6 +1288,7 @@ export default function ActiveWorkoutScreen() {
     const restTimerEnabled = isSuperset
       ? !disabledTimers.has(ex.id) && (!mate || !disabledTimers.has(mate.id))
       : !disabledTimers.has(ex.id);
+    const autoProgressionEnabled = settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
 
     return {
       ex,
@@ -1229,8 +1296,9 @@ export default function ActiveWorkoutScreen() {
       isSuperset,
       restTimerSeconds,
       restTimerEnabled,
+      autoProgressionEnabled,
     };
-  }, [exerciseQuickActionsIndex, exercises, settings.defaultRestTime, disabledTimers]);
+  }, [exerciseQuickActionsIndex, exercises, settings.defaultRestTime, settings.autoProgressionEnabled, disabledTimers]);
 
   const toggleRestTimerEnabledForIndex = useCallback((exerciseIndex: number) => {
     const base = exercises[exerciseIndex];
@@ -1334,11 +1402,21 @@ export default function ActiveWorkoutScreen() {
       type: exerciseData.type,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
+      autoProgressionEnabled: true,
+      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: true,
       completedSets: [],
       weight: defaultWeight, // Set default weight for bodyweight exercises
     };
     setExercises(prev => [...prev, exerciseToAdd]);
-  }, [customExercises, addCustomExercise, settings.weightUnit]);
+  }, [
+    customExercises,
+    addCustomExercise,
+    settings.weightUnit,
+    settings.defaultAutoProgressionMinReps,
+    settings.defaultAutoProgressionMaxReps,
+  ]);
 
 
 
@@ -1372,6 +1450,7 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionEnabled: ex.autoProgressionEnabled,
                 autoProgressionMinReps: ex.autoProgressionMinReps,
                 autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
                 setDetails: ex.completedSets.map((set) => ({
@@ -1446,6 +1525,7 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionEnabled: ex.autoProgressionEnabled,
                 autoProgressionMinReps: ex.autoProgressionMinReps,
                 autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
                 setDetails: ex.completedSets.map((set) => ({
@@ -1944,60 +2024,79 @@ export default function ActiveWorkoutScreen() {
                               </Pressable>
                             </View>
                             <View className="flex-1">
-                              <View className="flex-row items-center gap-2">
+                              <View className="flex-row items-center">
                                 <Pressable
                                   onPress={() => openExerciseQuickActions(exerciseIndex)}
                                   hitSlop={8}
-                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0 }]}
                                 >
-                                  <CardTitle className="text-base">{exercise.name}</CardTitle>
+                                  <Text
+                                    className="text-base font-bold text-foreground"
+                                    numberOfLines={1}
+                                    ellipsizeMode="tail"
+                                  >
+                                    {exercise.name}
+                                  </Text>
                                 </Pressable>
-                                {(() => {
-                                  const completedVolume = calculateExerciseVolume(
-                                    exercise.completedSets,
-                                    exercise.type || 'weighted',
-                                    currentBodyweight
-                                  );
-                                  const targetVolume =
-                                    exercise.plannedSets && exercise.plannedSets.length > 0
-                                      ? calculateTemplateExerciseVolume(
-                                          exercise.plannedSets,
-                                          exercise.type || 'weighted',
-                                          currentBodyweight
-                                        )
-                                      : 0;
+                                <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                                  {(() => {
+                                    const completedVolume = calculateExerciseVolume(
+                                      exercise.completedSets,
+                                      exercise.type || 'weighted',
+                                      currentBodyweight
+                                    );
+                                    const targetVolume =
+                                      exercise.plannedSets && exercise.plannedSets.length > 0
+                                        ? calculateTemplateExerciseVolume(
+                                            exercise.plannedSets,
+                                            exercise.type || 'weighted',
+                                            currentBodyweight
+                                          )
+                                        : 0;
 
-                                  if (targetVolume > 0) {
-                                    const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
-                                    const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
-                                    const volumeColor =
-                                      completedDisplay < targetDisplay
-                                        ? colors.error
-                                        : completedDisplay === targetDisplay
-                                          ? colors.warning
-                                          : colors.success;
+                                    if (targetVolume > 0) {
+                                      const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
+                                      const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
+                                      const volumeColor =
+                                        completedDisplay < targetDisplay
+                                          ? colors.error
+                                          : completedDisplay === targetDisplay
+                                            ? colors.warning
+                                            : colors.success;
+                                      return (
+                                        <Text className="text-sm" style={{ color: volumeColor }}>
+                                          {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
+                                        </Text>
+                                      );
+                                    }
+
                                     return (
-                                      <Text className="text-sm" style={{ color: volumeColor }}>
-                                        {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
+                                      <Text className="text-sm" style={{ color: colors.muted }}>
+                                        {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
                                       </Text>
                                     );
-                                  }
-
-                                  return (
-                                    <Text className="text-sm" style={{ color: colors.muted }}>
-                                      {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
-                                    </Text>
-                                  );
-                                })()}
+                                  })()}
                                   {getIncreaseWeightSuggestion(exercise.completedSets, {
-                                    enabled: exercise.autoProgressionEnabled,
-                                    minReps: exercise.autoProgressionMinReps,
-                                    maxReps: exercise.autoProgressionMaxReps,
+                                    enabled: settings.autoProgressionEnabled && exercise.autoProgressionEnabled !== false,
+                                    minReps:
+                                      exercise.autoProgressionUseDefaultRange === false
+                                        ? exercise.autoProgressionMinReps
+                                        : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                    maxReps:
+                                      exercise.autoProgressionUseDefaultRange === false
+                                        ? exercise.autoProgressionMaxReps
+                                        : (exercise.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
                                   }) ? (
-                                    <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                      <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                                    </View>
+                                    <Pressable
+                                      onPress={() => handleApplyAutoProgressionWeightIncrease(exerciseIndex)}
+                                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                                    >
+                                      <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                        <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                                      </View>
+                                    </Pressable>
                                   ) : null}
+                                </View>
                               </View>
                               <View className="flex-row items-center gap-2 flex-wrap">
                                 {(() => {
@@ -2106,64 +2205,83 @@ export default function ActiveWorkoutScreen() {
                           </View>
 
                           <View className="flex-1">
-                            <View className="flex-row items-center gap-1">
+                            <View className="flex-row items-center">
                               <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
                               <Pressable
                                 onPress={() => openExerciseQuickActions(aIndex)}
                                 hitSlop={8}
-                                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                               >
-                                <CardTitle className="text-base">{exA.name}</CardTitle>
+                                <Text
+                                  className="text-base font-bold text-foreground"
+                                  numberOfLines={1}
+                                  ellipsizeMode="tail"
+                                >
+                                  {exA.name}
+                                </Text>
                               </Pressable>
-                              {(() => {
-                                const completedVolume = calculateExerciseVolume(
-                                  exA.completedSets,
-                                  exA.type || 'weighted',
-                                  currentBodyweight
-                                );
-                                const targetVolume =
-                                  exA.plannedSets && exA.plannedSets.length > 0
-                                    ? calculateTemplateExerciseVolume(
-                                        exA.plannedSets,
-                                        exA.type || 'weighted',
-                                        currentBodyweight
-                                      )
-                                    : 0;
-
-                                if (targetVolume > 0) {
-                                  const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
-                                  const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
-                                  const volumeColor =
-                                    completedDisplay < targetDisplay
-                                      ? colors.error
-                                      : completedDisplay === targetDisplay
-                                        ? colors.warning
-                                        : colors.success;
-                                  return (
-                                    <Text
-                                      className="text-sm"
-                                      style={{ color: volumeColor }}
-                                    >
-                                      {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
-                                    </Text>
+                              <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                                {(() => {
+                                  const completedVolume = calculateExerciseVolume(
+                                    exA.completedSets,
+                                    exA.type || 'weighted',
+                                    currentBodyweight
                                   );
-                                }
+                                  const targetVolume =
+                                    exA.plannedSets && exA.plannedSets.length > 0
+                                      ? calculateTemplateExerciseVolume(
+                                          exA.plannedSets,
+                                          exA.type || 'weighted',
+                                          currentBodyweight
+                                        )
+                                      : 0;
 
-                                return (
-                                  <Text className="text-sm text-muted">
-                                    {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
-                                  </Text>
-                                );
-                              })()}
-                              {getIncreaseWeightSuggestion(exA.completedSets, {
-                                enabled: exA.autoProgressionEnabled,
-                                minReps: exA.autoProgressionMinReps,
-                                maxReps: exA.autoProgressionMaxReps,
-                              }) ? (
-                                <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                  <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                                </View>
-                              ) : null}
+                                    if (targetVolume > 0) {
+                                      const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
+                                      const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
+                                      const volumeColor =
+                                        completedDisplay < targetDisplay
+                                          ? colors.error
+                                          : completedDisplay === targetDisplay
+                                            ? colors.warning
+                                            : colors.success;
+                                      return (
+                                        <Text
+                                          className="text-sm"
+                                          style={{ color: volumeColor }}
+                                        >
+                                          {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
+                                        </Text>
+                                      );
+                                    }
+
+                                    return (
+                                      <Text className="text-sm text-muted">
+                                        {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
+                                      </Text>
+                                    );
+                                  })()}
+                                {getIncreaseWeightSuggestion(exA.completedSets, {
+                                  enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
+                                  minReps:
+                                    exA.autoProgressionUseDefaultRange === false
+                                      ? exA.autoProgressionMinReps
+                                      : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                  maxReps:
+                                    exA.autoProgressionUseDefaultRange === false
+                                      ? exA.autoProgressionMaxReps
+                                      : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                                }) ? (
+                                  <Pressable
+                                    onPress={() => handleApplyAutoProgressionWeightIncrease(aIndex)}
+                                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                                  >
+                                    <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                      <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                                    </View>
+                                  </Pressable>
+                                ) : null}
+                              </View>
                             </View>
                             <Text
                               className="text-xs text-muted"
@@ -2194,64 +2312,83 @@ export default function ActiveWorkoutScreen() {
                             })()}
                           </Text>
 
-                          <View className="flex-row items-center gap-1" style={{ marginTop: 1 }}>
+                          <View className="flex-row items-center" style={{ marginTop: 1 }}>
                             <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
                             <Pressable
                               onPress={() => openExerciseQuickActions(bIndex)}
                               hitSlop={8}
-                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
+                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                             >
-                              <CardTitle className="text-base">{exB.name}</CardTitle>
+                              <Text
+                                className="text-base font-bold text-foreground"
+                                numberOfLines={1}
+                                ellipsizeMode="tail"
+                              >
+                                {exB.name}
+                              </Text>
                             </Pressable>
-                            {(() => {
-                              const completedVolume = calculateExerciseVolume(
-                                exB.completedSets,
-                                exB.type || 'weighted',
-                                currentBodyweight
-                              );
-                              const targetVolume =
-                                exB.plannedSets && exB.plannedSets.length > 0
-                                  ? calculateTemplateExerciseVolume(
-                                      exB.plannedSets,
-                                      exB.type || 'weighted',
-                                      currentBodyweight
-                                    )
-                                  : 0;
+                            <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                              {(() => {
+                                const completedVolume = calculateExerciseVolume(
+                                  exB.completedSets,
+                                  exB.type || 'weighted',
+                                  currentBodyweight
+                                );
+                                const targetVolume =
+                                  exB.plannedSets && exB.plannedSets.length > 0
+                                    ? calculateTemplateExerciseVolume(
+                                        exB.plannedSets,
+                                        exB.type || 'weighted',
+                                        currentBodyweight
+                                      )
+                                    : 0;
 
-                              if (targetVolume > 0) {
-                                const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
-                                const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
-                                const volumeColor =
-                                  completedDisplay < targetDisplay
-                                    ? colors.error
-                                    : completedDisplay === targetDisplay
-                                      ? colors.warning
-                                      : colors.success;
+                                if (targetVolume > 0) {
+                                  const completedDisplay = Math.round(convertWeight(completedVolume, settings.weightUnit));
+                                  const targetDisplay = Math.round(convertWeight(targetVolume, settings.weightUnit));
+                                  const volumeColor =
+                                    completedDisplay < targetDisplay
+                                      ? colors.error
+                                      : completedDisplay === targetDisplay
+                                        ? colors.warning
+                                        : colors.success;
+                                  return (
+                                    <Text
+                                      className="text-sm"
+                                      style={{ color: volumeColor }}
+                                    >
+                                      {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
+                                    </Text>
+                                  );
+                                }
+
                                 return (
-                                  <Text
-                                    className="text-sm"
-                                    style={{ color: volumeColor }}
-                                  >
-                                    {`${completedDisplay}/${targetDisplay}${settings.weightUnit}`}
+                                  <Text className="text-sm text-muted">
+                                    {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
                                   </Text>
                                 );
-                              }
-
-                              return (
-                                <Text className="text-sm text-muted">
-                                  {`${Math.round(convertWeight(completedVolume, settings.weightUnit))} ${settings.weightUnit}`}
-                                </Text>
-                              );
-                            })()}
-                            {getIncreaseWeightSuggestion(exB.completedSets, {
-                              enabled: exB.autoProgressionEnabled,
-                              minReps: exB.autoProgressionMinReps,
-                              maxReps: exB.autoProgressionMaxReps,
-                            }) ? (
-                              <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
-                              </View>
-                            ) : null}
+                              })()}
+                              {getIncreaseWeightSuggestion(exB.completedSets, {
+                                enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
+                                minReps:
+                                  exB.autoProgressionUseDefaultRange === false
+                                    ? exB.autoProgressionMinReps
+                                    : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                maxReps:
+                                  exB.autoProgressionUseDefaultRange === false
+                                    ? exB.autoProgressionMaxReps
+                                    : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                              }) ? (
+                                <Pressable
+                                  onPress={() => handleApplyAutoProgressionWeightIncrease(bIndex)}
+                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
+                                >
+                                  <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                    <Text className="text-[10px] font-semibold text-background">up arrow wt</Text>
+                                  </View>
+                                </Pressable>
+                              ) : null}
+                            </View>
                           </View>
                           <Text
                             className="text-xs text-muted"
@@ -2770,9 +2907,21 @@ export default function ActiveWorkoutScreen() {
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 90}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
-        autoProgressionEnabled={quickActionsMeta?.ex.autoProgressionEnabled ?? false}
-        autoProgressionMinReps={quickActionsMeta?.ex.autoProgressionMinReps ?? null}
-        autoProgressionMaxReps={quickActionsMeta?.ex.autoProgressionMaxReps ?? null}
+        autoProgressionEnabled={quickActionsMeta?.autoProgressionEnabled ?? false}
+        autoProgressionMinReps={
+          quickActionsMeta
+            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+              ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
+              : (quickActionsMeta.ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? null))
+            : null
+        }
+        autoProgressionMaxReps={
+          quickActionsMeta
+            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+              ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
+              : (quickActionsMeta.ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps ?? null))
+            : null
+        }
         isInSuperset={quickActionsMeta?.isSuperset}
         onClose={() => {
           setShowExerciseQuickActions(false);
@@ -2810,7 +2959,11 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextMin = reps ?? undefined;
-            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMinReps: nextMin };
+            next[exerciseQuickActionsIndex] = {
+              ...ex,
+              autoProgressionMinReps: nextMin,
+              autoProgressionUseDefaultRange: false,
+            };
             return next;
           });
         }}
@@ -2821,7 +2974,11 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextMax = reps ?? undefined;
-            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMaxReps: nextMax };
+            next[exerciseQuickActionsIndex] = {
+              ...ex,
+              autoProgressionMaxReps: nextMax,
+              autoProgressionUseDefaultRange: false,
+            };
             return next;
           });
         }}
@@ -2831,13 +2988,21 @@ export default function ActiveWorkoutScreen() {
             const next = [...prev];
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
-            const nextEnabled = !(ex.autoProgressionEnabled ?? false);
+            const currentlyEnabled = settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
+            const nextEnabled = !currentlyEnabled;
             if (nextEnabled) {
               next[exerciseQuickActionsIndex] = {
                 ...ex,
                 autoProgressionEnabled: true,
-                autoProgressionMinReps: ex.autoProgressionMinReps ?? (settings.defaultAutoProgressionMinReps ?? 8),
-                autoProgressionMaxReps: ex.autoProgressionMaxReps ?? (settings.defaultAutoProgressionMaxReps ?? 12),
+                autoProgressionMinReps:
+                  ex.autoProgressionUseDefaultRange === false
+                    ? ex.autoProgressionMinReps
+                    : (ex.autoProgressionMinReps ?? (settings.defaultAutoProgressionMinReps ?? 8)),
+                autoProgressionMaxReps:
+                  ex.autoProgressionUseDefaultRange === false
+                    ? ex.autoProgressionMaxReps
+                    : (ex.autoProgressionMaxReps ?? (settings.defaultAutoProgressionMaxReps ?? 12)),
+                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange === false ? false : true,
               };
             } else {
               next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: false };

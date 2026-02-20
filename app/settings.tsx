@@ -42,7 +42,7 @@ const IMPORT_CATEGORIES: ImportCategory[] = [
   {
     id: 'templates',
     title: 'Routines',
-    description: 'Saved workout routines, week planner schedules, and their configurations.',
+    description: 'Saved workout routines, week planner schedules, and routine-level settings (including per-exercise auto-progression).',
     warning: 'Will replace all your current routines and week planner data.',
     icon: '📋',
     getCount: (s) => {
@@ -76,7 +76,7 @@ const IMPORT_CATEGORIES: ImportCategory[] = [
   {
     id: 'settings',
     title: 'Settings',
-    description: 'App preferences, weight unit, theme, rest time, and chart settings.',
+    description: 'App preferences, weight unit, theme, rest time, auto-progression defaults, and chart settings.',
     warning: 'Will replace your current app settings.',
     icon: '⚙️',
     getCount: (s) => s.hasSettings || s.hasUIPreferences ? 'Settings found' : 'No data',
@@ -291,7 +291,7 @@ export default function SettingsScreen() {
               <CardHeader>
                 <CardTitle className="text-base">Backup Data</CardTitle>
                 <CardDescription>
-                    Save all your locally stored data (workouts, routines, exercises, settings, body weight, analytics preferences, etc.) to a file
+                  Save all your locally stored data (workouts, routines, exercises, settings, auto-progression config, body weight, analytics preferences, etc.) to a file
                 </CardDescription>
               </CardHeader>
               <CardContent>

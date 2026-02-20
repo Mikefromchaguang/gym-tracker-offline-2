@@ -14,11 +14,14 @@ export default function PreferencesScreen() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings } = useGym();
+  const { settings, updateSettings, templates, updateTemplate } = useGym();
 
   const [restTimeInput, setRestTimeInput] = useState((settings.defaultRestTime || 90).toString());
   const [defaultAutoMinInput, setDefaultAutoMinInput] = useState((settings.defaultAutoProgressionMinReps || 8).toString());
   const [defaultAutoMaxInput, setDefaultAutoMaxInput] = useState((settings.defaultAutoProgressionMaxReps || 12).toString());
+  const [defaultAutoWeightIncrementInput, setDefaultAutoWeightIncrementInput] = useState(
+    (settings.defaultAutoProgressionWeightIncrement ?? 2.5).toString()
+  );
   const [showWeekStartPicker, setShowWeekStartPicker] = useState(false);
 
   const weekStartDay = settings.weekStartDay ?? 1; // Default to Monday
@@ -36,7 +39,14 @@ export default function PreferencesScreen() {
     if (settings.defaultAutoProgressionMaxReps) {
       setDefaultAutoMaxInput(settings.defaultAutoProgressionMaxReps.toString());
     }
-  }, [settings.defaultAutoProgressionMinReps, settings.defaultAutoProgressionMaxReps]);
+    if (typeof settings.defaultAutoProgressionWeightIncrement === 'number') {
+      setDefaultAutoWeightIncrementInput(settings.defaultAutoProgressionWeightIncrement.toString());
+    }
+  }, [
+    settings.defaultAutoProgressionMinReps,
+    settings.defaultAutoProgressionMaxReps,
+    settings.defaultAutoProgressionWeightIncrement,
+  ]);
 
   const handleRestTimeChange = (text: string) => {
     setRestTimeInput(text);
@@ -46,23 +56,119 @@ export default function PreferencesScreen() {
     }
   };
 
-  const handleDefaultAutoMinChange = (text: string) => {
+  const applyDefaultRepRangeToTemplates = async (
+    nextMin: number,
+    nextMax: number,
+    prevMin: number,
+    prevMax: number
+  ) => {
+    const updates = templates
+      .map((template) => {
+        let changed = false;
+
+        const updatedExercises = template.exercises.map((ex) => {
+          // Respect explicit per-exercise disable.
+          if (ex.autoProgressionEnabled === false) {
+            return ex;
+          }
+
+          // Legacy inference: if this exercise has a non-default stored range and no source flag,
+          // treat it as customized so preference changes won't overwrite it.
+          const hasStoredRange =
+            typeof ex.autoProgressionMinReps === 'number' &&
+            typeof ex.autoProgressionMaxReps === 'number';
+          const looksLikeLegacyCustomRange =
+            ex.autoProgressionUseDefaultRange === undefined &&
+            hasStoredRange &&
+            (ex.autoProgressionMinReps !== prevMin || ex.autoProgressionMaxReps !== prevMax);
+
+          if (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange) {
+            if (looksLikeLegacyCustomRange) {
+              changed = true;
+              return {
+                ...ex,
+                autoProgressionUseDefaultRange: false,
+              };
+            }
+            return ex;
+          }
+
+          const needsUpdate =
+            ex.autoProgressionMinReps !== nextMin ||
+            ex.autoProgressionMaxReps !== nextMax ||
+            ex.autoProgressionUseDefaultRange !== true;
+
+          if (!needsUpdate) {
+            return ex;
+          }
+
+          changed = true;
+          return {
+            ...ex,
+            autoProgressionMinReps: nextMin,
+            autoProgressionMaxReps: nextMax,
+            autoProgressionUseDefaultRange: true,
+          };
+        });
+
+        if (!changed) {
+          return null;
+        }
+
+        return {
+          ...template,
+          exercises: updatedExercises,
+        };
+      })
+      .filter((template): template is NonNullable<typeof template> => template !== null);
+
+    if (updates.length === 0) {
+      return;
+    }
+
+    await Promise.all(updates.map((template) => updateTemplate(template)));
+  };
+
+  const handleDefaultAutoMinChange = async (text: string) => {
     const filtered = text.replace(/[^0-9]/g, '');
     setDefaultAutoMinInput(filtered);
     const value = parseInt(filtered, 10);
     const currentMax = settings.defaultAutoProgressionMaxReps || 12;
     if (!isNaN(value) && value >= 1 && value <= currentMax) {
-      updateSettings({ defaultAutoProgressionMinReps: value });
+      const prevMin = settings.defaultAutoProgressionMinReps || 8;
+      const prevMax = settings.defaultAutoProgressionMaxReps || 12;
+      await updateSettings({ defaultAutoProgressionMinReps: value });
+      await applyDefaultRepRangeToTemplates(value, prevMax, prevMin, prevMax);
     }
   };
 
-  const handleDefaultAutoMaxChange = (text: string) => {
+  const handleDefaultAutoMaxChange = async (text: string) => {
     const filtered = text.replace(/[^0-9]/g, '');
     setDefaultAutoMaxInput(filtered);
     const value = parseInt(filtered, 10);
     const currentMin = settings.defaultAutoProgressionMinReps || 8;
     if (!isNaN(value) && value >= currentMin && value <= 100) {
-      updateSettings({ defaultAutoProgressionMaxReps: value });
+      const prevMin = settings.defaultAutoProgressionMinReps || 8;
+      const prevMax = settings.defaultAutoProgressionMaxReps || 12;
+      await updateSettings({ defaultAutoProgressionMaxReps: value });
+      await applyDefaultRepRangeToTemplates(prevMin, value, prevMin, prevMax);
+    }
+  };
+
+  const handleDefaultAutoWeightIncrementChange = async (text: string) => {
+    const withDot = text.replace(/,/g, '.');
+    const filtered = withDot.replace(/[^0-9.]/g, '');
+    const dotIndex = filtered.indexOf('.');
+    const normalized =
+      dotIndex === -1
+        ? filtered
+        : `${filtered.slice(0, dotIndex + 1)}${filtered.slice(dotIndex + 1).replace(/\./g, '')}`;
+
+    setDefaultAutoWeightIncrementInput(normalized);
+
+    const value = parseFloat(normalized);
+    if (!isNaN(value) && value > 0 && value <= 100) {
+      await updateSettings({ defaultAutoProgressionWeightIncrement: value });
     }
   };
 
@@ -85,6 +191,53 @@ export default function PreferencesScreen() {
   const handleWeekStartDayChange = async (day: WeekStartDay) => {
     await updateSettings({ weekStartDay: day });
     setShowWeekStartPicker(false);
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleAutoProgressionChange = async () => {
+    const nextEnabled = !settings.autoProgressionEnabled;
+    await updateSettings({ autoProgressionEnabled: nextEnabled });
+
+    if (nextEnabled) {
+      const fallbackMin = settings.defaultAutoProgressionMinReps || 8;
+      const fallbackMax = settings.defaultAutoProgressionMaxReps || 12;
+
+      await Promise.all(
+        templates.map((template) => {
+          let changed = false;
+          const updatedTemplate = {
+            ...template,
+            exercises: template.exercises.map((ex) => ({
+              ...ex,
+              autoProgressionEnabled: true,
+              autoProgressionMinReps:
+                ex.autoProgressionUseDefaultRange === false
+                  ? ex.autoProgressionMinReps
+                  : (ex.autoProgressionMinReps ?? fallbackMin),
+              autoProgressionMaxReps:
+                ex.autoProgressionUseDefaultRange === false
+                  ? ex.autoProgressionMaxReps
+                  : (ex.autoProgressionMaxReps ?? fallbackMax),
+              autoProgressionUseDefaultRange:
+                ex.autoProgressionUseDefaultRange === false ? false : true,
+            })),
+          };
+          changed = template.exercises.some((ex, index) => {
+            const next = updatedTemplate.exercises[index];
+            return (
+              ex.autoProgressionEnabled !== next.autoProgressionEnabled ||
+              ex.autoProgressionMinReps !== next.autoProgressionMinReps ||
+              ex.autoProgressionMaxReps !== next.autoProgressionMaxReps ||
+              ex.autoProgressionUseDefaultRange !== next.autoProgressionUseDefaultRange
+            );
+          });
+          return changed ? updateTemplate(updatedTemplate) : Promise.resolve();
+        })
+      );
+    }
+
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
@@ -150,7 +303,7 @@ export default function PreferencesScreen() {
           </View>
         </View>
 
-        {/* Default Auto-progression Rep Range */}
+        {/* Auto-progression */}
         <View
           style={{
             backgroundColor: colors.surface,
@@ -175,47 +328,104 @@ export default function PreferencesScreen() {
               <IconSymbol size={20} name="chart.line.uptrend.xyaxis" color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Default Rep Range</Text>
-              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>Used when enabling auto-progression</Text>
+              <Text
+                numberOfLines={1}
+                style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}
+              >
+                Auto-progression
+              </Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>
+                {settings.autoProgressionEnabled ? 'Enabled' : 'Disabled'}
+              </Text>
             </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <TextInput
-                value={defaultAutoMinInput}
-                onChangeText={handleDefaultAutoMinChange}
-                keyboardType="number-pad"
-                style={{
-                  width: 56,
-                  height: 40,
-                  borderWidth: 1,
-                  borderColor: colors.border,
+            <Pressable
+              onPress={handleAutoProgressionChange}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
                   borderRadius: 10,
-                  paddingHorizontal: 8,
-                  fontSize: 16,
-                  color: colors.foreground,
-                  backgroundColor: colors.background,
-                  textAlign: 'center',
-                }}
-              />
-              <Text style={{ color: colors.muted, fontSize: 16, fontWeight: '700' }}>-</Text>
-              <TextInput
-                value={defaultAutoMaxInput}
-                onChangeText={handleDefaultAutoMaxChange}
-                keyboardType="number-pad"
-                style={{
-                  width: 56,
-                  height: 40,
-                  borderWidth: 1,
-                  borderColor: colors.border,
-                  borderRadius: 10,
-                  paddingHorizontal: 8,
-                  fontSize: 16,
-                  color: colors.foreground,
-                  backgroundColor: colors.background,
-                  textAlign: 'center',
-                }}
-              />
-            </View>
+                  backgroundColor: colors.primary,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
+                Change
+              </Text>
+            </Pressable>
           </View>
+
+          {settings.autoProgressionEnabled && (
+            <View style={{ gap: 10, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 13, color: colors.muted }}>Default rep range</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    value={defaultAutoMinInput}
+                    onChangeText={handleDefaultAutoMinChange}
+                    keyboardType="number-pad"
+                    style={{
+                      width: 56,
+                      height: 40,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 10,
+                      paddingHorizontal: 8,
+                      fontSize: 16,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      textAlign: 'center',
+                    }}
+                  />
+                  <Text style={{ color: colors.muted, fontSize: 16, fontWeight: '700' }}>-</Text>
+                  <TextInput
+                    value={defaultAutoMaxInput}
+                    onChangeText={handleDefaultAutoMaxChange}
+                    keyboardType="number-pad"
+                    style={{
+                      width: 56,
+                      height: 40,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 10,
+                      paddingHorizontal: 8,
+                      fontSize: 16,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      textAlign: 'center',
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={{ fontSize: 13, color: colors.muted }}>Default weight increment</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TextInput
+                    value={defaultAutoWeightIncrementInput}
+                    onChangeText={handleDefaultAutoWeightIncrementChange}
+                    keyboardType="decimal-pad"
+                    style={{
+                      width: 90,
+                      height: 40,
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 10,
+                      paddingHorizontal: 10,
+                      fontSize: 16,
+                      color: colors.foreground,
+                      backgroundColor: colors.background,
+                      textAlign: 'center',
+                    }}
+                  />
+                  <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '700' }}>
+                    {settings.weightUnit}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
         </View>
 
         {/* Weight Unit */}

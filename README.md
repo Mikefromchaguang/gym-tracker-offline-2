@@ -94,12 +94,14 @@ Muscle contributions power volume data in your analytics charts:
   - See details
   - Pull sets from last session
   - Replace exercise
+  - Auto-progression controls (enable/disable, rep range)
   - Add to superset / Split superset
   - Remove exercise
 
 **During workouts:**
 - Start a quick workout or use a routine
 - Mark sets complete as you go (only completed sets count toward volume and PRs)
+- If an exercise is above its configured rep range, an **up arrow wt** tag appears; tapping it can apply your default increment to all sets and reset reps to the configured minimum
 - Back out of an active workout to navigate freely, but return to the workout to complete it
 - Tap a set number to remove the set, mark it as a **Warmup** set (warmups don't count toward volume and PRs), or mark it as a **Failure** set (failure sets are used to estimate your max rep values)
 - ⚠️ **Known bug**: If you end a workout from the bottom-page active workout banner, it sometimes doesn't actually end. While in this state, if you start another workout, the title will rapidly switch back and forth indicating two active workouts. Close and reopen the app to fix this.
@@ -184,6 +186,9 @@ All core data is stored locally using AsyncStorage. No cloud sync required.
 ### Data Management (Backup/Import/Export)
 
 - Full backup/export includes routines, week planner data, workouts, settings, exercises, and related local metadata
+- Auto-progression data is included in backup/restore:
+  - Per-exercise routine config (enabled/disabled + rep range)
+  - Global defaults (enabled state, default rep range, default weight increment)
 - Restore/import supports:
   - Full restore
   - Selective restore categories (including routine + planner scheduling data)
@@ -262,6 +267,7 @@ scripts/               # Build and utility scripts
 
 - **Profile / Data Management**
   - Backup/import/export updated to include week planner state
+  - Backup/import/export includes auto-progression settings and routine-level progression config
   - Import category messaging reflects routine + planner coupling
 
 ### Testing

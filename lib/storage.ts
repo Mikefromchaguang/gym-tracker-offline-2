@@ -38,8 +38,10 @@ const DEFAULT_SETTINGS: AppSettings = {
   weightUnit: 'kg',
   theme: 'auto',
   defaultRestTime: 90, // Default 90 seconds rest time
+  autoProgressionEnabled: false,
   defaultAutoProgressionMinReps: 8,
   defaultAutoProgressionMaxReps: 12,
+  defaultAutoProgressionWeightIncrement: 2.5,
   bodyMapGender: 'male', // Default to male body map
   weekStartDay: 0, // Default to Sunday (0 = Sunday, 1 = Monday, etc.)
   lastUpdated: Date.now(),

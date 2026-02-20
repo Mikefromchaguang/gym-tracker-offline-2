@@ -136,7 +136,7 @@ export async function exportAllData(): Promise<string> {
     }
 
     const backupData: BackupData = {
-      version: '2.0.0',
+      version: '2.1.0',
       exportedAt: Date.now(),
       templates,
       weekPlans,

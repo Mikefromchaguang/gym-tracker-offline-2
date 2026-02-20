@@ -362,7 +362,19 @@ export async function runExerciseIdMigration(): Promise<void> {
     // Mark migration as complete
     const currentSettings: AppSettings = settingsData 
       ? JSON.parse(settingsData) 
-      : { weightUnit: 'kg', theme: 'auto', defaultRestTime: 180, lastUpdated: Date.now() };
+      : {
+          weightUnit: 'kg',
+          theme: 'auto',
+          defaultRestTime: 180,
+          autoProgressionEnabled: false,
+          defaultAutoProgressionMinReps: 8,
+          defaultAutoProgressionMaxReps: 12,
+          defaultAutoProgressionWeightIncrement: 2.5,
+          bodyMapGender: 'male',
+          weekStartDay: 1,
+          showQuotes: true,
+          lastUpdated: Date.now(),
+        };
     
     const updatedSettings: AppSettings = {
       ...currentSettings,
