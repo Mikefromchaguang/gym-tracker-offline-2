@@ -1,7 +1,7 @@
 import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigation, usePreventRemove } from '@react-navigation/native';
+import { usePreventRemove } from '@react-navigation/native';
 import Body from 'react-native-body-highlighter';
 import { ScreenContainer } from '@/components/screen-container';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +55,6 @@ const buildEmptyDays = (): WeekPlanDay[] =>
 
 export default function EditWeekPlanScreen() {
   const router = useRouter();
-  const navigation = useNavigation();
   const colors = useColors();
   const { bodyWeightKg: currentBodyweight } = useBodyweight();
   const {
@@ -127,6 +126,8 @@ export default function EditWeekPlanScreen() {
           text: 'Discard',
           style: 'destructive',
           onPress: () => {
+            setInitialName(name.trim());
+            setInitialDaysSignature(JSON.stringify(days));
             setAllowRemove(true);
             setTimeout(() => {
               router.back();
@@ -135,9 +136,9 @@ export default function EditWeekPlanScreen() {
         },
       ]
     );
-  }, [hasUnsavedChanges, router]);
+  }, [hasUnsavedChanges, name, days, router]);
 
-  usePreventRemove(hasUnsavedChanges && !allowRemove, ({ data }) => {
+  usePreventRemove(hasUnsavedChanges && !allowRemove, () => {
     Alert.alert(
       'Discard changes?',
       'You have unsaved changes. Are you sure you want to discard them?',
@@ -147,9 +148,11 @@ export default function EditWeekPlanScreen() {
           text: 'Discard',
           style: 'destructive',
           onPress: () => {
+            setInitialName(name.trim());
+            setInitialDaysSignature(JSON.stringify(days));
             setAllowRemove(true);
             setTimeout(() => {
-              navigation.dispatch(data.action);
+              router.back();
             }, 0);
           },
         },
@@ -368,8 +371,12 @@ export default function EditWeekPlanScreen() {
       }
 
       // Use replace instead of back to avoid closing app when this screen is the first route in stack.
+      setInitialName(name.trim());
+      setInitialDaysSignature(JSON.stringify(days));
       setAllowRemove(true);
-      router.replace('/_hidden/week-plans');
+      setTimeout(() => {
+        router.replace('/_hidden/week-plans');
+      }, 0);
     } catch (error) {
       console.error('[WeekPlanner] Save failed:', error);
       Alert.alert('Save failed', 'There was a problem saving this plan. Please try again.');
@@ -387,7 +394,8 @@ export default function EditWeekPlanScreen() {
         style: 'destructive',
         onPress: async () => {
           await deleteWeekPlan(editingPlan.id);
-          router.back();
+          setAllowRemove(true);
+          router.replace('/_hidden/week-plans');
         },
       },
     ]);
