@@ -1593,19 +1593,10 @@ export default function TemplateCreateScreen() {
                         <Pressable
                           onPress={() => openExerciseQuickActions(ex.id)}
                           hitSlop={8}
-                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                          style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                         >
                           <CardTitle>{ex.name}</CardTitle>
                         </Pressable>
-                        {getIncreaseWeightSuggestion(ex.sets, {
-                          enabled: ex.autoProgressionEnabled,
-                          minReps: ex.autoProgressionMinReps,
-                          maxReps: ex.autoProgressionMaxReps,
-                        }) ? (
-                          <View className="bg-orange-500 px-2 py-1 rounded-full">
-                            <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                          </View>
-                        ) : null}
                         <Text className="text-sm text-muted">
                           {(() => {
                             const totalVolume = calculateTemplateExerciseVolume(
@@ -1616,6 +1607,15 @@ export default function TemplateCreateScreen() {
                             return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                           })()}
                         </Text>
+                        {getIncreaseWeightSuggestion(ex.sets, {
+                          enabled: ex.autoProgressionEnabled,
+                          minReps: ex.autoProgressionMinReps,
+                          maxReps: ex.autoProgressionMaxReps,
+                        }) ? (
+                          <View className="bg-orange-500 px-2 py-1 rounded-full">
+                            <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                          </View>
+                        ) : null}
                       </View>
                       <View className="flex-row items-center gap-2 flex-wrap">
                         {(() => {
@@ -1737,24 +1737,15 @@ export default function TemplateCreateScreen() {
                   </View>
 
                   <View className="flex-1">
-                    <View className="flex-row items-center gap-1 flex-wrap">
+                    <View className="flex-row items-center gap-1">
                       <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
                       <Pressable
                         onPress={() => openExerciseQuickActions(exA.id)}
                         hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                       >
                         <CardTitle>{exA.name}</CardTitle>
                       </Pressable>
-                      {getIncreaseWeightSuggestion(exA.sets, {
-                        enabled: exA.autoProgressionEnabled,
-                        minReps: exA.autoProgressionMinReps,
-                        maxReps: exA.autoProgressionMaxReps,
-                      }) ? (
-                        <View className="bg-orange-500 px-2 py-1 rounded-full">
-                          <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                        </View>
-                      ) : null}
                       <Text className="text-sm text-muted">
                         {(() => {
                           const totalVolume = calculateTemplateExerciseVolume(
@@ -1765,6 +1756,15 @@ export default function TemplateCreateScreen() {
                           return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                         })()}
                       </Text>
+                      {getIncreaseWeightSuggestion(exA.sets, {
+                        enabled: exA.autoProgressionEnabled,
+                        minReps: exA.autoProgressionMinReps,
+                        maxReps: exA.autoProgressionMaxReps,
+                      }) ? (
+                        <View className="bg-orange-500 px-2 py-1 rounded-full">
+                          <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Text
                       className="text-xs text-muted"
@@ -1795,24 +1795,15 @@ export default function TemplateCreateScreen() {
                       })()}
                     </Text>
 
-                    <View className="flex-row items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
+                    <View className="flex-row items-center gap-1" style={{ marginTop: 1 }}>
                       <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
                       <Pressable
                         onPress={() => openExerciseQuickActions(exB.id)}
                         hitSlop={8}
-                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                       >
                         <CardTitle>{exB.name}</CardTitle>
                       </Pressable>
-                      {getIncreaseWeightSuggestion(exB.sets, {
-                        enabled: exB.autoProgressionEnabled,
-                        minReps: exB.autoProgressionMinReps,
-                        maxReps: exB.autoProgressionMaxReps,
-                      }) ? (
-                        <View className="bg-orange-500 px-2 py-1 rounded-full">
-                          <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                        </View>
-                      ) : null}
                       <Text className="text-sm text-muted">
                         {(() => {
                           const totalVolume = calculateTemplateExerciseVolume(
@@ -1823,6 +1814,15 @@ export default function TemplateCreateScreen() {
                           return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                         })()}
                       </Text>
+                      {getIncreaseWeightSuggestion(exB.sets, {
+                        enabled: exB.autoProgressionEnabled,
+                        minReps: exB.autoProgressionMinReps,
+                        maxReps: exB.autoProgressionMaxReps,
+                      }) ? (
+                        <View className="bg-orange-500 px-2 py-1 rounded-full">
+                          <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Text
                       className="text-xs text-muted"
@@ -2576,29 +2576,29 @@ export default function TemplateCreateScreen() {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextMin = reps ?? undefined;
-          const currentMax = meta.ex.autoProgressionMaxReps;
-          if (typeof nextMin === 'number' && typeof currentMax === 'number' && nextMin > currentMax) {
-            Alert.alert('Invalid range', 'Min reps cannot be greater than max reps.');
-            return;
-          }
           handleUpdateExercise(meta.ex.id, { autoProgressionMinReps: nextMin });
         }}
         onChangeAutoProgressionMaxReps={(reps) => {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextMax = reps ?? undefined;
-          const currentMin = meta.ex.autoProgressionMinReps;
-          if (typeof nextMax === 'number' && typeof currentMin === 'number' && nextMax < currentMin) {
-            Alert.alert('Invalid range', 'Max reps cannot be less than min reps.');
-            return;
-          }
           handleUpdateExercise(meta.ex.id, { autoProgressionMaxReps: nextMax });
         }}
         onToggleAutoProgressionEnabled={() => {
           const meta = quickActionsMeta;
           if (!meta) return;
           const nextEnabled = !(meta.ex.autoProgressionEnabled ?? false);
-          handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: nextEnabled });
+          if (nextEnabled) {
+            const fallbackMin = settings.defaultAutoProgressionMinReps ?? 8;
+            const fallbackMax = settings.defaultAutoProgressionMaxReps ?? 12;
+            handleUpdateExercise(meta.ex.id, {
+              autoProgressionEnabled: true,
+              autoProgressionMinReps: meta.ex.autoProgressionMinReps ?? fallbackMin,
+              autoProgressionMaxReps: meta.ex.autoProgressionMaxReps ?? fallbackMax,
+            });
+          } else {
+            handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: false });
+          }
         }}
         onAddToSuperset={() => {
           if (!exerciseQuickActionsId) return;

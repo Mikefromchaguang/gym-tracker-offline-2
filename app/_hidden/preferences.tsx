@@ -17,6 +17,8 @@ export default function PreferencesScreen() {
   const { settings, updateSettings } = useGym();
 
   const [restTimeInput, setRestTimeInput] = useState((settings.defaultRestTime || 90).toString());
+  const [defaultAutoMinInput, setDefaultAutoMinInput] = useState((settings.defaultAutoProgressionMinReps || 8).toString());
+  const [defaultAutoMaxInput, setDefaultAutoMaxInput] = useState((settings.defaultAutoProgressionMaxReps || 12).toString());
   const [showWeekStartPicker, setShowWeekStartPicker] = useState(false);
 
   const weekStartDay = settings.weekStartDay ?? 1; // Default to Monday
@@ -27,11 +29,40 @@ export default function PreferencesScreen() {
     }
   }, [settings.defaultRestTime]);
 
+  useEffect(() => {
+    if (settings.defaultAutoProgressionMinReps) {
+      setDefaultAutoMinInput(settings.defaultAutoProgressionMinReps.toString());
+    }
+    if (settings.defaultAutoProgressionMaxReps) {
+      setDefaultAutoMaxInput(settings.defaultAutoProgressionMaxReps.toString());
+    }
+  }, [settings.defaultAutoProgressionMinReps, settings.defaultAutoProgressionMaxReps]);
+
   const handleRestTimeChange = (text: string) => {
     setRestTimeInput(text);
     const value = parseInt(text, 10);
     if (!isNaN(value) && value > 0 && value <= 600) {
       updateSettings({ defaultRestTime: value });
+    }
+  };
+
+  const handleDefaultAutoMinChange = (text: string) => {
+    const filtered = text.replace(/[^0-9]/g, '');
+    setDefaultAutoMinInput(filtered);
+    const value = parseInt(filtered, 10);
+    const currentMax = settings.defaultAutoProgressionMaxReps || 12;
+    if (!isNaN(value) && value >= 1 && value <= currentMax) {
+      updateSettings({ defaultAutoProgressionMinReps: value });
+    }
+  };
+
+  const handleDefaultAutoMaxChange = (text: string) => {
+    const filtered = text.replace(/[^0-9]/g, '');
+    setDefaultAutoMaxInput(filtered);
+    const value = parseInt(filtered, 10);
+    const currentMin = settings.defaultAutoProgressionMinReps || 8;
+    if (!isNaN(value) && value >= currentMin && value <= 100) {
+      updateSettings({ defaultAutoProgressionMaxReps: value });
     }
   };
 
@@ -116,6 +147,74 @@ export default function PreferencesScreen() {
                 textAlign: 'center',
               }}
             />
+          </View>
+        </View>
+
+        {/* Default Auto-progression Rep Range */}
+        <View
+          style={{
+            backgroundColor: colors.surface,
+            borderRadius: 12,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: 10,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <View
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: colors.primary + '20',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <IconSymbol size={20} name="chart.line.uptrend.xyaxis" color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Default Rep Range</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>Used when enabling auto-progression</Text>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <TextInput
+                value={defaultAutoMinInput}
+                onChangeText={handleDefaultAutoMinChange}
+                keyboardType="number-pad"
+                style={{
+                  width: 56,
+                  height: 40,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 8,
+                  fontSize: 16,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  textAlign: 'center',
+                }}
+              />
+              <Text style={{ color: colors.muted, fontSize: 16, fontWeight: '700' }}>-</Text>
+              <TextInput
+                value={defaultAutoMaxInput}
+                onChangeText={handleDefaultAutoMaxChange}
+                keyboardType="number-pad"
+                style={{
+                  width: 56,
+                  height: 40,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                  borderRadius: 10,
+                  paddingHorizontal: 8,
+                  fontSize: 16,
+                  color: colors.foreground,
+                  backgroundColor: colors.background,
+                  textAlign: 'center',
+                }}
+              />
+            </View>
           </View>
         </View>
 

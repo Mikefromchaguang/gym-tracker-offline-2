@@ -521,11 +521,12 @@ export default function EditWeekPlanScreen() {
 
           {orderedDays.map((dayIndex) => {
             const day = days.find((d) => d.dayIndex === dayIndex) || { dayIndex, routineIds: [] };
+            const isEmptyDay = day.routineIds.length === 0;
             return (
               <Card key={dayIndex}>
                 <CardHeader>
                   <View className="flex-row items-center justify-between">
-                    <CardTitle>{getDayName(dayIndex)}</CardTitle>
+                    <CardTitle className={isEmptyDay ? 'text-muted' : undefined}>{getDayName(dayIndex)}</CardTitle>
                     <Pressable
                       onPress={() => {
                         setPickerDayIndex(dayIndex);
@@ -537,8 +538,10 @@ export default function EditWeekPlanScreen() {
                   </View>
                 </CardHeader>
                 <CardContent className="gap-2">
-                  {day.routineIds.length === 0 ? (
-                    <Text className="text-xs text-muted">No routines scheduled</Text>
+                  {isEmptyDay ? (
+                    <Text className="text-xs text-muted" style={{ color: colors.muted, opacity: 0.85 }}>
+                      No routines scheduled
+                    </Text>
                   ) : (
                     day.routineIds.map((id) => {
                       const routine = templates.find((t) => t.id === id);

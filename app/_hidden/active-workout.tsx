@@ -1948,19 +1948,10 @@ export default function ActiveWorkoutScreen() {
                                 <Pressable
                                   onPress={() => openExerciseQuickActions(exerciseIndex)}
                                   hitSlop={8}
-                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                                 >
                                   <CardTitle className="text-base">{exercise.name}</CardTitle>
                                 </Pressable>
-                                {getIncreaseWeightSuggestion(exercise.completedSets, {
-                                  enabled: exercise.autoProgressionEnabled,
-                                  minReps: exercise.autoProgressionMinReps,
-                                  maxReps: exercise.autoProgressionMaxReps,
-                                }) ? (
-                                  <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                    <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                                  </View>
-                                ) : null}
                                 {(() => {
                                   const completedVolume = calculateExerciseVolume(
                                     exercise.completedSets,
@@ -1998,6 +1989,15 @@ export default function ActiveWorkoutScreen() {
                                     </Text>
                                   );
                                 })()}
+                                  {getIncreaseWeightSuggestion(exercise.completedSets, {
+                                    enabled: exercise.autoProgressionEnabled,
+                                    minReps: exercise.autoProgressionMinReps,
+                                    maxReps: exercise.autoProgressionMaxReps,
+                                  }) ? (
+                                    <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                      <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                                    </View>
+                                  ) : null}
                               </View>
                               <View className="flex-row items-center gap-2 flex-wrap">
                                 {(() => {
@@ -2106,24 +2106,15 @@ export default function ActiveWorkoutScreen() {
                           </View>
 
                           <View className="flex-1">
-                            <View className="flex-row items-center gap-1 flex-wrap">
+                            <View className="flex-row items-center gap-1">
                               <Text style={{ color: '#3B82F6', fontWeight: '800' }}>A</Text>
                               <Pressable
                                 onPress={() => openExerciseQuickActions(aIndex)}
                                 hitSlop={8}
-                                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                               >
                                 <CardTitle className="text-base">{exA.name}</CardTitle>
                               </Pressable>
-                              {getIncreaseWeightSuggestion(exA.completedSets, {
-                                enabled: exA.autoProgressionEnabled,
-                                minReps: exA.autoProgressionMinReps,
-                                maxReps: exA.autoProgressionMaxReps,
-                              }) ? (
-                                <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                  <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                                </View>
-                              ) : null}
                               {(() => {
                                 const completedVolume = calculateExerciseVolume(
                                   exA.completedSets,
@@ -2164,6 +2155,15 @@ export default function ActiveWorkoutScreen() {
                                   </Text>
                                 );
                               })()}
+                              {getIncreaseWeightSuggestion(exA.completedSets, {
+                                enabled: exA.autoProgressionEnabled,
+                                minReps: exA.autoProgressionMinReps,
+                                maxReps: exA.autoProgressionMaxReps,
+                              }) ? (
+                                <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                  <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                                </View>
+                              ) : null}
                             </View>
                             <Text
                               className="text-xs text-muted"
@@ -2194,24 +2194,15 @@ export default function ActiveWorkoutScreen() {
                             })()}
                           </Text>
 
-                          <View className="flex-row items-center gap-1 flex-wrap" style={{ marginTop: 1 }}>
+                          <View className="flex-row items-center gap-1" style={{ marginTop: 1 }}>
                             <Text style={{ color: '#F59E0B', fontWeight: '800' }}>B</Text>
                             <Pressable
                               onPress={() => openExerciseQuickActions(bIndex)}
                               hitSlop={8}
-                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flexShrink: 1 }]}
                             >
                               <CardTitle className="text-base">{exB.name}</CardTitle>
                             </Pressable>
-                            {getIncreaseWeightSuggestion(exB.completedSets, {
-                              enabled: exB.autoProgressionEnabled,
-                              minReps: exB.autoProgressionMinReps,
-                              maxReps: exB.autoProgressionMaxReps,
-                            }) ? (
-                              <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                <Text className="text-[10px] font-semibold text-background">Increase weight</Text>
-                              </View>
-                            ) : null}
                             {(() => {
                               const completedVolume = calculateExerciseVolume(
                                 exB.completedSets,
@@ -2252,6 +2243,15 @@ export default function ActiveWorkoutScreen() {
                                 </Text>
                               );
                             })()}
+                            {getIncreaseWeightSuggestion(exB.completedSets, {
+                              enabled: exB.autoProgressionEnabled,
+                              minReps: exB.autoProgressionMinReps,
+                              maxReps: exB.autoProgressionMaxReps,
+                            }) ? (
+                              <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                <Text className="text-[10px] font-semibold text-background">Inc wt</Text>
+                              </View>
+                            ) : null}
                           </View>
                           <Text
                             className="text-xs text-muted"
@@ -2810,14 +2810,6 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextMin = reps ?? undefined;
-            if (
-              typeof nextMin === 'number' &&
-              typeof ex.autoProgressionMaxReps === 'number' &&
-              nextMin > ex.autoProgressionMaxReps
-            ) {
-              Alert.alert('Invalid range', 'Min reps cannot be greater than max reps.');
-              return prev;
-            }
             next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMinReps: nextMin };
             return next;
           });
@@ -2829,14 +2821,6 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextMax = reps ?? undefined;
-            if (
-              typeof nextMax === 'number' &&
-              typeof ex.autoProgressionMinReps === 'number' &&
-              nextMax < ex.autoProgressionMinReps
-            ) {
-              Alert.alert('Invalid range', 'Max reps cannot be less than min reps.');
-              return prev;
-            }
             next[exerciseQuickActionsIndex] = { ...ex, autoProgressionMaxReps: nextMax };
             return next;
           });
@@ -2848,7 +2832,16 @@ export default function ActiveWorkoutScreen() {
             const ex = next[exerciseQuickActionsIndex];
             if (!ex) return prev;
             const nextEnabled = !(ex.autoProgressionEnabled ?? false);
-            next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: nextEnabled };
+            if (nextEnabled) {
+              next[exerciseQuickActionsIndex] = {
+                ...ex,
+                autoProgressionEnabled: true,
+                autoProgressionMinReps: ex.autoProgressionMinReps ?? (settings.defaultAutoProgressionMinReps ?? 8),
+                autoProgressionMaxReps: ex.autoProgressionMaxReps ?? (settings.defaultAutoProgressionMaxReps ?? 12),
+              };
+            } else {
+              next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: false };
+            }
             return next;
           });
         }}

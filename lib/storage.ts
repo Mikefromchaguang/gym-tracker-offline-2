@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   weightUnit: 'kg',
   theme: 'auto',
   defaultRestTime: 90, // Default 90 seconds rest time
+  defaultAutoProgressionMinReps: 8,
+  defaultAutoProgressionMaxReps: 12,
   bodyMapGender: 'male', // Default to male body map
   weekStartDay: 0, // Default to Sunday (0 = Sunday, 1 = Monday, etc.)
   lastUpdated: Date.now(),
@@ -342,7 +344,12 @@ export const SettingsStorage = {
   async get(): Promise<AppSettings> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.SETTINGS);
-      return data ? JSON.parse(data) : DEFAULT_SETTINGS;
+      if (!data) return DEFAULT_SETTINGS;
+      const parsed = JSON.parse(data) as Partial<AppSettings>;
+      return {
+        ...DEFAULT_SETTINGS,
+        ...parsed,
+      };
     } catch (error) {
       console.error('Error loading settings:', error);
       return DEFAULT_SETTINGS;

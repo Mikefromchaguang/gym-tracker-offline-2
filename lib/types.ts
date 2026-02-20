@@ -198,6 +198,8 @@ export interface AppSettings {
   weightUnit: WeightUnit;
   theme: 'light' | 'dark' | 'auto';
   defaultRestTime: number; // Default rest time in seconds for new exercises
+  defaultAutoProgressionMinReps: number;
+  defaultAutoProgressionMaxReps: number;
   bodyMapGender: 'male' | 'female'; // Gender for body map visualization
   weekStartDay: WeekStartDay; // Day to start the week (0 = Sunday, 1 = Monday, etc.)
   showQuotes: boolean; // Whether to show inspirational quotes on home screen
