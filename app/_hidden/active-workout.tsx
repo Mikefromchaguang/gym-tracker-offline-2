@@ -2038,7 +2038,29 @@ export default function ActiveWorkoutScreen() {
                                     {exercise.name}
                                   </Text>
                                 </Pressable>
-                                <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                                <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                                  <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                                    {getIncreaseWeightSuggestion(exercise.completedSets, {
+                                      enabled: settings.autoProgressionEnabled && exercise.autoProgressionEnabled !== false,
+                                      minReps:
+                                        exercise.autoProgressionUseDefaultRange === false
+                                          ? exercise.autoProgressionMinReps
+                                          : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                      maxReps:
+                                        exercise.autoProgressionUseDefaultRange === false
+                                          ? exercise.autoProgressionMaxReps
+                                          : (exercise.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                                    }) ? (
+                                      <Pressable
+                                        onPress={() => handleApplyAutoProgressionWeightIncrease(exerciseIndex)}
+                                        style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                                      >
+                                        <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                          <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                                        </View>
+                                      </Pressable>
+                                    ) : null}
+                                  </View>
                                   {(() => {
                                     const completedVolume = calculateExerciseVolume(
                                       exercise.completedSets,
@@ -2076,26 +2098,6 @@ export default function ActiveWorkoutScreen() {
                                       </Text>
                                     );
                                   })()}
-                                  {getIncreaseWeightSuggestion(exercise.completedSets, {
-                                    enabled: settings.autoProgressionEnabled && exercise.autoProgressionEnabled !== false,
-                                    minReps:
-                                      exercise.autoProgressionUseDefaultRange === false
-                                        ? exercise.autoProgressionMinReps
-                                        : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                                    maxReps:
-                                      exercise.autoProgressionUseDefaultRange === false
-                                        ? exercise.autoProgressionMaxReps
-                                        : (exercise.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                                  }) ? (
-                                    <Pressable
-                                      onPress={() => handleApplyAutoProgressionWeightIncrease(exerciseIndex)}
-                                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                                    >
-                                      <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                        <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                                      </View>
-                                    </Pressable>
-                                  ) : null}
                                 </View>
                               </View>
                               <View className="flex-row items-center gap-2 flex-wrap">
@@ -2220,7 +2222,29 @@ export default function ActiveWorkoutScreen() {
                                   {exA.name}
                                 </Text>
                               </Pressable>
-                              <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                              <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                                <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                                  {getIncreaseWeightSuggestion(exA.completedSets, {
+                                    enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
+                                    minReps:
+                                      exA.autoProgressionUseDefaultRange === false
+                                        ? exA.autoProgressionMinReps
+                                        : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                    maxReps:
+                                      exA.autoProgressionUseDefaultRange === false
+                                        ? exA.autoProgressionMaxReps
+                                        : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                                  }) ? (
+                                    <Pressable
+                                      onPress={() => handleApplyAutoProgressionWeightIncrease(aIndex)}
+                                      style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                                    >
+                                      <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                        <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                                      </View>
+                                    </Pressable>
+                                  ) : null}
+                                </View>
                                 {(() => {
                                   const completedVolume = calculateExerciseVolume(
                                     exA.completedSets,
@@ -2261,26 +2285,6 @@ export default function ActiveWorkoutScreen() {
                                       </Text>
                                     );
                                   })()}
-                                {getIncreaseWeightSuggestion(exA.completedSets, {
-                                  enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
-                                  minReps:
-                                    exA.autoProgressionUseDefaultRange === false
-                                      ? exA.autoProgressionMinReps
-                                      : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                                  maxReps:
-                                    exA.autoProgressionUseDefaultRange === false
-                                      ? exA.autoProgressionMaxReps
-                                      : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                                }) ? (
-                                  <Pressable
-                                    onPress={() => handleApplyAutoProgressionWeightIncrease(aIndex)}
-                                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                                  >
-                                    <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                      <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                                    </View>
-                                  </Pressable>
-                                ) : null}
                               </View>
                             </View>
                             <Text
@@ -2327,7 +2331,29 @@ export default function ActiveWorkoutScreen() {
                                 {exB.name}
                               </Text>
                             </Pressable>
-                            <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                            <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                              <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                                {getIncreaseWeightSuggestion(exB.completedSets, {
+                                  enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
+                                  minReps:
+                                    exB.autoProgressionUseDefaultRange === false
+                                      ? exB.autoProgressionMinReps
+                                      : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                                  maxReps:
+                                    exB.autoProgressionUseDefaultRange === false
+                                      ? exB.autoProgressionMaxReps
+                                      : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                                }) ? (
+                                  <Pressable
+                                    onPress={() => handleApplyAutoProgressionWeightIncrease(bIndex)}
+                                    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                                  >
+                                    <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                      <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                                    </View>
+                                  </Pressable>
+                                ) : null}
+                              </View>
                               {(() => {
                                 const completedVolume = calculateExerciseVolume(
                                   exB.completedSets,
@@ -2368,26 +2394,6 @@ export default function ActiveWorkoutScreen() {
                                   </Text>
                                 );
                               })()}
-                              {getIncreaseWeightSuggestion(exB.completedSets, {
-                                enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
-                                minReps:
-                                  exB.autoProgressionUseDefaultRange === false
-                                    ? exB.autoProgressionMinReps
-                                    : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                                maxReps:
-                                  exB.autoProgressionUseDefaultRange === false
-                                    ? exB.autoProgressionMaxReps
-                                    : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                              }) ? (
-                                <Pressable
-                                  onPress={() => handleApplyAutoProgressionWeightIncrease(bIndex)}
-                                  style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                                >
-                                  <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                    <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                                  </View>
-                                </Pressable>
-                              ) : null}
                             </View>
                           </View>
                           <Text

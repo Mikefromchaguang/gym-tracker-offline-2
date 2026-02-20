@@ -1680,7 +1680,29 @@ export default function TemplateCreateScreen() {
                             {ex.name}
                           </Text>
                         </Pressable>
-                        <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                        <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                          <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                            {getIncreaseWeightSuggestion(ex.sets, {
+                              enabled: settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false,
+                              minReps:
+                                ex.autoProgressionUseDefaultRange === false
+                                  ? ex.autoProgressionMinReps
+                                  : (ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                              maxReps:
+                                ex.autoProgressionUseDefaultRange === false
+                                  ? ex.autoProgressionMaxReps
+                                  : (ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                            }) ? (
+                              <Pressable
+                                onPress={() => handleApplyAutoProgressionWeightIncrease(ex.id)}
+                                style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                              >
+                                <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                  <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                                </View>
+                              </Pressable>
+                            ) : null}
+                          </View>
                           <Text className="text-sm text-muted">
                             {(() => {
                               const totalVolume = calculateTemplateExerciseVolume(
@@ -1691,26 +1713,6 @@ export default function TemplateCreateScreen() {
                               return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                             })()}
                           </Text>
-                          {getIncreaseWeightSuggestion(ex.sets, {
-                            enabled: settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false,
-                            minReps:
-                              ex.autoProgressionUseDefaultRange === false
-                                ? ex.autoProgressionMinReps
-                                : (ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                            maxReps:
-                              ex.autoProgressionUseDefaultRange === false
-                                ? ex.autoProgressionMaxReps
-                                : (ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                          }) ? (
-                            <Pressable
-                              onPress={() => handleApplyAutoProgressionWeightIncrease(ex.id)}
-                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                            >
-                              <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                              </View>
-                            </Pressable>
-                          ) : null}
                         </View>
                       </View>
                       <View className="flex-row items-center gap-2 flex-wrap">
@@ -1848,7 +1850,29 @@ export default function TemplateCreateScreen() {
                           {exA.name}
                         </Text>
                       </Pressable>
-                      <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                      <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                        <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                          {getIncreaseWeightSuggestion(exA.sets, {
+                            enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
+                            minReps:
+                              exA.autoProgressionUseDefaultRange === false
+                                ? exA.autoProgressionMinReps
+                                : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                            maxReps:
+                              exA.autoProgressionUseDefaultRange === false
+                                ? exA.autoProgressionMaxReps
+                                : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                          }) ? (
+                            <Pressable
+                              onPress={() => handleApplyAutoProgressionWeightIncrease(exA.id)}
+                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                            >
+                              <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                              </View>
+                            </Pressable>
+                          ) : null}
+                        </View>
                         <Text className="text-sm text-muted">
                           {(() => {
                             const totalVolume = calculateTemplateExerciseVolume(
@@ -1859,26 +1883,6 @@ export default function TemplateCreateScreen() {
                             return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                           })()}
                         </Text>
-                        {getIncreaseWeightSuggestion(exA.sets, {
-                          enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
-                          minReps:
-                            exA.autoProgressionUseDefaultRange === false
-                              ? exA.autoProgressionMinReps
-                              : (exA.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                          maxReps:
-                            exA.autoProgressionUseDefaultRange === false
-                              ? exA.autoProgressionMaxReps
-                              : (exA.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                        }) ? (
-                          <Pressable
-                            onPress={() => handleApplyAutoProgressionWeightIncrease(exA.id)}
-                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                          >
-                            <View className="bg-orange-500 px-2 py-1 rounded-full">
-                              <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                            </View>
-                          </Pressable>
-                        ) : null}
                       </View>
                     </View>
                     <Text
@@ -1925,7 +1929,29 @@ export default function TemplateCreateScreen() {
                           {exB.name}
                         </Text>
                       </Pressable>
-                      <View style={{ width: 138, marginLeft: 8 }} className="flex-row items-center justify-end">
+                      <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
+                        <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
+                          {getIncreaseWeightSuggestion(exB.sets, {
+                            enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
+                            minReps:
+                              exB.autoProgressionUseDefaultRange === false
+                                ? exB.autoProgressionMinReps
+                                : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                            maxReps:
+                              exB.autoProgressionUseDefaultRange === false
+                                ? exB.autoProgressionMaxReps
+                                : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                          }) ? (
+                            <Pressable
+                              onPress={() => handleApplyAutoProgressionWeightIncrease(exB.id)}
+                              style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
+                            >
+                              <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
+                              </View>
+                            </Pressable>
+                          ) : null}
+                        </View>
                         <Text className="text-sm text-muted">
                           {(() => {
                             const totalVolume = calculateTemplateExerciseVolume(
@@ -1936,26 +1962,6 @@ export default function TemplateCreateScreen() {
                             return `${Math.round(convertWeight(totalVolume, settings.weightUnit))} ${settings.weightUnit}`;
                           })()}
                         </Text>
-                        {getIncreaseWeightSuggestion(exB.sets, {
-                          enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
-                          minReps:
-                            exB.autoProgressionUseDefaultRange === false
-                              ? exB.autoProgressionMinReps
-                              : (exB.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
-                          maxReps:
-                            exB.autoProgressionUseDefaultRange === false
-                              ? exB.autoProgressionMaxReps
-                              : (exB.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
-                        }) ? (
-                          <Pressable
-                            onPress={() => handleApplyAutoProgressionWeightIncrease(exB.id)}
-                            style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, marginLeft: 6 }]}
-                          >
-                            <View className="bg-orange-500 px-2 py-1 rounded-full">
-                              <Text className="text-[10px] font-semibold text-background">↑ wt</Text>
-                            </View>
-                          </Pressable>
-                        ) : null}
                       </View>
                     </View>
                     <Text
