@@ -38,6 +38,8 @@ interface CreateExerciseModalProps {
   onSave: (exercise: ExerciseData) => Promise<void>;
   mode: 'create' | 'edit';
   existingExercise?: ExerciseData;
+  defaultPreferredMinReps?: number;
+  defaultPreferredMaxReps?: number;
 }
 
 export function CreateExerciseModal({
@@ -46,6 +48,8 @@ export function CreateExerciseModal({
   onSave,
   mode,
   existingExercise,
+  defaultPreferredMinReps,
+  defaultPreferredMaxReps,
 }: CreateExerciseModalProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -80,12 +84,12 @@ export function CreateExerciseModal({
         setPreferredMinDraft(
           typeof (existingExercise as any).preferredAutoProgressionMinReps === 'number'
             ? String((existingExercise as any).preferredAutoProgressionMinReps)
-            : ''
+            : String(defaultPreferredMinReps ?? 8)
         );
         setPreferredMaxDraft(
           typeof (existingExercise as any).preferredAutoProgressionMaxReps === 'number'
             ? String((existingExercise as any).preferredAutoProgressionMaxReps)
-            : ''
+            : String(defaultPreferredMaxReps ?? 12)
         );
 
         const defaultContribs = calculateDefaultContributions(sanitizedPrimary, sanitizedSecondaries);
@@ -114,7 +118,7 @@ export function CreateExerciseModal({
         setPreferredMaxDraft('');
       }
     }
-  }, [visible, mode, existingExercise]);
+  }, [visible, mode, existingExercise, defaultPreferredMinReps, defaultPreferredMaxReps]);
 
   // Auto-calculate muscle contributions when muscles change (only in create mode)
   useEffect(() => {

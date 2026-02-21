@@ -32,6 +32,8 @@ interface EditPredefinedExerciseModalProps {
   }) => Promise<void>;
   onReset: () => Promise<void>;
   exerciseName: string;
+  defaultPreferredMinReps?: number;
+  defaultPreferredMaxReps?: number;
   currentCustomization?: {
     primaryMuscle?: MuscleGroup;
     secondaryMuscles?: MuscleGroup[];
@@ -49,6 +51,8 @@ export function EditPredefinedExerciseModal({
   onSave,
   onReset,
   exerciseName,
+  defaultPreferredMinReps,
+  defaultPreferredMaxReps,
   currentCustomization,
 }: EditPredefinedExerciseModalProps) {
   const colors = useColors();
@@ -77,12 +81,12 @@ export function EditPredefinedExerciseModal({
         setPreferredMinDraft(
           typeof currentCustomization.preferredAutoProgressionMinReps === 'number'
             ? String(currentCustomization.preferredAutoProgressionMinReps)
-            : ''
+            : String(defaultPreferredMinReps ?? 8)
         );
         setPreferredMaxDraft(
           typeof currentCustomization.preferredAutoProgressionMaxReps === 'number'
             ? String(currentCustomization.preferredAutoProgressionMaxReps)
-            : ''
+            : String(defaultPreferredMaxReps ?? 12)
         );
       } else if (predefinedExercise) {
         // Use predefined defaults
@@ -90,11 +94,17 @@ export function EditPredefinedExerciseModal({
         setSecondaryMuscles(predefinedExercise.secondaryMuscles || []);
         setMuscleContributions(predefinedExercise.muscleContributions || calculateDefaultContributions(predefinedExercise.primaryMuscle, predefinedExercise.secondaryMuscles));
         setExerciseType(predefinedExercise.exerciseType || 'weighted');
-        setPreferredMinDraft('');
-        setPreferredMaxDraft('');
+        setPreferredMinDraft(String(defaultPreferredMinReps ?? 8));
+        setPreferredMaxDraft(String(defaultPreferredMaxReps ?? 12));
       }
     }
-  }, [visible, exerciseName, currentCustomization]);
+  }, [
+    visible,
+    exerciseName,
+    currentCustomization,
+    defaultPreferredMinReps,
+    defaultPreferredMaxReps,
+  ]);
 
   const handleClose = () => {
     onClose();

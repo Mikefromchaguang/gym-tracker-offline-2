@@ -9,12 +9,22 @@ import { useEffect, useState } from 'react';
 import * as Haptics from 'expo-haptics';
 import { getDayName } from '@/lib/week-utils';
 import type { WeekStartDay } from '@/lib/types';
+import { PREDEFINED_EXERCISES_WITH_MUSCLES } from '@/lib/types';
 
 export default function PreferencesScreen() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { settings, updateSettings, templates, updateTemplate } = useGym();
+  const {
+    settings,
+    updateSettings,
+    templates,
+    updateTemplate,
+    customExercises,
+    updateCustomExercise,
+    predefinedExerciseCustomizations,
+    updatePredefinedExerciseCustomization,
+  } = useGym();
 
   const [restTimeInput, setRestTimeInput] = useState((settings.defaultRestTime || 90).toString());
   const [defaultAutoMinInput, setDefaultAutoMinInput] = useState((settings.defaultAutoProgressionMinReps || 8).toString());
@@ -158,6 +168,60 @@ export default function PreferencesScreen() {
     };
   };
 
+  const applyDefaultRangeToExercisePreferences = async (
+    nextMin: number,
+    nextMax: number,
+    mode: 'fill-missing' | 'overwrite-all'
+  ) => {
+    let customUpdated = 0;
+    let predefinedUpdated = 0;
+
+    await Promise.all(
+      customExercises.map(async (ex) => {
+        const hasMin = typeof ex.preferredAutoProgressionMinReps === 'number';
+        const hasMax = typeof ex.preferredAutoProgressionMaxReps === 'number';
+        const shouldUpdate =
+          mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
+
+        if (!shouldUpdate) return;
+
+        await updateCustomExercise(ex.name, {
+          ...ex,
+          preferredAutoProgressionMinReps:
+            mode === 'overwrite-all' ? nextMin : (hasMin ? ex.preferredAutoProgressionMinReps : nextMin),
+          preferredAutoProgressionMaxReps:
+            mode === 'overwrite-all' ? nextMax : (hasMax ? ex.preferredAutoProgressionMaxReps : nextMax),
+        });
+        customUpdated += 1;
+      })
+    );
+
+    const predefinedNames = PREDEFINED_EXERCISES_WITH_MUSCLES.map((ex) => ex.name);
+    await Promise.all(
+      predefinedNames.map(async (name) => {
+        const current = (predefinedExerciseCustomizations as any)[name] ?? {};
+        const hasMin = typeof current.preferredAutoProgressionMinReps === 'number';
+        const hasMax = typeof current.preferredAutoProgressionMaxReps === 'number';
+        const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
+        if (!shouldUpdate) return;
+
+        await updatePredefinedExerciseCustomization(name, {
+          ...current,
+          preferredAutoProgressionMinReps:
+            mode === 'overwrite-all' ? nextMin : (hasMin ? current.preferredAutoProgressionMinReps : nextMin),
+          preferredAutoProgressionMaxReps:
+            mode === 'overwrite-all' ? nextMax : (hasMax ? current.preferredAutoProgressionMaxReps : nextMax),
+        });
+        predefinedUpdated += 1;
+      })
+    );
+
+    return {
+      customUpdated,
+      predefinedUpdated,
+    };
+  };
+
   const handleDefaultAutoMinInputChange = (text: string) => {
     const filtered = text.replace(/[^0-9]/g, '');
     setDefaultAutoMinInput(filtered);
@@ -188,27 +252,52 @@ export default function PreferencesScreen() {
 
     const counts = getRepRangePropagationCounts(prevMin, prevMax);
 
-    await updateSettings({
-      defaultAutoProgressionMinReps: nextMin,
-      defaultAutoProgressionMaxReps: nextMax,
-    });
-    await applyDefaultRepRangeToTemplates(nextMin, nextMax, prevMin, prevMax, false);
+    const commit = async (overwriteAllRanges: boolean) => {
+      await updateSettings({
+        defaultAutoProgressionMinReps: nextMin,
+        defaultAutoProgressionMaxReps: nextMax,
+      });
 
-    if (counts.overrideCount > 0) {
-      Alert.alert(
-        'Apply to custom routine ranges?',
-        `${counts.inheritedCount} inherited routine exercise${counts.inheritedCount === 1 ? '' : 's'} were updated automatically.\n\n${counts.overrideCount} custom/manual routine exercise${counts.overrideCount === 1 ? '' : 's'} were kept unchanged. Apply new defaults to those too?`,
-        [
-          { text: 'Keep current', style: 'cancel' },
-          {
-            text: 'Apply',
-            onPress: async () => {
-              await applyDefaultRepRangeToTemplates(nextMin, nextMax, prevMin, prevMax, true);
-            },
-          },
-        ]
+      await applyDefaultRepRangeToTemplates(
+        nextMin,
+        nextMax,
+        prevMin,
+        prevMax,
+        overwriteAllRanges
       );
-    }
+
+      const preferenceUpdates = await applyDefaultRangeToExercisePreferences(
+        nextMin,
+        nextMax,
+        overwriteAllRanges ? 'overwrite-all' : 'fill-missing'
+      );
+
+      Alert.alert(
+        'Default range applied',
+        `Default rep range set to ${nextMin}-${nextMax}.\n\nRoutine entries updated: ${overwriteAllRanges ? counts.totalCount : counts.inheritedCount}.\nExercise preferences updated: ${preferenceUpdates.customUpdated + preferenceUpdates.predefinedUpdated}.`
+      );
+    };
+
+    Alert.alert(
+      'Apply default rep range',
+      `Choose how to apply ${nextMin}-${nextMax}:\n\n• Keep custom ranges: only blanks/missing ranges are filled.\n• Overwrite all ranges: replace all exercise and routine ranges with this default.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Keep custom ranges',
+          onPress: () => {
+            void commit(false);
+          },
+        },
+        {
+          text: 'Overwrite all ranges',
+          style: 'destructive',
+          onPress: () => {
+            void commit(true);
+          },
+        },
+      ]
+    );
   };
 
   const handleDefaultAutoWeightIncrementInputChange = (text: string) => {
@@ -477,7 +566,7 @@ export default function PreferencesScreen() {
                     },
                   ]}
                 >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.background }}>Apply range</Text>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.background }}>Apply default range</Text>
                 </Pressable>
               </View>
 

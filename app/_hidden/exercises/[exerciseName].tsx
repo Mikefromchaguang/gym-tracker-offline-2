@@ -1831,6 +1831,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         onClose={() => setShowEditModal(false)}
         onSave={handleSaveEdit}
         mode="edit"
+        defaultPreferredMinReps={settings.defaultAutoProgressionMinReps}
+        defaultPreferredMaxReps={settings.defaultAutoProgressionMaxReps}
         existingExercise={{
           name: currentExercise?.name || '',
           primaryMuscle: currentExercise?.primaryMuscle || 'chest',
@@ -1926,6 +1928,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
           }
         }}
         exerciseName={editingPredefinedExercise || ''}
+        defaultPreferredMinReps={settings.defaultAutoProgressionMinReps}
+        defaultPreferredMaxReps={settings.defaultAutoProgressionMaxReps}
         currentCustomization={editingPredefinedExercise ? predefinedExerciseCustomizations[editingPredefinedExercise] : undefined}
       />
     </ScreenContainer>
