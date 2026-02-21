@@ -23,7 +23,7 @@ import {
 } from '@/lib/types';
 import { getExerciseContributions } from '@/lib/muscle-contribution';
 import { calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
-import { formatVolume } from '@/lib/unit-conversion';
+import { convertWeight } from '@/lib/unit-conversion';
 import { getMuscleGroupDisplayName } from '@/lib/muscle-groups';
 
 const ROUTINE_MUSCLE_MAP: Partial<Record<MuscleGroup, string[]>> = {
@@ -466,7 +466,7 @@ export default function EditWeekPlanScreen() {
                 <View style={{ flex: 1, gap: 6 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Volume ({settings.weightUnit})</Text>
-                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{formatVolume(planSummary.totalVolume, settings.weightUnit)}</Text>
+                    <Text style={{ color: colors.foreground, fontSize: 13, fontWeight: '800' }}>{Math.round(convertWeight(planSummary.totalVolume, settings.weightUnit))}</Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>Sessions</Text>

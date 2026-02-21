@@ -247,19 +247,44 @@ export default function TemplateCreateScreen() {
     setShowExerciseDetailsModal(true);
   }, []);
 
+  const resolveExercisePreferenceMeta = useCallback((exerciseName: string, exerciseId?: string) => {
+    const normalizedName = exerciseName.trim().toLowerCase();
+
+    const customEx = customExercises.find(
+      (item) => item.id === exerciseId || item.name.trim().toLowerCase() === normalizedName
+    );
+
+    const predefinedByName = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+      (item) => item.name.toLowerCase() === normalizedName
+    );
+    const predefinedById = exerciseId
+      ? PREDEFINED_EXERCISES_WITH_MUSCLES.find((item) => item.id === exerciseId)
+      : undefined;
+    const predefinedEx = predefinedByName || predefinedById;
+
+    const predefinedNameLower = predefinedEx?.name?.toLowerCase();
+    const exactCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
+    const caseInsensitiveCustomization = Object.entries(predefinedExerciseCustomizations as any).find(
+      ([name]) => {
+        const key = name.toLowerCase();
+        return key === normalizedName || (!!predefinedNameLower && key === predefinedNameLower);
+      }
+    )?.[1] as any;
+    const predefinedCustomization = exactCustomization ?? caseInsensitiveCustomization;
+
+    return {
+      customEx,
+      predefinedEx,
+      predefinedCustomization,
+    };
+  }, [customExercises, predefinedExerciseCustomizations]);
+
   const quickActionsMeta = useMemo(() => {
     if (!exerciseQuickActionsId) return null;
     const ex = exercises.find((e) => e.id === exerciseQuickActionsId);
     if (!ex) return null;
 
-    const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
-      (item) => item.name.toLowerCase() === ex.name.toLowerCase()
-    );
-    const customEx = customExercises.find(
-      (item) => item.name.toLowerCase() === ex.name.toLowerCase() || item.id === ex.exerciseId
-    );
-    const predefinedCustomization =
-      (predefinedExerciseCustomizations as any)[predefinedEx?.name || ex.name];
+    const { customEx, predefinedCustomization } = resolveExercisePreferenceMeta(ex.name, ex.exerciseId);
     const preferredEnabled =
       (customEx?.preferredAutoProgressionEnabled ?? predefinedCustomization?.preferredAutoProgressionEnabled) !== false;
     const preferredMin =
@@ -302,8 +327,7 @@ export default function TemplateCreateScreen() {
     exercises,
     settings.defaultRestTime,
     settings.autoProgressionEnabled,
-    customExercises,
-    predefinedExerciseCustomizations,
+    resolveExercisePreferenceMeta,
   ]);
 
   // Use centralized muscle groups
@@ -535,7 +559,7 @@ export default function TemplateCreateScreen() {
     // Fetch historical data for this exercise
     const historicalData = await getMostRecentExerciseData(exerciseName);
 
-    const customEx = customExercises.find(ex => ex.name.toLowerCase() === exerciseName.toLowerCase());
+    const { customEx, predefinedEx, predefinedCustomization } = resolveExercisePreferenceMeta(exerciseName);
     const muscleMeta = getEffectiveExerciseMuscles(
       exerciseName,
       predefinedExerciseCustomizations,
@@ -544,12 +568,10 @@ export default function TemplateCreateScreen() {
     );
     
     // Get exercise type
-    const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(e => e.name.toLowerCase() === exerciseName.toLowerCase());
     const exerciseType = customEx?.type || customEx?.exerciseType || predefinedEx?.exerciseType || 'weighted';
     
     // Get exercise ID: use predefined ID if available, or custom exercise ID, or generate a new custom ID
     const exerciseId = predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
-    const predefinedCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
     const preferredEnabled =
       (customEx?.preferredAutoProgressionEnabled ?? predefinedCustomization?.preferredAutoProgressionEnabled) !== false;
     const autoProgressionAvailable =
@@ -611,7 +633,7 @@ export default function TemplateCreateScreen() {
       groupPosition: opts?.groupPosition,
     };
   }, [
-    customExercises,
+    resolveExercisePreferenceMeta,
     predefinedExerciseCustomizations,
     getMostRecentExerciseData,
     settings.weightUnit,

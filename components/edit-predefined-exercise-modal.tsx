@@ -19,8 +19,6 @@ import { Platform } from 'react-native';
 
 const EXERCISE_TYPES: ExerciseType[] = ['weighted', 'bodyweight', 'assisted-bodyweight', 'weighted-bodyweight', 'doubled'];
 
-type PreferredRangeApplyMode = 'new-only' | 'existing-templates';
-
 interface EditPredefinedExerciseModalProps {
   visible: boolean;
   onClose: () => void;
@@ -33,8 +31,7 @@ interface EditPredefinedExerciseModalProps {
       preferredAutoProgressionEnabled?: boolean;
       preferredAutoProgressionMinReps?: number;
       preferredAutoProgressionMaxReps?: number;
-    },
-    options?: { preferredRangeApplyMode?: PreferredRangeApplyMode }
+    }
   ) => Promise<void>;
   onReset: () => Promise<void>;
   exerciseName: string;
@@ -72,8 +69,6 @@ export function EditPredefinedExerciseModal({
   const [preferredAutoProgressionEnabled, setPreferredAutoProgressionEnabled] = useState(true);
   const [preferredMinDraft, setPreferredMinDraft] = useState('');
   const [preferredMaxDraft, setPreferredMaxDraft] = useState('');
-  const [preferredRangeApplyMode, setPreferredRangeApplyMode] =
-    useState<PreferredRangeApplyMode>('new-only');
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
@@ -99,7 +94,6 @@ export function EditPredefinedExerciseModal({
             ? String(currentCustomization.preferredAutoProgressionMaxReps)
             : String(defaultPreferredMaxReps ?? 12)
         );
-        setPreferredRangeApplyMode('new-only');
       } else if (predefinedExercise) {
         // Use predefined defaults
         setPrimaryMuscle(predefinedExercise.primaryMuscle);
@@ -109,7 +103,6 @@ export function EditPredefinedExerciseModal({
         setPreferredAutoProgressionEnabled(true);
         setPreferredMinDraft(String(defaultPreferredMinReps ?? 8));
         setPreferredMaxDraft(String(defaultPreferredMaxReps ?? 12));
-        setPreferredRangeApplyMode('new-only');
       }
     }
   }, [
@@ -170,7 +163,7 @@ export function EditPredefinedExerciseModal({
         preferredAutoProgressionMinReps: effectivePreferredEnabled ? parsedMin : undefined,
         preferredAutoProgressionMaxReps: effectivePreferredEnabled ? parsedMax : undefined,
       };
-      await onSave(customization, { preferredRangeApplyMode });
+      await onSave(customization);
       if (Platform.OS !== 'web') {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
@@ -370,35 +363,9 @@ export function EditPredefinedExerciseModal({
                       Used as this exercise's default auto-progression range.
                     </Text>
 
-                    <View style={{ gap: 8, marginTop: 4 }}>
-                      <Button
-                        variant="secondary"
-                        onPress={() => {
-                          Alert.alert(
-                            'Apply preferred rep range',
-                            'Choose how preferred rep range changes should be applied.',
-                            [
-                              {
-                                text: 'Newly added only',
-                                onPress: () => setPreferredRangeApplyMode('new-only'),
-                              },
-                              {
-                                text: 'Existing in all templates',
-                                onPress: () => setPreferredRangeApplyMode('existing-templates'),
-                              },
-                              { text: 'Cancel', style: 'cancel' },
-                            ]
-                          );
-                        }}
-                      >
-                        <Text className="text-foreground font-semibold">Apply rep range</Text>
-                      </Button>
-                      <Text style={{ fontSize: 12, color: colors.muted }}>
-                        {preferredRangeApplyMode === 'existing-templates'
-                          ? 'Mode: Existing exercises in all templates'
-                          : 'Mode: Newly added exercises only'}
-                      </Text>
-                    </View>
+                    <Text style={{ fontSize: 12, color: colors.muted }}>
+                      Saving will apply this preferred range to existing exercises in all routines.
+                    </Text>
                   </>
                 )}
               </>

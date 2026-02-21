@@ -894,11 +894,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
-  }, options?: { preferredRangeApplyMode?: 'new-only' | 'existing-templates' }) => {
+  }) => {
     const existingCustomExercise = customExercises.find((ex) => ex.name === exerciseNameStr);
-    const prevPreferredEnabled = existingCustomExercise?.preferredAutoProgressionEnabled !== false;
-    const prevPreferredMin = existingCustomExercise?.preferredAutoProgressionMinReps;
-    const prevPreferredMax = existingCustomExercise?.preferredAutoProgressionMaxReps;
     const nextPreferredEnabled = exerciseData.preferredAutoProgressionEnabled !== false;
     const nextPreferredMin = exerciseData.preferredAutoProgressionMinReps;
     const nextPreferredMax = exerciseData.preferredAutoProgressionMaxReps;
@@ -915,12 +912,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     });
 
-    const preferredChanged =
-      prevPreferredEnabled !== nextPreferredEnabled ||
-      prevPreferredMin !== nextPreferredMin ||
-      prevPreferredMax !== nextPreferredMax;
-
-    if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
+    {
       const linkedCount = templates.reduce((acc, template) => {
         const matches = template.exercises.filter(
           (ex) =>
@@ -1850,23 +1842,15 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       <EditPredefinedExerciseModal
         visible={!!editingPredefinedExercise}
         onClose={() => setEditingPredefinedExercise(null)}
-        onSave={async (customization, options) => {
+        onSave={async (customization) => {
           if (editingPredefinedExercise) {
             const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
-            const prevPreferredEnabled = previous?.preferredAutoProgressionEnabled !== false;
-            const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
-            const prevPreferredMax = previous?.preferredAutoProgressionMaxReps;
             const nextPreferredEnabled = customization.preferredAutoProgressionEnabled !== false;
             const nextPreferredMin = customization.preferredAutoProgressionMinReps;
             const nextPreferredMax = customization.preferredAutoProgressionMaxReps;
             await updatePredefinedExerciseCustomization(editingPredefinedExercise, customization);
 
-            const preferredChanged =
-              prevPreferredEnabled !== nextPreferredEnabled ||
-              prevPreferredMin !== nextPreferredMin ||
-              prevPreferredMax !== nextPreferredMax;
-
-            if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
+            {
               const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
                 (ex) => ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase()
               );

@@ -33,14 +33,12 @@ interface ExerciseData {
   preferredAutoProgressionMaxReps?: number;
 }
 
-type PreferredRangeApplyMode = 'new-only' | 'existing-templates';
 
 interface CreateExerciseModalProps {
   visible: boolean;
   onClose: () => void;
   onSave: (
-    exercise: ExerciseData,
-    options?: { preferredRangeApplyMode?: PreferredRangeApplyMode }
+    exercise: ExerciseData
   ) => Promise<void>;
   mode: 'create' | 'edit';
   existingExercise?: ExerciseData;
@@ -68,8 +66,6 @@ export function CreateExerciseModal({
   const [preferredAutoProgressionEnabled, setPreferredAutoProgressionEnabled] = useState(true);
   const [preferredMinDraft, setPreferredMinDraft] = useState('');
   const [preferredMaxDraft, setPreferredMaxDraft] = useState('');
-  const [preferredRangeApplyMode, setPreferredRangeApplyMode] =
-    useState<PreferredRangeApplyMode>('new-only');
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize form with existing exercise data in edit mode
@@ -103,7 +99,6 @@ export function CreateExerciseModal({
             ? String((existingExercise as any).preferredAutoProgressionMaxReps)
             : String(defaultPreferredMaxReps ?? 12)
         );
-        setPreferredRangeApplyMode('new-only');
 
         const defaultContribs = calculateDefaultContributions(sanitizedPrimary, sanitizedSecondaries);
 
@@ -130,7 +125,6 @@ export function CreateExerciseModal({
         setPreferredAutoProgressionEnabled(true);
         setPreferredMinDraft('');
         setPreferredMaxDraft('');
-        setPreferredRangeApplyMode('new-only');
       }
     }
   }, [visible, mode, existingExercise, defaultPreferredMinReps, defaultPreferredMaxReps]);
@@ -254,7 +248,6 @@ export function CreateExerciseModal({
         preferredAutoProgressionMinReps: effectivePreferredEnabled ? parsedMin : undefined,
         preferredAutoProgressionMaxReps: effectivePreferredEnabled ? parsedMax : undefined,
       }, {
-        preferredRangeApplyMode,
       });
 
       if (Platform.OS !== 'web') {
@@ -442,35 +435,9 @@ export function CreateExerciseModal({
                     </Text>
 
                     {mode === 'edit' && (
-                      <View style={{ gap: 8, marginTop: 4 }}>
-                        <Button
-                          variant="secondary"
-                          onPress={() => {
-                            Alert.alert(
-                              'Apply preferred rep range',
-                              'Choose how preferred rep range changes should be applied.',
-                              [
-                                {
-                                  text: 'Newly added only',
-                                  onPress: () => setPreferredRangeApplyMode('new-only'),
-                                },
-                                {
-                                  text: 'Existing in all templates',
-                                  onPress: () => setPreferredRangeApplyMode('existing-templates'),
-                                },
-                                { text: 'Cancel', style: 'cancel' },
-                              ]
-                            );
-                          }}
-                        >
-                          <Text className="text-foreground font-semibold">Apply rep range</Text>
-                        </Button>
-                        <Text style={{ fontSize: 12, color: colors.muted }}>
-                          {preferredRangeApplyMode === 'existing-templates'
-                            ? 'Mode: Existing exercises in all templates'
-                            : 'Mode: Newly added exercises only'}
-                        </Text>
-                      </View>
+                      <Text style={{ fontSize: 12, color: colors.muted }}>
+                        Saving will apply this preferred range to existing exercises in all routines.
+                      </Text>
                     )}
                   </>
                 )}
