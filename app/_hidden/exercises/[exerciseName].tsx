@@ -893,7 +893,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     muscleContributions: Record<MuscleGroup, number>;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
-  }) => {
+  }, options?: { preferredRangeApplyMode?: 'new-only' | 'existing-templates' }) => {
     const existingCustomExercise = customExercises.find((ex) => ex.name === exerciseNameStr);
     const prevPreferredMin = existingCustomExercise?.preferredAutoProgressionMinReps;
     const prevPreferredMax = existingCustomExercise?.preferredAutoProgressionMaxReps;
@@ -913,7 +913,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
     const preferredChanged = prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
 
-    if (preferredChanged) {
+    if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
       const linkedCount = templates.reduce((acc, template) => {
         const matches = template.exercises.filter(
           (ex) =>
@@ -925,51 +925,37 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       }, 0);
 
       if (linkedCount > 0) {
-        Alert.alert(
-          'Update linked routines?',
-          `${linkedCount} routine exercise${linkedCount === 1 ? '' : 's'} use this exercise. Apply this preferred range now?`,
-          [
-            { text: 'No', style: 'cancel' },
-            {
-              text: 'Yes',
-              onPress: async () => {
-                const hasPreferred =
-                  typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+        const hasPreferred =
+          typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
 
-                await Promise.all(
-                  templates.map((template) => {
-                    let changed = false;
-                    const nextExercises = template.exercises.map((ex) => {
-                      const isMatch =
-                        ex.name.toLowerCase() === exerciseNameStr.toLowerCase() ||
-                        ex.name.toLowerCase() === exerciseData.name.toLowerCase() ||
-                        (existingCustomExercise?.id ? ex.exerciseId === existingCustomExercise.id : false);
+        for (const template of templates) {
+          let changed = false;
+          const nextExercises = template.exercises.map((ex) => {
+            const isMatch =
+              ex.name.toLowerCase() === exerciseNameStr.toLowerCase() ||
+              ex.name.toLowerCase() === exerciseData.name.toLowerCase() ||
+              (existingCustomExercise?.id ? ex.exerciseId === existingCustomExercise.id : false);
 
-                      if (!isMatch) return ex;
-                      changed = true;
+            if (!isMatch) return ex;
+            changed = true;
 
-                      return {
-                        ...ex,
-                        autoProgressionMinReps: hasPreferred
-                          ? nextPreferredMin
-                          : settings.defaultAutoProgressionMinReps,
-                        autoProgressionMaxReps: hasPreferred
-                          ? nextPreferredMax
-                          : settings.defaultAutoProgressionMaxReps,
-                        autoProgressionUseDefaultRange: !hasPreferred,
-                        autoProgressionUsePreferredRange: hasPreferred,
-                      };
-                    });
+            return {
+              ...ex,
+              autoProgressionMinReps: hasPreferred
+                ? nextPreferredMin
+                : settings.defaultAutoProgressionMinReps,
+              autoProgressionMaxReps: hasPreferred
+                ? nextPreferredMax
+                : settings.defaultAutoProgressionMaxReps,
+              autoProgressionUseDefaultRange: !hasPreferred,
+              autoProgressionUsePreferredRange: hasPreferred,
+            };
+          });
 
-                    return changed
-                      ? updateTemplate({ ...template, exercises: nextExercises })
-                      : Promise.resolve();
-                  })
-                );
-              },
-            },
-          ]
-        );
+          if (changed) {
+            await updateTemplate({ ...template, exercises: nextExercises });
+          }
+        }
       }
     }
 
@@ -1860,7 +1846,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       <EditPredefinedExerciseModal
         visible={!!editingPredefinedExercise}
         onClose={() => setEditingPredefinedExercise(null)}
-        onSave={async (customization) => {
+        onSave={async (customization, options) => {
           if (editingPredefinedExercise) {
             const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
             const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
@@ -1872,7 +1858,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
             const preferredChanged =
               prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
 
-            if (preferredChanged) {
+            if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
               const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
                 (ex) => ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase()
               );
@@ -1887,49 +1873,35 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
               }, 0);
 
               if (linkedCount > 0) {
-                Alert.alert(
-                  'Update linked routines?',
-                  `${linkedCount} routine exercise${linkedCount === 1 ? '' : 's'} use this exercise. Apply this preferred range now?`,
-                  [
-                    { text: 'No', style: 'cancel' },
-                    {
-                      text: 'Yes',
-                      onPress: async () => {
-                        const hasPreferred =
-                          typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+                const hasPreferred =
+                  typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
 
-                        await Promise.all(
-                          templates.map((template) => {
-                            let changed = false;
-                            const nextExercises = template.exercises.map((ex) => {
-                              const isMatch =
-                                ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase() ||
-                                (predefined?.id ? ex.exerciseId === predefined.id : false);
-                              if (!isMatch) return ex;
+                for (const template of templates) {
+                  let changed = false;
+                  const nextExercises = template.exercises.map((ex) => {
+                    const isMatch =
+                      ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase() ||
+                      (predefined?.id ? ex.exerciseId === predefined.id : false);
+                    if (!isMatch) return ex;
 
-                              changed = true;
-                              return {
-                                ...ex,
-                                autoProgressionMinReps: hasPreferred
-                                  ? nextPreferredMin
-                                  : settings.defaultAutoProgressionMinReps,
-                                autoProgressionMaxReps: hasPreferred
-                                  ? nextPreferredMax
-                                  : settings.defaultAutoProgressionMaxReps,
-                                autoProgressionUseDefaultRange: !hasPreferred,
-                                autoProgressionUsePreferredRange: hasPreferred,
-                              };
-                            });
+                    changed = true;
+                    return {
+                      ...ex,
+                      autoProgressionMinReps: hasPreferred
+                        ? nextPreferredMin
+                        : settings.defaultAutoProgressionMinReps,
+                      autoProgressionMaxReps: hasPreferred
+                        ? nextPreferredMax
+                        : settings.defaultAutoProgressionMaxReps,
+                      autoProgressionUseDefaultRange: !hasPreferred,
+                      autoProgressionUsePreferredRange: hasPreferred,
+                    };
+                  });
 
-                            return changed
-                              ? updateTemplate({ ...template, exercises: nextExercises })
-                              : Promise.resolve();
-                          })
-                        );
-                      },
-                    },
-                  ]
-                );
+                  if (changed) {
+                    await updateTemplate({ ...template, exercises: nextExercises });
+                  }
+                }
               }
             }
           }
