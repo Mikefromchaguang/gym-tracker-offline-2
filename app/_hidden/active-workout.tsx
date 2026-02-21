@@ -21,7 +21,7 @@ import { useGym } from '@/lib/gym-context';
 import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { CompletedWorkout, CompletedExercise, CompletedSet, Exercise, PREDEFINED_EXERCISES, PREDEFINED_EXERCISES_WITH_MUSCLES, getExerciseMuscles, getEffectiveExerciseMuscles, MuscleGroup, ExerciseType, ExerciseMetadata } from '@/lib/types';
-import { generateCustomExerciseId } from '@/lib/exercise-id-migration';
+import { generateCustomExerciseId, generateExerciseId } from '@/lib/exercise-id-migration';
 import { PRIMARY_MUSCLE_GROUPS, getMuscleGroupDisplayName } from '@/lib/muscle-groups';
 import { generateId, BodyWeightStorage, FailureSetStorage } from '@/lib/storage';
 import { formatTime } from '@/lib/utils-gym';
@@ -193,16 +193,25 @@ export default function ActiveWorkoutScreen() {
 
   const resolveExercisePreferenceMeta = useCallback((exerciseName: string, exerciseId?: string) => {
     const normalizedName = exerciseName.trim().toLowerCase();
+    const normalizedExerciseId = typeof exerciseId === 'string' ? exerciseId.trim().toLowerCase() : undefined;
 
     const customEx = customExercises.find(
-      (item) => item.id === exerciseId || item.name.trim().toLowerCase() === normalizedName
+      (item) =>
+        item.id === exerciseId ||
+        generateExerciseId(item.name) === exerciseId ||
+        item.name.trim().toLowerCase() === normalizedName ||
+        (!!normalizedExerciseId && item.name.trim().toLowerCase() === normalizedExerciseId)
     );
 
     const predefinedByName = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
-      (item) => item.name.toLowerCase() === normalizedName
+      (item) =>
+        item.name.toLowerCase() === normalizedName ||
+        (!!normalizedExerciseId && item.name.toLowerCase() === normalizedExerciseId)
     );
     const predefinedById = exerciseId
-      ? PREDEFINED_EXERCISES_WITH_MUSCLES.find((item) => item.id === exerciseId)
+      ? PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+          (item) => item.id === exerciseId || generateExerciseId(item.name) === exerciseId
+        )
       : undefined;
     const predefinedEx = predefinedByName || predefinedById;
 
@@ -211,7 +220,11 @@ export default function ActiveWorkoutScreen() {
     const caseInsensitiveCustomization = Object.entries(predefinedExerciseCustomizations as any).find(
       ([name]) => {
         const key = name.toLowerCase();
-        return key === normalizedName || (!!predefinedNameLower && key === predefinedNameLower);
+        return (
+          key === normalizedName ||
+          (!!predefinedNameLower && key === predefinedNameLower) ||
+          (!!normalizedExerciseId && key === normalizedExerciseId)
+        );
       }
     )?.[1] as any;
     const predefinedCustomization = exactCustomization ?? caseInsensitiveCustomization;
