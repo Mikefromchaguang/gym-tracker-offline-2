@@ -1,4 +1,4 @@
-import { View, Text, Pressable, ScrollView, TextInput, Platform, Modal } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Platform, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ScreenContainer } from '@/components/screen-container';
 import { useColors } from '@/hooks/use-colors';
@@ -60,7 +60,8 @@ export default function PreferencesScreen() {
     nextMin: number,
     nextMax: number,
     prevMin: number,
-    prevMax: number
+    prevMax: number,
+    includeUsedOverrides = false
   ) => {
     const updates = templates
       .map((template) => {
@@ -82,7 +83,7 @@ export default function PreferencesScreen() {
             hasStoredRange &&
             (ex.autoProgressionMinReps !== prevMin || ex.autoProgressionMaxReps !== prevMax);
 
-          if (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange) {
+          if (!includeUsedOverrides && (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange)) {
             if (looksLikeLegacyCustomRange) {
               changed = true;
               return {
@@ -108,6 +109,7 @@ export default function PreferencesScreen() {
             autoProgressionMinReps: nextMin,
             autoProgressionMaxReps: nextMax,
             autoProgressionUseDefaultRange: true,
+            autoProgressionUsePreferredRange: false,
           };
         });
 
@@ -129,33 +131,87 @@ export default function PreferencesScreen() {
     await Promise.all(updates.map((template) => updateTemplate(template)));
   };
 
-  const handleDefaultAutoMinChange = async (text: string) => {
+  const getRepRangePropagationCounts = (prevMin: number, prevMax: number) => {
+    let inheritedCount = 0;
+    let overrideCount = 0;
+    templates.forEach((template) => {
+      template.exercises.forEach((ex) => {
+        if (ex.autoProgressionEnabled === false) return;
+        const hasStoredRange =
+          typeof ex.autoProgressionMinReps === 'number' &&
+          typeof ex.autoProgressionMaxReps === 'number';
+        const looksLikeLegacyCustomRange =
+          ex.autoProgressionUseDefaultRange === undefined &&
+          hasStoredRange &&
+          (ex.autoProgressionMinReps !== prevMin || ex.autoProgressionMaxReps !== prevMax);
+        if (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange) {
+          overrideCount += 1;
+        } else {
+          inheritedCount += 1;
+        }
+      });
+    });
+    return {
+      inheritedCount,
+      overrideCount,
+      totalCount: inheritedCount + overrideCount,
+    };
+  };
+
+  const handleDefaultAutoMinInputChange = (text: string) => {
     const filtered = text.replace(/[^0-9]/g, '');
     setDefaultAutoMinInput(filtered);
-    const value = parseInt(filtered, 10);
-    const currentMax = settings.defaultAutoProgressionMaxReps || 12;
-    if (!isNaN(value) && value >= 1 && value <= currentMax) {
-      const prevMin = settings.defaultAutoProgressionMinReps || 8;
-      const prevMax = settings.defaultAutoProgressionMaxReps || 12;
-      await updateSettings({ defaultAutoProgressionMinReps: value });
-      await applyDefaultRepRangeToTemplates(value, prevMax, prevMin, prevMax);
-    }
   };
 
-  const handleDefaultAutoMaxChange = async (text: string) => {
+  const handleDefaultAutoMaxInputChange = (text: string) => {
     const filtered = text.replace(/[^0-9]/g, '');
     setDefaultAutoMaxInput(filtered);
-    const value = parseInt(filtered, 10);
-    const currentMin = settings.defaultAutoProgressionMinReps || 8;
-    if (!isNaN(value) && value >= currentMin && value <= 100) {
-      const prevMin = settings.defaultAutoProgressionMinReps || 8;
-      const prevMax = settings.defaultAutoProgressionMaxReps || 12;
-      await updateSettings({ defaultAutoProgressionMaxReps: value });
-      await applyDefaultRepRangeToTemplates(prevMin, value, prevMin, prevMax);
+  };
+
+  const handleApplyDefaultRepRange = async () => {
+    const nextMin = parseInt(defaultAutoMinInput, 10);
+    const nextMax = parseInt(defaultAutoMaxInput, 10);
+
+    if (Number.isNaN(nextMin) || Number.isNaN(nextMax) || nextMin < 1 || nextMax > 100 || nextMin > nextMax) {
+      Alert.alert('Invalid rep range', 'Enter a valid range where min is at least 1 and max is at most 100.');
+      setDefaultAutoMinInput((settings.defaultAutoProgressionMinReps || 8).toString());
+      setDefaultAutoMaxInput((settings.defaultAutoProgressionMaxReps || 12).toString());
+      return;
+    }
+
+    const prevMin = settings.defaultAutoProgressionMinReps || 8;
+    const prevMax = settings.defaultAutoProgressionMaxReps || 12;
+
+    if (nextMin === prevMin && nextMax === prevMax) {
+      return;
+    }
+
+    const counts = getRepRangePropagationCounts(prevMin, prevMax);
+
+    await updateSettings({
+      defaultAutoProgressionMinReps: nextMin,
+      defaultAutoProgressionMaxReps: nextMax,
+    });
+    await applyDefaultRepRangeToTemplates(nextMin, nextMax, prevMin, prevMax, false);
+
+    if (counts.overrideCount > 0) {
+      Alert.alert(
+        'Apply to custom routine ranges?',
+        `${counts.inheritedCount} inherited routine exercise${counts.inheritedCount === 1 ? '' : 's'} were updated automatically.\n\n${counts.overrideCount} custom/manual routine exercise${counts.overrideCount === 1 ? '' : 's'} were kept unchanged. Apply new defaults to those too?`,
+        [
+          { text: 'Keep current', style: 'cancel' },
+          {
+            text: 'Apply',
+            onPress: async () => {
+              await applyDefaultRepRangeToTemplates(nextMin, nextMax, prevMin, prevMax, true);
+            },
+          },
+        ]
+      );
     }
   };
 
-  const handleDefaultAutoWeightIncrementChange = async (text: string) => {
+  const handleDefaultAutoWeightIncrementInputChange = (text: string) => {
     const withDot = text.replace(/,/g, '.');
     const filtered = withDot.replace(/[^0-9.]/g, '');
     const dotIndex = filtered.indexOf('.');
@@ -165,11 +221,16 @@ export default function PreferencesScreen() {
         : `${filtered.slice(0, dotIndex + 1)}${filtered.slice(dotIndex + 1).replace(/\./g, '')}`;
 
     setDefaultAutoWeightIncrementInput(normalized);
+  };
 
-    const value = parseFloat(normalized);
+  const handleCommitDefaultAutoWeightIncrement = async () => {
+    const value = parseFloat(defaultAutoWeightIncrementInput);
     if (!isNaN(value) && value > 0 && value <= 100) {
       await updateSettings({ defaultAutoProgressionWeightIncrement: value });
+      return;
     }
+
+    setDefaultAutoWeightIncrementInput((settings.defaultAutoProgressionWeightIncrement ?? 2.5).toString());
   };
 
   const handleWeightUnitChange = async () => {
@@ -222,6 +283,7 @@ export default function PreferencesScreen() {
                   : (ex.autoProgressionMaxReps ?? fallbackMax),
               autoProgressionUseDefaultRange:
                 ex.autoProgressionUseDefaultRange === false ? false : true,
+              autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
             })),
           };
           changed = template.exercises.some((ex, index) => {
@@ -230,7 +292,8 @@ export default function PreferencesScreen() {
               ex.autoProgressionEnabled !== next.autoProgressionEnabled ||
               ex.autoProgressionMinReps !== next.autoProgressionMinReps ||
               ex.autoProgressionMaxReps !== next.autoProgressionMaxReps ||
-              ex.autoProgressionUseDefaultRange !== next.autoProgressionUseDefaultRange
+              ex.autoProgressionUseDefaultRange !== next.autoProgressionUseDefaultRange ||
+              ex.autoProgressionUsePreferredRange !== next.autoProgressionUsePreferredRange
             );
           });
           return changed ? updateTemplate(updatedTemplate) : Promise.resolve();
@@ -363,7 +426,8 @@ export default function PreferencesScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TextInput
                     value={defaultAutoMinInput}
-                    onChangeText={handleDefaultAutoMinChange}
+                    onChangeText={handleDefaultAutoMinInputChange}
+                    onSubmitEditing={handleApplyDefaultRepRange}
                     keyboardType="number-pad"
                     style={{
                       width: 56,
@@ -381,7 +445,8 @@ export default function PreferencesScreen() {
                   <Text style={{ color: colors.muted, fontSize: 16, fontWeight: '700' }}>-</Text>
                   <TextInput
                     value={defaultAutoMaxInput}
-                    onChangeText={handleDefaultAutoMaxChange}
+                    onChangeText={handleDefaultAutoMaxInputChange}
+                    onSubmitEditing={handleApplyDefaultRepRange}
                     keyboardType="number-pad"
                     style={{
                       width: 56,
@@ -399,12 +464,31 @@ export default function PreferencesScreen() {
                 </View>
               </View>
 
+              <View style={{ alignItems: 'flex-end' }}>
+                <Pressable
+                  onPress={handleApplyDefaultRepRange}
+                  style={({ pressed }) => [
+                    {
+                      paddingHorizontal: 12,
+                      paddingVertical: 6,
+                      borderRadius: 8,
+                      backgroundColor: colors.primary,
+                      opacity: pressed ? 0.7 : 1,
+                    },
+                  ]}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.background }}>Apply range</Text>
+                </Pressable>
+              </View>
+
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
                 <Text style={{ fontSize: 13, color: colors.muted }}>Default weight increment</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <TextInput
                     value={defaultAutoWeightIncrementInput}
-                    onChangeText={handleDefaultAutoWeightIncrementChange}
+                    onChangeText={handleDefaultAutoWeightIncrementInputChange}
+                    onBlur={handleCommitDefaultAutoWeightIncrement}
+                    onSubmitEditing={handleCommitDefaultAutoWeightIncrement}
                     keyboardType="decimal-pad"
                     style={{
                       width: 90,

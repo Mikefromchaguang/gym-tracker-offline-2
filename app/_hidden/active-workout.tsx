@@ -678,7 +678,11 @@ export default function ActiveWorkoutScreen() {
     const exerciseType = customEx?.type || customEx?.exerciseType || muscleMeta?.exerciseType || predefinedEx?.exerciseType || 'weighted';
 
     // Get exercise ID: use predefined ID if available, or custom exercise ID, or generate a new custom ID
-    const exerciseId = predefinedEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+    const exerciseId = predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+    const predefinedCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
+    const preferredMin = customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
+    const preferredMax = customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
+    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
 
     let defaultWeight = historicalData?.weight || 0;
     if (exerciseType === 'bodyweight') {
@@ -699,6 +703,11 @@ export default function ActiveWorkoutScreen() {
       unit: settings.weightUnit,
       type: exerciseType,
       restTimer: opts?.restTimerSeconds ?? settings.defaultRestTime,
+      autoProgressionEnabled: true,
+      autoProgressionMinReps: hasPreferredRange ? preferredMin : settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: hasPreferredRange ? preferredMax : settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: hasPreferredRange ? false : true,
+      autoProgressionUsePreferredRange: hasPreferredRange ? true : false,
       primaryMuscle: muscleMeta?.primaryMuscle,
       secondaryMuscles: muscleMeta?.secondaryMuscles,
       groupType: opts?.groupType,
@@ -717,7 +726,15 @@ export default function ActiveWorkoutScreen() {
         },
       ],
     };
-  }, [customExercises, predefinedExerciseCustomizations, getMostRecentExerciseData, settings.weightUnit, settings.defaultRestTime]);
+  }, [
+    customExercises,
+    predefinedExerciseCustomizations,
+    getMostRecentExerciseData,
+    settings.weightUnit,
+    settings.defaultRestTime,
+    settings.defaultAutoProgressionMinReps,
+    settings.defaultAutoProgressionMaxReps,
+  ]);
 
   const handleAddExerciseToWorkout = useCallback(async (exerciseName: string) => {
     const newExercise = await buildWorkoutExercise(exerciseName);
@@ -1280,6 +1297,21 @@ export default function ActiveWorkoutScreen() {
     if (exerciseQuickActionsIndex === null) return null;
     const ex = exercises[exerciseQuickActionsIndex];
     if (!ex) return null;
+
+    const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+      (item) => item.name.toLowerCase() === ex.name.toLowerCase()
+    );
+    const customEx = customExercises.find(
+      (item) => item.name.toLowerCase() === ex.name.toLowerCase() || item.id === ex.exerciseId
+    );
+    const predefinedCustomization =
+      (predefinedExerciseCustomizations as any)[predefinedEx?.name || ex.name];
+    const preferredMin =
+      customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
+    const preferredMax =
+      customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
+    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
+
     const isSuperset = ex.groupType === 'superset' && typeof ex.groupId === 'string';
     const mate = isSuperset
       ? exercises.find((m, idx) => idx !== exerciseQuickActionsIndex && m.groupType === 'superset' && m.groupId === ex.groupId)
@@ -1297,8 +1329,19 @@ export default function ActiveWorkoutScreen() {
       restTimerSeconds,
       restTimerEnabled,
       autoProgressionEnabled,
+      preferredMin,
+      preferredMax,
+      hasPreferredRange,
     };
-  }, [exerciseQuickActionsIndex, exercises, settings.defaultRestTime, settings.autoProgressionEnabled, disabledTimers]);
+  }, [
+    exerciseQuickActionsIndex,
+    exercises,
+    settings.defaultRestTime,
+    settings.autoProgressionEnabled,
+    disabledTimers,
+    customExercises,
+    predefinedExerciseCustomizations,
+  ]);
 
   const toggleRestTimerEnabledForIndex = useCallback((exerciseIndex: number) => {
     const base = exercises[exerciseIndex];
@@ -1360,7 +1403,15 @@ export default function ActiveWorkoutScreen() {
   }, []);
 
   // Handle exercise creation from modal
-  const handleCreateExercise = useCallback(async (exerciseData: { name: string; primaryMuscle: MuscleGroup; secondaryMuscles: MuscleGroup[]; type: ExerciseType; muscleContributions: Record<MuscleGroup, number> }) => {
+  const handleCreateExercise = useCallback(async (exerciseData: {
+    name: string;
+    primaryMuscle: MuscleGroup;
+    secondaryMuscles: MuscleGroup[];
+    type: ExerciseType;
+    muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => {
     const allNames = [...PREDEFINED_EXERCISES, ...customExercises.map(e => e.name)];
     if (allNames.some(n => n.toLowerCase() === exerciseData.name.toLowerCase())) {
       throw new Error('An exercise with this name already exists');
@@ -1377,6 +1428,8 @@ export default function ActiveWorkoutScreen() {
       exerciseType: exerciseData.type,
       type: exerciseData.type, // Alias for convenience
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
+      preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     };
     await addCustomExercise(newExercise);
     
@@ -1403,9 +1456,10 @@ export default function ActiveWorkoutScreen() {
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
       autoProgressionEnabled: true,
-      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
-      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
-      autoProgressionUseDefaultRange: true,
+      autoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps ?? settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: exerciseData.preferredAutoProgressionMinReps == null || exerciseData.preferredAutoProgressionMaxReps == null,
+      autoProgressionUsePreferredRange: exerciseData.preferredAutoProgressionMinReps != null && exerciseData.preferredAutoProgressionMaxReps != null,
       completedSets: [],
       weight: defaultWeight, // Set default weight for bodyweight exercises
     };
@@ -1451,6 +1505,7 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionMinReps: ex.autoProgressionMinReps,
                 autoProgressionMaxReps: ex.autoProgressionMaxReps,
                 autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
                 setDetails: ex.completedSets.map((set) => ({
@@ -1526,6 +1581,7 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionMinReps: ex.autoProgressionMinReps,
                 autoProgressionMaxReps: ex.autoProgressionMaxReps,
                 autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
                 setDetails: ex.completedSets.map((set) => ({
@@ -2918,17 +2974,18 @@ export default function ActiveWorkoutScreen() {
           quickActionsMeta
             ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
               ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
-              : (quickActionsMeta.ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? null))
+              : (settings.defaultAutoProgressionMinReps ?? quickActionsMeta.ex.autoProgressionMinReps ?? null))
             : null
         }
         autoProgressionMaxReps={
           quickActionsMeta
             ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
               ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
-              : (quickActionsMeta.ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps ?? null))
+              : (settings.defaultAutoProgressionMaxReps ?? quickActionsMeta.ex.autoProgressionMaxReps ?? null))
             : null
         }
         isInSuperset={quickActionsMeta?.isSuperset}
+        hasPreferredAutoProgressionRange={quickActionsMeta?.hasPreferredRange ?? false}
         onClose={() => {
           setShowExerciseQuickActions(false);
           setExerciseQuickActionsName(null);
@@ -2969,6 +3026,7 @@ export default function ActiveWorkoutScreen() {
               ...ex,
               autoProgressionMinReps: nextMin,
               autoProgressionUseDefaultRange: false,
+              autoProgressionUsePreferredRange: false,
             };
             return next;
           });
@@ -2984,6 +3042,7 @@ export default function ActiveWorkoutScreen() {
               ...ex,
               autoProgressionMaxReps: nextMax,
               autoProgressionUseDefaultRange: false,
+              autoProgressionUsePreferredRange: false,
             };
             return next;
           });
@@ -3009,10 +3068,48 @@ export default function ActiveWorkoutScreen() {
                     ? ex.autoProgressionMaxReps
                     : (ex.autoProgressionMaxReps ?? (settings.defaultAutoProgressionMaxReps ?? 12)),
                 autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange === false ? false : true,
+                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
               };
             } else {
               next[exerciseQuickActionsIndex] = { ...ex, autoProgressionEnabled: false };
             }
+            return next;
+          });
+        }}
+        onResetAutoProgressionToDefaultRange={() => {
+          if (exerciseQuickActionsIndex === null) return;
+          setExercises((prev) => {
+            const next = [...prev];
+            const ex = next[exerciseQuickActionsIndex];
+            if (!ex) return prev;
+            next[exerciseQuickActionsIndex] = {
+              ...ex,
+              autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
+              autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
+              autoProgressionUseDefaultRange: true,
+              autoProgressionUsePreferredRange: false,
+            };
+            return next;
+          });
+        }}
+        onResetAutoProgressionToPreferredRange={() => {
+          if (exerciseQuickActionsIndex === null) return;
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          if (typeof meta.preferredMin !== 'number' || typeof meta.preferredMax !== 'number') {
+            return;
+          }
+          setExercises((prev) => {
+            const next = [...prev];
+            const current = next[exerciseQuickActionsIndex];
+            if (!current) return prev;
+            next[exerciseQuickActionsIndex] = {
+              ...current,
+              autoProgressionMinReps: meta.preferredMin,
+              autoProgressionMaxReps: meta.preferredMax,
+              autoProgressionUseDefaultRange: false,
+              autoProgressionUsePreferredRange: true,
+            };
             return next;
           });
         }}

@@ -60,7 +60,17 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const exerciseNameParam = (params as any)?.exerciseName;
-  const { workouts, settings, customExercises, updateCustomExercise, predefinedExerciseCustomizations, updatePredefinedExerciseCustomization, deletePredefinedExerciseCustomization } = useGym();
+  const {
+    workouts,
+    settings,
+    templates,
+    updateTemplate,
+    customExercises,
+    updateCustomExercise,
+    predefinedExerciseCustomizations,
+    updatePredefinedExerciseCustomization,
+    deletePredefinedExerciseCustomization,
+  } = useGym();
   const [statsPeriod, setStatsPeriod] = useState<'all' | 'week'>('all');
   const [timePeriod, setTimePeriod] = useState<TimePeriod>('week');
   const [volumeAggregation, setVolumeAggregation] = useState<VolumeAggregation>('best_set');
@@ -100,7 +110,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     if (predefinedExercise) return predefinedExercise.name;
     
     const customExercise = customExercises.find((ex) => ex.name === exerciseNameStr);
-    return customExercise?.name || exerciseNameStr;
+    return customExercise?.id || customExercise?.name || exerciseNameStr;
   }, [exerciseNameStr, customExercises]);
 
   // Check exercise type
@@ -233,7 +243,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
     const allSets = workouts.flatMap((workout) =>
       workout.exercises
-        .filter((ex) => ex.name === exerciseNameStr)
+        .filter((ex) => ex.name === exerciseNameStr || (exerciseId && ex.exerciseId === exerciseId))
         .flatMap((ex) =>
           ex.sets
             .filter((set) => set?.completed !== false && set?.setType !== 'warmup' && !!set?.reps)
@@ -498,7 +508,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       estimated1RMChartData,
       allSets, // Include all sets for time period filtering
     };
-  }, [workouts, exerciseNameStr, volumeHistory, exerciseType, bodyWeightKgForCalc, isWeightedExercise]);
+  }, [workouts, exerciseNameStr, exerciseId, volumeHistory, exerciseType, bodyWeightKgForCalc, isWeightedExercise]);
 
   // Calculate rep max estimates from top 5 sets with recency weighting
   const repMaxEstimates = useMemo(() => {
@@ -863,14 +873,93 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     }
   };
 
-  const handleSaveEdit = async (exerciseData: { name: string; primaryMuscle: MuscleGroup; secondaryMuscles: MuscleGroup[]; type: ExerciseType; muscleContributions: Record<MuscleGroup, number> }) => {
+  const handleSaveEdit = async (exerciseData: {
+    name: string;
+    primaryMuscle: MuscleGroup;
+    secondaryMuscles: MuscleGroup[];
+    type: ExerciseType;
+    muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => {
+    const existingCustomExercise = customExercises.find((ex) => ex.name === exerciseNameStr);
+    const prevPreferredMin = existingCustomExercise?.preferredAutoProgressionMinReps;
+    const prevPreferredMax = existingCustomExercise?.preferredAutoProgressionMaxReps;
+    const nextPreferredMin = exerciseData.preferredAutoProgressionMinReps;
+    const nextPreferredMax = exerciseData.preferredAutoProgressionMaxReps;
+
     await updateCustomExercise(exerciseNameStr, {
+      id: existingCustomExercise?.id,
       name: exerciseData.name,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
       exerciseType: exerciseData.type,
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
+      preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     });
+
+    const preferredChanged = prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+
+    if (preferredChanged) {
+      const linkedCount = templates.reduce((acc, template) => {
+        const matches = template.exercises.filter(
+          (ex) =>
+            ex.name.toLowerCase() === exerciseNameStr.toLowerCase() ||
+            ex.name.toLowerCase() === exerciseData.name.toLowerCase() ||
+            (existingCustomExercise?.id ? ex.exerciseId === existingCustomExercise.id : false)
+        ).length;
+        return acc + matches;
+      }, 0);
+
+      if (linkedCount > 0) {
+        Alert.alert(
+          'Update linked routines?',
+          `${linkedCount} routine exercise${linkedCount === 1 ? '' : 's'} use this exercise. Apply this preferred range now?`,
+          [
+            { text: 'No', style: 'cancel' },
+            {
+              text: 'Yes',
+              onPress: async () => {
+                const hasPreferred =
+                  typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+
+                await Promise.all(
+                  templates.map((template) => {
+                    let changed = false;
+                    const nextExercises = template.exercises.map((ex) => {
+                      const isMatch =
+                        ex.name.toLowerCase() === exerciseNameStr.toLowerCase() ||
+                        ex.name.toLowerCase() === exerciseData.name.toLowerCase() ||
+                        (existingCustomExercise?.id ? ex.exerciseId === existingCustomExercise.id : false);
+
+                      if (!isMatch) return ex;
+                      changed = true;
+
+                      return {
+                        ...ex,
+                        autoProgressionMinReps: hasPreferred
+                          ? nextPreferredMin
+                          : settings.defaultAutoProgressionMinReps,
+                        autoProgressionMaxReps: hasPreferred
+                          ? nextPreferredMax
+                          : settings.defaultAutoProgressionMaxReps,
+                        autoProgressionUseDefaultRange: !hasPreferred,
+                        autoProgressionUsePreferredRange: hasPreferred,
+                      };
+                    });
+
+                    return changed
+                      ? updateTemplate({ ...template, exercises: nextExercises })
+                      : Promise.resolve();
+                  })
+                );
+              },
+            },
+          ]
+        );
+      }
+    }
 
     // If shown as an in-place modal, just close.
     if (onRequestClose) {
@@ -1748,6 +1837,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
           secondaryMuscles: currentExercise?.secondaryMuscles || [],
           type: currentExercise?.exerciseType || 'weighted',
           muscleContributions: currentExercise?.muscleContributions || {},
+          preferredAutoProgressionMinReps: currentExercise?.preferredAutoProgressionMinReps,
+          preferredAutoProgressionMaxReps: currentExercise?.preferredAutoProgressionMaxReps,
         }}
       />
 
@@ -1757,7 +1848,76 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         onClose={() => setEditingPredefinedExercise(null)}
         onSave={async (customization) => {
           if (editingPredefinedExercise) {
+            const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
+            const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
+            const prevPreferredMax = previous?.preferredAutoProgressionMaxReps;
+            const nextPreferredMin = customization.preferredAutoProgressionMinReps;
+            const nextPreferredMax = customization.preferredAutoProgressionMaxReps;
             await updatePredefinedExerciseCustomization(editingPredefinedExercise, customization);
+
+            const preferredChanged =
+              prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+
+            if (preferredChanged) {
+              const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+                (ex) => ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase()
+              );
+
+              const linkedCount = templates.reduce((acc, template) => {
+                const matches = template.exercises.filter(
+                  (ex) =>
+                    ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase() ||
+                    (predefined?.id ? ex.exerciseId === predefined.id : false)
+                ).length;
+                return acc + matches;
+              }, 0);
+
+              if (linkedCount > 0) {
+                Alert.alert(
+                  'Update linked routines?',
+                  `${linkedCount} routine exercise${linkedCount === 1 ? '' : 's'} use this exercise. Apply this preferred range now?`,
+                  [
+                    { text: 'No', style: 'cancel' },
+                    {
+                      text: 'Yes',
+                      onPress: async () => {
+                        const hasPreferred =
+                          typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+
+                        await Promise.all(
+                          templates.map((template) => {
+                            let changed = false;
+                            const nextExercises = template.exercises.map((ex) => {
+                              const isMatch =
+                                ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase() ||
+                                (predefined?.id ? ex.exerciseId === predefined.id : false);
+                              if (!isMatch) return ex;
+
+                              changed = true;
+                              return {
+                                ...ex,
+                                autoProgressionMinReps: hasPreferred
+                                  ? nextPreferredMin
+                                  : settings.defaultAutoProgressionMinReps,
+                                autoProgressionMaxReps: hasPreferred
+                                  ? nextPreferredMax
+                                  : settings.defaultAutoProgressionMaxReps,
+                                autoProgressionUseDefaultRange: !hasPreferred,
+                                autoProgressionUsePreferredRange: hasPreferred,
+                              };
+                            });
+
+                            return changed
+                              ? updateTemplate({ ...template, exercises: nextExercises })
+                              : Promise.resolve();
+                          })
+                        );
+                      },
+                    },
+                  ]
+                );
+              }
+            }
           }
         }}
         onReset={async () => {

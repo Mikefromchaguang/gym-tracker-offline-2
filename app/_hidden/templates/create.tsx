@@ -81,6 +81,7 @@ interface TemplateExerciseWithSets {
   autoProgressionMinReps?: number;
   autoProgressionMaxReps?: number;
   autoProgressionUseDefaultRange?: boolean;
+  autoProgressionUsePreferredRange?: boolean;
   primaryMuscle?: string;
   secondaryMuscles?: string[];
   tempId?: string;
@@ -251,6 +252,20 @@ export default function TemplateCreateScreen() {
     const ex = exercises.find((e) => e.id === exerciseQuickActionsId);
     if (!ex) return null;
 
+    const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+      (item) => item.name.toLowerCase() === ex.name.toLowerCase()
+    );
+    const customEx = customExercises.find(
+      (item) => item.name.toLowerCase() === ex.name.toLowerCase() || item.id === ex.exerciseId
+    );
+    const predefinedCustomization =
+      (predefinedExerciseCustomizations as any)[predefinedEx?.name || ex.name];
+    const preferredMin =
+      customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
+    const preferredMax =
+      customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
+    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
+
     const isSuperset = ex.groupType === 'superset' && typeof ex.groupId === 'string';
     const mate = isSuperset
       ? exercises.find((m) => m.id !== ex.id && m.groupType === 'superset' && m.groupId === ex.groupId)
@@ -269,8 +284,18 @@ export default function TemplateCreateScreen() {
       restTimerSeconds,
       restTimerEnabled,
       autoProgressionEnabled,
+      preferredMin,
+      preferredMax,
+      hasPreferredRange,
     };
-  }, [exerciseQuickActionsId, exercises, settings.defaultRestTime, settings.autoProgressionEnabled]);
+  }, [
+    exerciseQuickActionsId,
+    exercises,
+    settings.defaultRestTime,
+    settings.autoProgressionEnabled,
+    customExercises,
+    predefinedExerciseCustomizations,
+  ]);
 
   // Use centralized muscle groups
   const MUSCLE_GROUPS: MuscleGroup[] = PRIMARY_MUSCLE_GROUPS;
@@ -375,6 +400,7 @@ export default function TemplateCreateScreen() {
             autoProgressionMinReps: ex.autoProgressionMinReps,
             autoProgressionMaxReps: ex.autoProgressionMaxReps,
             autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+            autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
             primaryMuscle: ex.primaryMuscle as string | undefined,
             secondaryMuscles: ex.secondaryMuscles as string[] | undefined,
             groupType: ex.groupType,
@@ -501,7 +527,11 @@ export default function TemplateCreateScreen() {
     const exerciseType = customEx?.type || customEx?.exerciseType || predefinedEx?.exerciseType || 'weighted';
     
     // Get exercise ID: use predefined ID if available, or custom exercise ID, or generate a new custom ID
-    const exerciseId = predefinedEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+    const exerciseId = predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+    const predefinedCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
+    const preferredMin = customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
+    const preferredMax = customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
+    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
 
     // For bodyweight exercises, fetch and store current bodyweight
     let defaultWeight = historicalData?.weight || 0;
@@ -535,9 +565,10 @@ export default function TemplateCreateScreen() {
       type: exerciseType,
       restTimer: opts?.restTimerSeconds ?? settings.defaultRestTime,
       autoProgressionEnabled: true,
-      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
-      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
-      autoProgressionUseDefaultRange: true,
+      autoProgressionMinReps: hasPreferredRange ? preferredMin : settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: hasPreferredRange ? preferredMax : settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: hasPreferredRange ? false : true,
+      autoProgressionUsePreferredRange: hasPreferredRange ? true : false,
       primaryMuscle: muscleMeta?.primaryMuscle as any,
       secondaryMuscles: muscleMeta?.secondaryMuscles as any,
       groupType: opts?.groupType,
@@ -1108,7 +1139,15 @@ export default function TemplateCreateScreen() {
   }, [exercises]);
 
   // Create Exercise inline (no navigation away)
-  const handleCreateExercise = useCallback(async (exerciseData: { name: string; primaryMuscle: MuscleGroup; secondaryMuscles: MuscleGroup[]; type: ExerciseType; muscleContributions: Record<MuscleGroup, number> }) => {
+  const handleCreateExercise = useCallback(async (exerciseData: {
+    name: string;
+    primaryMuscle: MuscleGroup;
+    secondaryMuscles: MuscleGroup[];
+    type: ExerciseType;
+    muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => {
     const allNames = [...PREDEFINED_EXERCISES, ...customExercises.map(e => e.name)];
     if (allNames.some(n => n.toLowerCase() === exerciseData.name.toLowerCase())) {
       throw new Error('An exercise with this name already exists');
@@ -1125,6 +1164,8 @@ export default function TemplateCreateScreen() {
       exerciseType: exerciseData.type,
       type: exerciseData.type, // Alias for convenience
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
+      preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     };
     await addCustomExercise(newExercise);
     
@@ -1149,9 +1190,10 @@ export default function TemplateCreateScreen() {
       unit: settings.weightUnit,
       type: exerciseData.type,
       autoProgressionEnabled: true,
-      autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
-      autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
-      autoProgressionUseDefaultRange: true,
+      autoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps ?? settings.defaultAutoProgressionMinReps,
+      autoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps,
+      autoProgressionUseDefaultRange: exerciseData.preferredAutoProgressionMinReps == null || exerciseData.preferredAutoProgressionMaxReps == null,
+      autoProgressionUsePreferredRange: exerciseData.preferredAutoProgressionMinReps != null && exerciseData.preferredAutoProgressionMaxReps != null,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
     };
@@ -1217,7 +1259,7 @@ export default function TemplateCreateScreen() {
         const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(e => e.name === ex.name);
         const exerciseType = customEx?.type || customEx?.exerciseType || predefinedEx?.exerciseType || 'weighted';
         // Get exercise ID: prefer existing exerciseId, then predefined ID, then custom exercise ID
-        const exerciseId = ex.exerciseId || predefinedEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+        const exerciseId = ex.exerciseId || predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
 
         const cleanEx = {
           id: ex.id,
@@ -1235,6 +1277,7 @@ export default function TemplateCreateScreen() {
           autoProgressionMinReps: ex.autoProgressionMinReps,
           autoProgressionMaxReps: ex.autoProgressionMaxReps,
           autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+          autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1338,7 +1381,7 @@ export default function TemplateCreateScreen() {
         const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(e => e.name === ex.name);
         const exerciseType = customEx?.type || customEx?.exerciseType || predefinedEx?.exerciseType || 'weighted';
         // Get exercise ID: prefer existing exerciseId, then predefined ID, then custom exercise ID
-        const exerciseId = ex.exerciseId || predefinedEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+        const exerciseId = ex.exerciseId || predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
 
         return {
           id: ex.id,
@@ -1356,6 +1399,7 @@ export default function TemplateCreateScreen() {
           autoProgressionMinReps: ex.autoProgressionMinReps,
           autoProgressionMaxReps: ex.autoProgressionMaxReps,
           autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+          autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
           groupType: ex.groupType,
           groupId: ex.groupId,
           groupPosition: ex.groupPosition,
@@ -1439,7 +1483,7 @@ export default function TemplateCreateScreen() {
                 const predefinedEx = PREDEFINED_EXERCISES_WITH_MUSCLES.find(e => e.name === ex.name);
                 const exerciseType = customEx?.type || customEx?.exerciseType || predefinedEx?.exerciseType || 'weighted';
                 // Get exercise ID: prefer existing exerciseId, then predefined ID, then custom exercise ID
-                const exerciseId = ex.exerciseId || predefinedEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
+                const exerciseId = ex.exerciseId || predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
 
                 return {
                   id: ex.id,
@@ -1457,6 +1501,7 @@ export default function TemplateCreateScreen() {
                   autoProgressionMinReps: ex.autoProgressionMinReps,
                   autoProgressionMaxReps: ex.autoProgressionMaxReps,
                   autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                   groupType: ex.groupType,
                   groupId: ex.groupId,
                   groupPosition: ex.groupPosition,
@@ -2673,17 +2718,18 @@ export default function TemplateCreateScreen() {
           quickActionsMeta
             ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
               ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
-              : (quickActionsMeta.ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? null))
+              : (settings.defaultAutoProgressionMinReps ?? quickActionsMeta.ex.autoProgressionMinReps ?? null))
             : null
         }
         autoProgressionMaxReps={
           quickActionsMeta
             ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
               ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
-              : (quickActionsMeta.ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps ?? null))
+              : (settings.defaultAutoProgressionMaxReps ?? quickActionsMeta.ex.autoProgressionMaxReps ?? null))
             : null
         }
         isInSuperset={quickActionsMeta?.isSuperset}
+        hasPreferredAutoProgressionRange={quickActionsMeta?.hasPreferredRange ?? false}
         onClose={() => {
           setShowExerciseQuickActions(false);
           setExerciseQuickActionsName(null);
@@ -2731,6 +2777,7 @@ export default function TemplateCreateScreen() {
           handleUpdateExercise(meta.ex.id, {
             autoProgressionMinReps: nextMin,
             autoProgressionUseDefaultRange: false,
+            autoProgressionUsePreferredRange: false,
           });
         }}
         onChangeAutoProgressionMaxReps={(reps) => {
@@ -2740,6 +2787,7 @@ export default function TemplateCreateScreen() {
           handleUpdateExercise(meta.ex.id, {
             autoProgressionMaxReps: nextMax,
             autoProgressionUseDefaultRange: false,
+            autoProgressionUsePreferredRange: false,
           });
         }}
         onToggleAutoProgressionEnabled={() => {
@@ -2760,10 +2808,34 @@ export default function TemplateCreateScreen() {
                   ? meta.ex.autoProgressionMaxReps
                   : (meta.ex.autoProgressionMaxReps ?? fallbackMax),
               autoProgressionUseDefaultRange: meta.ex.autoProgressionUseDefaultRange === false ? false : true,
+              autoProgressionUsePreferredRange: meta.ex.autoProgressionUsePreferredRange === true,
             });
           } else {
             handleUpdateExercise(meta.ex.id, { autoProgressionEnabled: false });
           }
+        }}
+        onResetAutoProgressionToDefaultRange={() => {
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          handleUpdateExercise(meta.ex.id, {
+            autoProgressionMinReps: settings.defaultAutoProgressionMinReps,
+            autoProgressionMaxReps: settings.defaultAutoProgressionMaxReps,
+            autoProgressionUseDefaultRange: true,
+            autoProgressionUsePreferredRange: false,
+          });
+        }}
+        onResetAutoProgressionToPreferredRange={() => {
+          const meta = quickActionsMeta;
+          if (!meta) return;
+          if (typeof meta.preferredMin !== 'number' || typeof meta.preferredMax !== 'number') {
+            return;
+          }
+          handleUpdateExercise(meta.ex.id, {
+            autoProgressionMinReps: meta.preferredMin,
+            autoProgressionMaxReps: meta.preferredMax,
+            autoProgressionUseDefaultRange: false,
+            autoProgressionUsePreferredRange: true,
+          });
         }}
         onAddToSuperset={() => {
           if (!exerciseQuickActionsId) return;

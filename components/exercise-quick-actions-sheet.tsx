@@ -27,6 +27,9 @@ interface ExerciseQuickActionsSheetProps {
   onChangeAutoProgressionMinReps?: (reps: number | null) => void;
   onChangeAutoProgressionMaxReps?: (reps: number | null) => void;
   onToggleAutoProgressionEnabled?: () => void;
+  onResetAutoProgressionToDefaultRange?: () => void;
+  onResetAutoProgressionToPreferredRange?: () => void;
+  hasPreferredAutoProgressionRange?: boolean;
   /** For non-superset exercises: add to a superset */
   onAddToSuperset?: () => void;
   /** For superset exercises: split into individual exercises */
@@ -53,6 +56,9 @@ export function ExerciseQuickActionsSheet({
   onChangeAutoProgressionMinReps,
   onChangeAutoProgressionMaxReps,
   onToggleAutoProgressionEnabled,
+  onResetAutoProgressionToDefaultRange,
+  onResetAutoProgressionToPreferredRange,
+  hasPreferredAutoProgressionRange,
   onAddToSuperset,
   onSplitSuperset,
 }: ExerciseQuickActionsSheetProps) {
@@ -208,6 +214,41 @@ export function ExerciseQuickActionsSheet({
                   </Button>
                 )}
               </View>
+
+              {(onResetAutoProgressionToDefaultRange || onResetAutoProgressionToPreferredRange) && (
+                <View className="mt-2 gap-2">
+                  {onResetAutoProgressionToDefaultRange && (
+                    <Button
+                      variant="secondary"
+                      onPress={() => {
+                        onResetAutoProgressionToDefaultRange();
+                      }}
+                      className="w-full"
+                    >
+                      <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
+                      <Text className="text-sm font-semibold text-foreground">Reset to system default</Text>
+                    </Button>
+                  )}
+
+                  {onResetAutoProgressionToPreferredRange && (
+                    <Button
+                      variant="secondary"
+                      disabled={!hasPreferredAutoProgressionRange}
+                      onPress={() => {
+                        if (!hasPreferredAutoProgressionRange) return;
+                        onResetAutoProgressionToPreferredRange();
+                      }}
+                      className="w-full"
+                    >
+                      <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
+                      <Text className="text-sm font-semibold text-foreground">Reset to preferred</Text>
+                    </Button>
+                  )}
+                  {onResetAutoProgressionToPreferredRange && !hasPreferredAutoProgressionRange && (
+                    <Text className="text-xs text-muted">No preferred range set for this exercise.</Text>
+                  )}
+                </View>
+              )}
             </View>
           </View>
         )}

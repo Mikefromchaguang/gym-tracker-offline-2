@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useState, useEffect } from 'react';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { MuscleContributionEditor } from '@/components/muscle-contribution-editor';
 import { PrimarySecondaryMusclePicker } from '@/components/primary-secondary-muscle-picker';
 import { useColors } from '@/hooks/use-colors';
@@ -21,10 +22,25 @@ const EXERCISE_TYPES: ExerciseType[] = ['weighted', 'bodyweight', 'assisted-body
 interface EditPredefinedExerciseModalProps {
   visible: boolean;
   onClose: () => void;
-  onSave: (customization: { primaryMuscle?: MuscleGroup; secondaryMuscles?: MuscleGroup[]; muscleContributions?: Record<MuscleGroup, number>; exerciseType?: ExerciseType }) => Promise<void>;
+  onSave: (customization: {
+    primaryMuscle?: MuscleGroup;
+    secondaryMuscles?: MuscleGroup[];
+    muscleContributions?: Record<MuscleGroup, number>;
+    exerciseType?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => Promise<void>;
   onReset: () => Promise<void>;
   exerciseName: string;
-  currentCustomization?: { primaryMuscle?: MuscleGroup; secondaryMuscles?: MuscleGroup[]; muscleContributions?: Record<MuscleGroup, number>; exerciseType?: ExerciseType; type?: ExerciseType };
+  currentCustomization?: {
+    primaryMuscle?: MuscleGroup;
+    secondaryMuscles?: MuscleGroup[];
+    muscleContributions?: Record<MuscleGroup, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  };
 }
 
 export function EditPredefinedExerciseModal({
@@ -42,6 +58,8 @@ export function EditPredefinedExerciseModal({
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
   const [muscleContributions, setMuscleContributions] = useState<Record<MuscleGroup, number>>({} as Record<MuscleGroup, number>);
   const [exerciseType, setExerciseType] = useState<ExerciseType>('weighted');
+  const [preferredMinDraft, setPreferredMinDraft] = useState('');
+  const [preferredMaxDraft, setPreferredMaxDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
 
@@ -56,12 +74,24 @@ export function EditPredefinedExerciseModal({
         setSecondaryMuscles(currentCustomization.secondaryMuscles || predefinedExercise?.secondaryMuscles || []);
         setMuscleContributions(currentCustomization.muscleContributions || predefinedExercise?.muscleContributions || {});
         setExerciseType(currentCustomization.exerciseType || currentCustomization.type || predefinedExercise?.exerciseType || 'weighted');
+        setPreferredMinDraft(
+          typeof currentCustomization.preferredAutoProgressionMinReps === 'number'
+            ? String(currentCustomization.preferredAutoProgressionMinReps)
+            : ''
+        );
+        setPreferredMaxDraft(
+          typeof currentCustomization.preferredAutoProgressionMaxReps === 'number'
+            ? String(currentCustomization.preferredAutoProgressionMaxReps)
+            : ''
+        );
       } else if (predefinedExercise) {
         // Use predefined defaults
         setPrimaryMuscle(predefinedExercise.primaryMuscle);
         setSecondaryMuscles(predefinedExercise.secondaryMuscles || []);
         setMuscleContributions(predefinedExercise.muscleContributions || calculateDefaultContributions(predefinedExercise.primaryMuscle, predefinedExercise.secondaryMuscles));
         setExerciseType(predefinedExercise.exerciseType || 'weighted');
+        setPreferredMinDraft('');
+        setPreferredMaxDraft('');
       }
     }
   }, [visible, exerciseName, currentCustomization]);
@@ -82,6 +112,21 @@ export function EditPredefinedExerciseModal({
       return;
     }
 
+    const parsedMin = preferredMinDraft.trim().length > 0 ? parseInt(preferredMinDraft, 10) : undefined;
+    const parsedMax = preferredMaxDraft.trim().length > 0 ? parseInt(preferredMaxDraft, 10) : undefined;
+    if ((parsedMin && Number.isNaN(parsedMin)) || (parsedMax && Number.isNaN(parsedMax))) {
+      Alert.alert('Invalid Range', 'Preferred rep range must be numeric');
+      return;
+    }
+    if ((parsedMin !== undefined && parsedMin < 1) || (parsedMax !== undefined && parsedMax < 1)) {
+      Alert.alert('Invalid Range', 'Preferred rep range must be at least 1');
+      return;
+    }
+    if (parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax) {
+      Alert.alert('Invalid Range', 'Preferred rep range min cannot exceed max');
+      return;
+    }
+
     try {
       setIsSaving(true);
       const customization = {
@@ -89,6 +134,8 @@ export function EditPredefinedExerciseModal({
         primaryMuscle,
         secondaryMuscles,
         muscleContributions,
+        preferredAutoProgressionMinReps: parsedMin,
+        preferredAutoProgressionMaxReps: parsedMax,
       };
       await onSave(customization);
       if (Platform.OS !== 'web') {
@@ -241,6 +288,34 @@ export function EditPredefinedExerciseModal({
               setSecondaryMuscles(s);
             }}
           />
+
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+              Preferred rep range
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  placeholder="Min"
+                  keyboardType="numeric"
+                  value={preferredMinDraft}
+                  onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
+                />
+              </View>
+              <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
+              <View style={{ flex: 1 }}>
+                <Input
+                  placeholder="Max"
+                  keyboardType="numeric"
+                  value={preferredMaxDraft}
+                  onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
+                />
+              </View>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.muted }}>
+              Used as this exercise's default auto-progression range.
+            </Text>
+          </View>
 
           {/* Info */}
           <View style={{

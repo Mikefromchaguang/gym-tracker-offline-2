@@ -19,6 +19,7 @@ import { useGym } from '@/lib/gym-context';
 import { useRouter } from 'expo-router';
 import { CreateExerciseModal } from '@/components/create-exercise-modal';
 import { EditPredefinedExerciseModal } from '@/components/edit-predefined-exercise-modal';
+import { generateCustomExerciseId } from '@/lib/exercise-id-migration';
 
 // Use centralized muscle groups
 const MUSCLE_GROUPS: MuscleGroup[] = PRIMARY_MUSCLE_GROUPS;
@@ -80,19 +81,30 @@ export default function ExercisesScreen() {
     });
   }, [allExercises, searchQuery]);
 
-  const handleCreateExercise = useCallback(async (exerciseData: { name: string; primaryMuscle: MuscleGroup; secondaryMuscles: MuscleGroup[]; type: ExerciseType; muscleContributions: Record<MuscleGroup, number> }) => {
+  const handleCreateExercise = useCallback(async (exerciseData: {
+    name: string;
+    primaryMuscle: MuscleGroup;
+    secondaryMuscles: MuscleGroup[];
+    type: ExerciseType;
+    muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => {
     // Check if exercise already exists
     if (allExercises.some((ex) => ex.name.toLowerCase() === exerciseData.name.toLowerCase())) {
       throw new Error('An exercise with this name already exists');
     }
 
     await addCustomExercise({
+      id: generateCustomExerciseId(),
       name: exerciseData.name,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
       exerciseType: exerciseData.type,
       type: exerciseData.type, // Alias for convenience
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
+      preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     });
   }, [allExercises, addCustomExercise]);
 

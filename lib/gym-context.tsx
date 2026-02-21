@@ -48,7 +48,15 @@ interface GymContextState {
   workouts: CompletedWorkout[];
   settings: AppSettings;
   customExercises: ExerciseMetadata[];
-  predefinedExerciseCustomizations: Record<string, { primaryMuscle?: any; secondaryMuscles?: any[]; muscleContributions?: Record<string, number>; exerciseType?: ExerciseType; type?: ExerciseType }>;
+  predefinedExerciseCustomizations: Record<string, {
+    primaryMuscle?: any;
+    secondaryMuscles?: any[];
+    muscleContributions?: Record<string, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }>;
   isLoading: boolean;
   error: string | null;
   // Active workout session state
@@ -129,7 +137,15 @@ interface GymContextValue extends GymContextState {
   deleteCustomExercise: (name: string) => Promise<void>;
 
   // Predefined exercise customization operations
-  updatePredefinedExerciseCustomization: (exerciseName: string, customization: { primaryMuscle?: any; secondaryMuscles?: any[]; muscleContributions?: Record<string, number>; exerciseType?: ExerciseType; type?: ExerciseType }) => Promise<void>;
+  updatePredefinedExerciseCustomization: (exerciseName: string, customization: {
+    primaryMuscle?: any;
+    secondaryMuscles?: any[];
+    muscleContributions?: Record<string, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => Promise<void>;
   deletePredefinedExerciseCustomization: (exerciseName: string) => Promise<void>;
 
   // Rest timer operations
@@ -1006,7 +1022,15 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const updatePredefinedExerciseCustomization = useCallback(async (exerciseName: string, customization: { primaryMuscle?: any; secondaryMuscles?: any[]; muscleContributions?: Record<string, number>; exerciseType?: ExerciseType; type?: ExerciseType }) => {
+  const updatePredefinedExerciseCustomization = useCallback(async (exerciseName: string, customization: {
+    primaryMuscle?: any;
+    secondaryMuscles?: any[];
+    muscleContributions?: Record<string, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }) => {
     try {
       await PredefinedExerciseCustomizationStorage.save(exerciseName, customization);
       const updated = await PredefinedExerciseCustomizationStorage.getAll();

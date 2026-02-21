@@ -433,8 +433,28 @@ export const CustomExerciseStorage = {
    */
   async updateAndSync(oldName: string, updatedExercise: ExerciseMetadata): Promise<void> {
     try {
-      // Save the updated exercise
-      await this.save(updatedExercise);
+      const existingExercises = await this.getAll();
+      const oldExercise = existingExercises.find((ex) => ex.name === oldName);
+      const stableId = updatedExercise.id || oldExercise?.id;
+      const normalizedUpdated: ExerciseMetadata = {
+        ...(oldExercise || {}),
+        ...updatedExercise,
+        id: stableId,
+      };
+
+      // Replace old entry instead of creating a duplicate when name changes.
+      const withoutOld = existingExercises.filter((ex) => ex.name !== oldName);
+      const existingNewIndex = withoutOld.findIndex((ex) => ex.name === normalizedUpdated.name);
+      if (existingNewIndex >= 0) {
+        withoutOld[existingNewIndex] = {
+          ...withoutOld[existingNewIndex],
+          ...normalizedUpdated,
+          id: normalizedUpdated.id || withoutOld[existingNewIndex].id,
+        };
+      } else {
+        withoutOld.push(normalizedUpdated);
+      }
+      await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_EXERCISES, JSON.stringify(withoutOld));
 
       // Get all templates
       const templates = await TemplateStorage.getAll();
@@ -443,18 +463,22 @@ export const CustomExerciseStorage = {
       // Update each template that contains this exercise
       const updatedTemplates = templates.map(template => {
         const updatedExercises = template.exercises.map(exercise => {
-          // Match by old name (in case name was changed)
-          if (exercise.name === oldName) {
+          // Match by old name or stable custom exercise ID
+          if (
+            exercise.name === oldName ||
+            (stableId && exercise.exerciseId === stableId)
+          ) {
             templatesUpdated = true;
-            console.log(`[CustomExerciseStorage] Syncing exercise "${oldName}" -> "${updatedExercise.name}" in template "${template.name}"`);
+            console.log(`[CustomExerciseStorage] Syncing exercise "${oldName}" -> "${normalizedUpdated.name}" in template "${template.name}"`);
             
             // Update exercise metadata while preserving template-specific data (sets, reps, weights, notes, rest timer)
             return {
               ...exercise,
-              name: updatedExercise.name,
-              type: updatedExercise.exerciseType || updatedExercise.type || exercise.type,
-              primaryMuscle: updatedExercise.primaryMuscle,
-              secondaryMuscles: updatedExercise.secondaryMuscles,
+              exerciseId: stableId || exercise.exerciseId,
+              name: normalizedUpdated.name,
+              type: normalizedUpdated.exerciseType || normalizedUpdated.type || exercise.type,
+              primaryMuscle: normalizedUpdated.primaryMuscle,
+              secondaryMuscles: normalizedUpdated.secondaryMuscles,
             };
           }
           return exercise;
@@ -471,6 +495,63 @@ export const CustomExerciseStorage = {
       if (templatesUpdated) {
         await AsyncStorage.setItem(STORAGE_KEYS.TEMPLATES, JSON.stringify(updatedTemplates));
         console.log(`[CustomExerciseStorage] Synced exercise "${oldName}" to all templates`);
+      }
+
+      // Sync completed workouts so renamed custom exercise remains linked historically.
+      const workouts = await WorkoutStorage.getAll();
+      let workoutsUpdated = false;
+      for (const workout of workouts) {
+        let workoutChanged = false;
+        const syncedExercises = workout.exercises.map((exercise) => {
+          if (
+            exercise.name === oldName ||
+            (stableId && exercise.exerciseId === stableId)
+          ) {
+            workoutChanged = true;
+            return {
+              ...exercise,
+              exerciseId: stableId || exercise.exerciseId,
+              name: normalizedUpdated.name,
+              type: normalizedUpdated.exerciseType || normalizedUpdated.type || exercise.type,
+              primaryMuscle: normalizedUpdated.primaryMuscle,
+              secondaryMuscles: normalizedUpdated.secondaryMuscles,
+            };
+          }
+          return exercise;
+        });
+
+        if (workoutChanged) {
+          workoutsUpdated = true;
+          await WorkoutStorage.save({ ...workout, exercises: syncedExercises });
+        }
+      }
+      if (workoutsUpdated) {
+        console.log(`[CustomExerciseStorage] Synced exercise "${oldName}" to workout history`);
+      }
+
+      // Sync exercise volume logs keying so historical progression remains visible after rename.
+      const allVolumeLogs = await ExerciseVolumeStorage.getAll();
+      const nextVolumeExerciseId = stableId || normalizedUpdated.name;
+      let volumeChanged = false;
+      const syncedVolumeLogs = allVolumeLogs.map((log) => {
+        if (log.exerciseId === oldName) {
+          volumeChanged = true;
+          return { ...log, exerciseId: nextVolumeExerciseId };
+        }
+        return log;
+      });
+      if (volumeChanged) {
+        await AsyncStorage.setItem(STORAGE_KEYS.EXERCISE_VOLUME, JSON.stringify(syncedVolumeLogs));
+      }
+
+      // Sync failure-set data map keys (name-based storage).
+      const allFailureData = await FailureSetStorage.getAll();
+      const oldKey = oldName.toLowerCase().trim();
+      const newKey = normalizedUpdated.name.toLowerCase().trim();
+      if (oldKey !== newKey && allFailureData[oldKey]) {
+        allFailureData[newKey] = [...(allFailureData[newKey] || []), ...allFailureData[oldKey]];
+        delete allFailureData[oldKey];
+        await AsyncStorage.setItem(STORAGE_KEYS.FAILURE_SET_DATA, JSON.stringify(allFailureData));
       }
     } catch (error) {
       console.error('Error updating and syncing custom exercise:', error);
@@ -934,7 +1015,15 @@ export const ExerciseVolumeStorage = {
  * Stores customized muscle groups and contributions for predefined exercises
  */
 export const PredefinedExerciseCustomizationStorage = {
-  async getAll(): Promise<Record<string, { primaryMuscle?: MuscleGroup; secondaryMuscles?: MuscleGroup[]; muscleContributions?: Record<MuscleGroup, number>; exerciseType?: ExerciseType; type?: ExerciseType }>> {
+  async getAll(): Promise<Record<string, {
+    primaryMuscle?: MuscleGroup;
+    secondaryMuscles?: MuscleGroup[];
+    muscleContributions?: Record<MuscleGroup, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }>> {
     try {
       const data = await AsyncStorage.getItem(STORAGE_KEYS.PREDEFINED_EXERCISE_CUSTOMIZATIONS);
       return data ? JSON.parse(data) : {};
@@ -944,7 +1033,15 @@ export const PredefinedExerciseCustomizationStorage = {
     }
   },
 
-  async save(exerciseName: string, customization: { primaryMuscle?: MuscleGroup; secondaryMuscles?: MuscleGroup[]; muscleContributions?: Record<MuscleGroup, number>; exerciseType?: ExerciseType; type?: ExerciseType }): Promise<void> {
+  async save(exerciseName: string, customization: {
+    primaryMuscle?: MuscleGroup;
+    secondaryMuscles?: MuscleGroup[];
+    muscleContributions?: Record<MuscleGroup, number>;
+    exerciseType?: ExerciseType;
+    type?: ExerciseType;
+    preferredAutoProgressionMinReps?: number;
+    preferredAutoProgressionMaxReps?: number;
+  }): Promise<void> {
     try {
       const customizations = await this.getAll();
       customizations[exerciseName] = customization;

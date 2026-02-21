@@ -28,6 +28,8 @@ interface ExerciseData {
   secondaryMuscles: MuscleGroup[];
   type: ExerciseType;
   muscleContributions: Record<MuscleGroup, number>;
+  preferredAutoProgressionMinReps?: number;
+  preferredAutoProgressionMaxReps?: number;
 }
 
 interface CreateExerciseModalProps {
@@ -53,6 +55,8 @@ export function CreateExerciseModal({
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
   const [exerciseType, setExerciseType] = useState<ExerciseType>('weighted');
   const [muscleContributions, setMuscleContributions] = useState<Record<MuscleGroup, number>>({} as Record<MuscleGroup, number>);
+  const [preferredMinDraft, setPreferredMinDraft] = useState('');
+  const [preferredMaxDraft, setPreferredMaxDraft] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize form with existing exercise data in edit mode
@@ -73,6 +77,16 @@ export function CreateExerciseModal({
         setPrimaryMuscle(sanitizedPrimary);
         setSecondaryMuscles(sanitizedSecondaries);
         setExerciseType(existingExercise.type);
+        setPreferredMinDraft(
+          typeof (existingExercise as any).preferredAutoProgressionMinReps === 'number'
+            ? String((existingExercise as any).preferredAutoProgressionMinReps)
+            : ''
+        );
+        setPreferredMaxDraft(
+          typeof (existingExercise as any).preferredAutoProgressionMaxReps === 'number'
+            ? String((existingExercise as any).preferredAutoProgressionMaxReps)
+            : ''
+        );
 
         const defaultContribs = calculateDefaultContributions(sanitizedPrimary, sanitizedSecondaries);
 
@@ -96,6 +110,8 @@ export function CreateExerciseModal({
         setSecondaryMuscles([]);
         setExerciseType('weighted');
         setMuscleContributions({} as Record<MuscleGroup, number>);
+        setPreferredMinDraft('');
+        setPreferredMaxDraft('');
       }
     }
   }, [visible, mode, existingExercise]);
@@ -114,6 +130,8 @@ export function CreateExerciseModal({
     setSecondaryMuscles([]);
     setExerciseType('weighted');
     setMuscleContributions({} as Record<MuscleGroup, number>);
+    setPreferredMinDraft('');
+    setPreferredMaxDraft('');
     onClose();
   };
 
@@ -162,6 +180,25 @@ export function CreateExerciseModal({
       return;
     }
 
+    const parsedMin = preferredMinDraft.trim().length > 0 ? parseInt(preferredMinDraft, 10) : undefined;
+    const parsedMax = preferredMaxDraft.trim().length > 0 ? parseInt(preferredMaxDraft, 10) : undefined;
+    if ((parsedMin && Number.isNaN(parsedMin)) || (parsedMax && Number.isNaN(parsedMax))) {
+      Alert.alert('Error', 'Preferred rep range must be numeric');
+      return;
+    }
+    if ((parsedMin !== undefined && parsedMin < 1) || (parsedMax !== undefined && parsedMax < 1)) {
+      Alert.alert('Error', 'Preferred rep range must be at least 1');
+      return;
+    }
+    if (
+      parsedMin !== undefined &&
+      parsedMax !== undefined &&
+      parsedMin > parsedMax
+    ) {
+      Alert.alert('Error', 'Preferred rep range min cannot exceed max');
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -183,6 +220,8 @@ export function CreateExerciseModal({
         secondaryMuscles,
         type: exerciseType,
         muscleContributions,
+        preferredAutoProgressionMinReps: parsedMin,
+        preferredAutoProgressionMaxReps: parsedMax,
       });
 
       if (Platform.OS !== 'web') {
@@ -323,6 +362,34 @@ export function CreateExerciseModal({
               setSecondaryMuscles(s);
             }}
           />
+
+          <View style={{ gap: 8 }}>
+            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+              Preferred rep range
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Input
+                  placeholder="Min"
+                  keyboardType="numeric"
+                  value={preferredMinDraft}
+                  onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
+                />
+              </View>
+              <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
+              <View style={{ flex: 1 }}>
+                <Input
+                  placeholder="Max"
+                  keyboardType="numeric"
+                  value={preferredMaxDraft}
+                  onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
+                />
+              </View>
+            </View>
+            <Text style={{ fontSize: 12, color: colors.muted }}>
+              Used as this exercise's default auto-progression range.
+            </Text>
+          </View>
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>

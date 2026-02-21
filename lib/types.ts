@@ -84,6 +84,7 @@ export interface Exercise {
   autoProgressionMinReps?: number;
   autoProgressionMaxReps?: number;
   autoProgressionUseDefaultRange?: boolean;
+  autoProgressionUsePreferredRange?: boolean;
   primaryMuscle?: MuscleGroup;
   secondaryMuscles?: MuscleGroup[];
   setDetails?: TemplateSetConfig[]; // Individual set configurations (reps/weight per set)
@@ -221,6 +222,8 @@ export interface ExerciseMetadata {
   exerciseType: ExerciseType;
   type?: ExerciseType; // Alias for exerciseType (for convenience)
   muscleContributions?: Partial<Record<MuscleGroup, number>>; // Percentage contribution per muscle (must sum to 100)
+  preferredAutoProgressionMinReps?: number;
+  preferredAutoProgressionMaxReps?: number;
 }
 
 /**
