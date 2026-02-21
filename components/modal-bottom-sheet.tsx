@@ -66,7 +66,7 @@ export function ModalBottomSheet({
             <View className="flex-row items-center justify-between">
               <Text className="text-xl font-bold text-foreground">{title}</Text>
               <Pressable onPress={onClose}>
-                <IconSymbol size={24} name="xmark.circle.fill" color={colors.error} />
+                <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
               </Pressable>
             </View>
 

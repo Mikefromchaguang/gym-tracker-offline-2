@@ -550,7 +550,7 @@ export default function EditWeekPlanScreen() {
                           <View key={id} className="flex-row items-center justify-between">
                             <Text className="text-xs text-muted">Missing routine</Text>
                             <Pressable onPress={() => removeRoutineFromDay(dayIndex, id)}>
-                              <IconSymbol name="xmark.circle.fill" size={16} color={colors.error} />
+                              <IconSymbol name="trash" size={16} color={colors.error} />
                             </Pressable>
                           </View>
                         );
@@ -577,7 +577,7 @@ export default function EditWeekPlanScreen() {
                             <IconSymbol name="pencil" size={15} color={colors.primary} />
                           </Pressable>
                           <Pressable onPress={() => removeRoutineFromDay(dayIndex, id)}>
-                            <IconSymbol name="xmark.circle.fill" size={16} color={colors.error} />
+                            <IconSymbol name="trash" size={16} color={colors.error} />
                           </Pressable>
                         </View>
                       );

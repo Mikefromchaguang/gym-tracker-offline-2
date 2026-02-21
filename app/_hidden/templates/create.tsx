@@ -3056,7 +3056,7 @@ export default function TemplateCreateScreen() {
                 }}
                 style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
               >
-                <IconSymbol size={24} name="xmark.circle.fill" color={colors.error} />
+                <IconSymbol size={24} name="xmark.circle.fill" color={colors.muted} />
               </Pressable>
             </View>
 

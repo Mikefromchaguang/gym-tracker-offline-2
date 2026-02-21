@@ -158,7 +158,7 @@ export function MergeSupersetModal({
             onPress={handleBack}
             style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
           >
-            <IconSymbol name={step === 'choose' ? 'xmark.circle.fill' : 'chevron.left'} size={22} color={step === 'choose' ? colors.error : colors.muted} />
+            <IconSymbol name={step === 'choose' ? 'xmark.circle.fill' : 'chevron.left'} size={22} color={colors.muted} />
           </Pressable>
           <Text style={{ color: colors.foreground, fontSize: 16, fontWeight: '700' }}>{title}</Text>
           <View style={{ width: 30 }} />
