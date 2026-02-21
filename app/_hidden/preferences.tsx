@@ -10,6 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { getDayName } from '@/lib/week-utils';
 import type { WeekStartDay } from '@/lib/types';
 import { PREDEFINED_EXERCISES_WITH_MUSCLES } from '@/lib/types';
+import { CustomExerciseStorage, PredefinedExerciseCustomizationStorage } from '@/lib/storage';
 
 export default function PreferencesScreen() {
   const router = useRouter();
@@ -21,9 +22,8 @@ export default function PreferencesScreen() {
     templates,
     updateTemplate,
     customExercises,
-    updateCustomExercise,
     predefinedExerciseCustomizations,
-    updatePredefinedExerciseCustomization,
+    refreshData,
   } = useGym();
 
   const [restTimeInput, setRestTimeInput] = useState((settings.defaultRestTime || 90).toString());
@@ -78,11 +78,6 @@ export default function PreferencesScreen() {
         let changed = false;
 
         const updatedExercises = template.exercises.map((ex) => {
-          // Respect explicit per-exercise disable.
-          if (ex.autoProgressionEnabled === false) {
-            return ex;
-          }
-
           // Legacy inference: if this exercise has a non-default stored range and no source flag,
           // treat it as customized so preference changes won't overwrite it.
           const hasStoredRange =
@@ -93,7 +88,12 @@ export default function PreferencesScreen() {
             hasStoredRange &&
             (ex.autoProgressionMinReps !== prevMin || ex.autoProgressionMaxReps !== prevMax);
 
-          if (!includeUsedOverrides && (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange)) {
+          const isCustomRange =
+            ex.autoProgressionUseDefaultRange === false ||
+            ex.autoProgressionUsePreferredRange === true ||
+            looksLikeLegacyCustomRange;
+
+          if (!includeUsedOverrides && isCustomRange) {
             if (looksLikeLegacyCustomRange) {
               changed = true;
               return {
@@ -146,7 +146,6 @@ export default function PreferencesScreen() {
     let overrideCount = 0;
     templates.forEach((template) => {
       template.exercises.forEach((ex) => {
-        if (ex.autoProgressionEnabled === false) return;
         const hasStoredRange =
           typeof ex.autoProgressionMinReps === 'number' &&
           typeof ex.autoProgressionMaxReps === 'number';
@@ -154,7 +153,13 @@ export default function PreferencesScreen() {
           ex.autoProgressionUseDefaultRange === undefined &&
           hasStoredRange &&
           (ex.autoProgressionMinReps !== prevMin || ex.autoProgressionMaxReps !== prevMax);
-        if (ex.autoProgressionUseDefaultRange === false || looksLikeLegacyCustomRange) {
+
+        const isCustomRange =
+          ex.autoProgressionUseDefaultRange === false ||
+          ex.autoProgressionUsePreferredRange === true ||
+          looksLikeLegacyCustomRange;
+
+        if (isCustomRange) {
           overrideCount += 1;
         } else {
           inheritedCount += 1;
@@ -176,45 +181,43 @@ export default function PreferencesScreen() {
     let customUpdated = 0;
     let predefinedUpdated = 0;
 
-    await Promise.all(
-      customExercises.map(async (ex) => {
-        const hasMin = typeof ex.preferredAutoProgressionMinReps === 'number';
-        const hasMax = typeof ex.preferredAutoProgressionMaxReps === 'number';
-        const shouldUpdate =
-          mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
+    for (const ex of customExercises) {
+      const hasMin = typeof ex.preferredAutoProgressionMinReps === 'number';
+      const hasMax = typeof ex.preferredAutoProgressionMaxReps === 'number';
+      const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
 
-        if (!shouldUpdate) return;
+      if (!shouldUpdate) continue;
 
-        await updateCustomExercise(ex.name, {
-          ...ex,
-          preferredAutoProgressionMinReps:
-            mode === 'overwrite-all' ? nextMin : (hasMin ? ex.preferredAutoProgressionMinReps : nextMin),
-          preferredAutoProgressionMaxReps:
-            mode === 'overwrite-all' ? nextMax : (hasMax ? ex.preferredAutoProgressionMaxReps : nextMax),
-        });
-        customUpdated += 1;
-      })
-    );
+      await CustomExerciseStorage.save({
+        ...ex,
+        preferredAutoProgressionMinReps:
+          mode === 'overwrite-all' ? nextMin : (hasMin ? ex.preferredAutoProgressionMinReps : nextMin),
+        preferredAutoProgressionMaxReps:
+          mode === 'overwrite-all' ? nextMax : (hasMax ? ex.preferredAutoProgressionMaxReps : nextMax),
+      });
+      customUpdated += 1;
+    }
 
     const predefinedNames = PREDEFINED_EXERCISES_WITH_MUSCLES.map((ex) => ex.name);
-    await Promise.all(
-      predefinedNames.map(async (name) => {
-        const current = (predefinedExerciseCustomizations as any)[name] ?? {};
-        const hasMin = typeof current.preferredAutoProgressionMinReps === 'number';
-        const hasMax = typeof current.preferredAutoProgressionMaxReps === 'number';
-        const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
-        if (!shouldUpdate) return;
 
-        await updatePredefinedExerciseCustomization(name, {
-          ...current,
-          preferredAutoProgressionMinReps:
-            mode === 'overwrite-all' ? nextMin : (hasMin ? current.preferredAutoProgressionMinReps : nextMin),
-          preferredAutoProgressionMaxReps:
-            mode === 'overwrite-all' ? nextMax : (hasMax ? current.preferredAutoProgressionMaxReps : nextMax),
-        });
-        predefinedUpdated += 1;
-      })
-    );
+    for (const name of predefinedNames) {
+      const current = (predefinedExerciseCustomizations as any)[name] ?? {};
+      const hasMin = typeof current.preferredAutoProgressionMinReps === 'number';
+      const hasMax = typeof current.preferredAutoProgressionMaxReps === 'number';
+      const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
+      if (!shouldUpdate) continue;
+
+      await PredefinedExerciseCustomizationStorage.save(name, {
+        ...current,
+        preferredAutoProgressionMinReps:
+          mode === 'overwrite-all' ? nextMin : (hasMin ? current.preferredAutoProgressionMinReps : nextMin),
+        preferredAutoProgressionMaxReps:
+          mode === 'overwrite-all' ? nextMax : (hasMax ? current.preferredAutoProgressionMaxReps : nextMax),
+      });
+      predefinedUpdated += 1;
+    }
+
+    await refreshData();
 
     return {
       customUpdated,
@@ -284,7 +287,7 @@ export default function PreferencesScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Keep custom ranges',
+            text: 'Keep custom ranges',
           onPress: () => {
             void commit(false);
           },
