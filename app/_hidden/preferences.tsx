@@ -138,7 +138,9 @@ export default function PreferencesScreen() {
       return;
     }
 
-    await Promise.all(updates.map((template) => updateTemplate(template)));
+    for (const template of updates) {
+      await updateTemplate(template);
+    }
   };
 
   const getRepRangePropagationCounts = (prevMin: number, prevMax: number) => {

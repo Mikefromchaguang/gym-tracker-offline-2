@@ -45,6 +45,18 @@ export default function ExercisesScreen() {
     return names;
   }, [workouts]);
 
+  const hasMuscleCustomization = useCallback((exerciseName: string) => {
+    const customization = (predefinedExerciseCustomizations as any)[exerciseName];
+    if (!customization) return false;
+    return (
+      customization.primaryMuscle != null ||
+      (Array.isArray(customization.secondaryMuscles) && customization.secondaryMuscles.length > 0) ||
+      (customization.muscleContributions != null &&
+        typeof customization.muscleContributions === 'object' &&
+        Object.keys(customization.muscleContributions).length > 0)
+    );
+  }, [predefinedExerciseCustomizations]);
+
   const allExercises = useMemo(() => {
     const predefined = PREDEFINED_EXERCISES.map((name) => ({
       name,
@@ -55,7 +67,7 @@ export default function ExercisesScreen() {
         undefined
       ),
       isCustom: false,
-      isModified: !!predefinedExerciseCustomizations[name],
+      isModified: hasMuscleCustomization(name),
       hasData: exercisesWithData.has(name),
     }));
     const custom = (customExercises || []).map((ex) => ({
@@ -65,7 +77,7 @@ export default function ExercisesScreen() {
       hasData: exercisesWithData.has(ex.name),
     }));
     return [...predefined, ...custom];
-  }, [customExercises, exercisesWithData, predefinedExerciseCustomizations]);
+  }, [customExercises, exercisesWithData, hasMuscleCustomization, predefinedExerciseCustomizations]);
 
   const filteredExercises = useMemo(() => {
     if (!searchQuery.trim()) {

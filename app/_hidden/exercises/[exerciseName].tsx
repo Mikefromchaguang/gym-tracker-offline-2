@@ -811,6 +811,18 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
   // Use centralized muscle groups
   const MUSCLE_GROUPS: MuscleGroup[] = PRIMARY_MUSCLE_GROUPS;
 
+  const hasMuscleCustomization = useCallback((name: string) => {
+    const customization = (predefinedExerciseCustomizations as any)[name];
+    if (!customization) return false;
+    return (
+      customization.primaryMuscle != null ||
+      (Array.isArray(customization.secondaryMuscles) && customization.secondaryMuscles.length > 0) ||
+      (customization.muscleContributions != null &&
+        typeof customization.muscleContributions === 'object' &&
+        Object.keys(customization.muscleContributions).length > 0)
+    );
+  }, [predefinedExerciseCustomizations]);
+
   // Check if exercise is custom or predefined
   const currentExercise = useMemo(() => {
     if (!exerciseNameStr) return null;
@@ -827,12 +839,12 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       return { 
         ...predefined, 
         isCustom: false, 
-        isModified: !!predefinedExerciseCustomizations[exerciseNameStr] 
+        isModified: hasMuscleCustomization(exerciseNameStr),
       };
     }
     
     return null;
-  }, [exerciseNameStr, customExercises, predefinedExerciseCustomizations]);
+  }, [exerciseNameStr, customExercises, hasMuscleCustomization, predefinedExerciseCustomizations]);
 
   const handleResetToDefault = () => {
     Alert.alert(

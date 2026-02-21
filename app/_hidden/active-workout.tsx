@@ -248,6 +248,18 @@ export default function ActiveWorkoutScreen() {
     return names;
   }, [workouts]);
 
+  const hasMuscleCustomization = useCallback((exerciseName: string) => {
+    const customization = (predefinedExerciseCustomizations as any)[exerciseName];
+    if (!customization) return false;
+    return (
+      customization.primaryMuscle != null ||
+      (Array.isArray(customization.secondaryMuscles) && customization.secondaryMuscles.length > 0) ||
+      (customization.muscleContributions != null &&
+        typeof customization.muscleContributions === 'object' &&
+        Object.keys(customization.muscleContributions).length > 0)
+    );
+  }, [predefinedExerciseCustomizations]);
+
   const allExercises = useMemo(() => {
     const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.map((ex) => {
       const effective = getEffectiveExerciseMuscles(
@@ -261,7 +273,7 @@ export default function ActiveWorkoutScreen() {
         primaryMuscle: effective?.primaryMuscle ?? ex.primaryMuscle,
         secondaryMuscles: effective?.secondaryMuscles ?? ex.secondaryMuscles,
         isCustom: false,
-        isModified: !!predefinedExerciseCustomizations[ex.name],
+        isModified: hasMuscleCustomization(ex.name),
         hasData: exercisesWithData.has(ex.name),
       };
     });
@@ -274,7 +286,7 @@ export default function ActiveWorkoutScreen() {
       hasData: exercisesWithData.has(ex.name),
     }));
     return [...predefined, ...custom];
-  }, [customExercises, exercisesWithData, predefinedExerciseCustomizations]);
+  }, [customExercises, exercisesWithData, hasMuscleCustomization, predefinedExerciseCustomizations]);
 
   // Filtered exercises based on search
   const filteredExercises = useMemo(() => {
