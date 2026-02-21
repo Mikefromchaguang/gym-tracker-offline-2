@@ -78,6 +78,29 @@ export default function PreferencesScreen() {
         let changed = false;
 
         const updatedExercises = template.exercises.map((ex) => {
+          const autoProgressionAvailable =
+            ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+          if (!autoProgressionAvailable) {
+            const needsDisable =
+              ex.autoProgressionEnabled !== false ||
+              ex.autoProgressionMinReps !== undefined ||
+              ex.autoProgressionMaxReps !== undefined ||
+              ex.autoProgressionUseDefaultRange !== false ||
+              ex.autoProgressionUsePreferredRange !== false;
+            if (!needsDisable) {
+              return ex;
+            }
+            changed = true;
+            return {
+              ...ex,
+              autoProgressionEnabled: false,
+              autoProgressionMinReps: undefined,
+              autoProgressionMaxReps: undefined,
+              autoProgressionUseDefaultRange: false,
+              autoProgressionUsePreferredRange: false,
+            };
+          }
+
           // Legacy inference: if this exercise has a non-default stored range and no source flag,
           // treat it as customized so preference changes won't overwrite it.
           const hasStoredRange =
@@ -148,6 +171,10 @@ export default function PreferencesScreen() {
     let overrideCount = 0;
     templates.forEach((template) => {
       template.exercises.forEach((ex) => {
+        const autoProgressionAvailable =
+          ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+        if (!autoProgressionAvailable) return;
+
         const hasStoredRange =
           typeof ex.autoProgressionMinReps === 'number' &&
           typeof ex.autoProgressionMaxReps === 'number';
@@ -184,6 +211,11 @@ export default function PreferencesScreen() {
     let predefinedUpdated = 0;
 
     for (const ex of customExercises) {
+      const exerciseType = ex.type || ex.exerciseType || 'weighted';
+      const autoProgressionAvailable =
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight';
+      if (!autoProgressionAvailable) continue;
+
       const hasMin = typeof ex.preferredAutoProgressionMinReps === 'number';
       const hasMax = typeof ex.preferredAutoProgressionMaxReps === 'number';
       const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
@@ -204,6 +236,12 @@ export default function PreferencesScreen() {
 
     for (const name of predefinedNames) {
       const current = (predefinedExerciseCustomizations as any)[name] ?? {};
+      const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find((ex) => ex.name === name);
+      const exerciseType = current.exerciseType || current.type || predefined?.exerciseType || 'weighted';
+      const autoProgressionAvailable =
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight';
+      if (!autoProgressionAvailable) continue;
+
       const hasMin = typeof current.preferredAutoProgressionMinReps === 'number';
       const hasMax = typeof current.preferredAutoProgressionMaxReps === 'number';
       const shouldUpdate = mode === 'overwrite-all' ? true : (!hasMin || !hasMax);
@@ -364,21 +402,36 @@ export default function PreferencesScreen() {
           let changed = false;
           const updatedTemplate = {
             ...template,
-            exercises: template.exercises.map((ex) => ({
-              ...ex,
-              autoProgressionEnabled: true,
-              autoProgressionMinReps:
-                ex.autoProgressionUseDefaultRange === false
-                  ? ex.autoProgressionMinReps
-                  : (ex.autoProgressionMinReps ?? fallbackMin),
-              autoProgressionMaxReps:
-                ex.autoProgressionUseDefaultRange === false
-                  ? ex.autoProgressionMaxReps
-                  : (ex.autoProgressionMaxReps ?? fallbackMax),
-              autoProgressionUseDefaultRange:
-                ex.autoProgressionUseDefaultRange === false ? false : true,
-              autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
-            })),
+            exercises: template.exercises.map((ex) => {
+              const autoProgressionAvailable =
+                ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+              return {
+                ...ex,
+                autoProgressionEnabled: autoProgressionAvailable ? true : false,
+                autoProgressionMinReps:
+                  autoProgressionAvailable
+                    ? (
+                      ex.autoProgressionUseDefaultRange === false
+                        ? ex.autoProgressionMinReps
+                        : (ex.autoProgressionMinReps ?? fallbackMin)
+                    )
+                    : undefined,
+                autoProgressionMaxReps:
+                  autoProgressionAvailable
+                    ? (
+                      ex.autoProgressionUseDefaultRange === false
+                        ? ex.autoProgressionMaxReps
+                        : (ex.autoProgressionMaxReps ?? fallbackMax)
+                    )
+                    : undefined,
+                autoProgressionUseDefaultRange:
+                  autoProgressionAvailable
+                    ? (ex.autoProgressionUseDefaultRange === false ? false : true)
+                    : false,
+                autoProgressionUsePreferredRange:
+                  autoProgressionAvailable && ex.autoProgressionUsePreferredRange === true,
+              };
+            }),
           };
           changed = template.exercises.some((ex, index) => {
             const next = updatedTemplate.exercises[index];

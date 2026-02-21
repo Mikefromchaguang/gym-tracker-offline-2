@@ -343,9 +343,20 @@ export default function ActiveWorkoutScreen() {
     if (templateId && typeof templateId === 'string') {
       const template = templates.find((t) => t.id === templateId);
       if (template) {
-        let templateProgressionDidChange = false;
-
         const progressedTemplateExercises: Exercise[] = template.exercises.map((ex) => {
+          const customEx = customExercises.find(
+            (item) => item.name.toLowerCase() === ex.name.toLowerCase() || item.id === ex.exerciseId
+          );
+          const muscleMeta = getEffectiveExerciseMuscles(
+            ex.name,
+            predefinedExerciseCustomizations,
+            !!customEx,
+            customEx
+          );
+          const resolvedExerciseType =
+            muscleMeta?.type || muscleMeta?.exerciseType || ex.type || 'weighted';
+          const autoProgressionAvailable =
+            resolvedExerciseType !== 'bodyweight' && resolvedExerciseType !== 'assisted-bodyweight';
           const baseSetDetails = ex.setDetails && Array.isArray(ex.setDetails) && ex.setDetails.length > 0
             ? ex.setDetails.map((setConfig) => ({
                 reps: setConfig.reps || 0,
@@ -361,20 +372,19 @@ export default function ActiveWorkoutScreen() {
               }));
 
           const progressionResult = applyAutoProgressionOnStart(baseSetDetails, {
-            enabled: settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false,
+            enabled:
+              autoProgressionAvailable &&
+              settings.autoProgressionEnabled &&
+              ex.autoProgressionEnabled !== false,
             minReps:
               ex.autoProgressionUseDefaultRange === false
                 ? ex.autoProgressionMinReps
-                : (ex.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps),
+                : settings.defaultAutoProgressionMinReps,
             maxReps:
               ex.autoProgressionUseDefaultRange === false
                 ? ex.autoProgressionMaxReps
-                : (ex.autoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps),
+                : settings.defaultAutoProgressionMaxReps,
           });
-
-          if (progressionResult.didChange) {
-            templateProgressionDidChange = true;
-          }
 
           const progressedSetDetails = progressionResult.sets.map((set) => ({
             reps: set.reps,
@@ -385,6 +395,7 @@ export default function ActiveWorkoutScreen() {
 
           return {
             ...ex,
+            type: resolvedExerciseType,
             sets: progressedSetDetails.length,
             reps: progressedSetDetails[0]?.reps ?? ex.reps,
             weight: progressedSetDetails[0]?.weight ?? ex.weight,
@@ -465,16 +476,6 @@ export default function ActiveWorkoutScreen() {
         });
         setDisabledTimers(disabled);
 
-        if (templateProgressionDidChange) {
-          void updateTemplate({
-            ...template,
-            exercises: progressedTemplateExercises,
-            updatedAt: Date.now(),
-          }).catch((err) => {
-            console.error('[AutoProgression] Failed to persist routine progression:', err);
-          });
-        }
-        
         setIsInitialized(true);
       } else {
         setExercises([]);
@@ -692,9 +693,16 @@ export default function ActiveWorkoutScreen() {
     // Get exercise ID: use predefined ID if available, or custom exercise ID, or generate a new custom ID
     const exerciseId = predefinedEx?.id || customEx?.id || (customEx as any)?.exerciseId || generateCustomExerciseId();
     const predefinedCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
+    const preferredEnabled =
+      (customEx?.preferredAutoProgressionEnabled ?? predefinedCustomization?.preferredAutoProgressionEnabled) !== false;
     const preferredMin = customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
     const preferredMax = customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
-    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
+    const hasPreferredRange =
+      exerciseType !== 'bodyweight' &&
+      exerciseType !== 'assisted-bodyweight' &&
+      preferredEnabled &&
+      typeof preferredMin === 'number' &&
+      typeof preferredMax === 'number';
 
     let defaultWeight = historicalData?.weight || 0;
     if (exerciseType === 'bodyweight') {
@@ -715,11 +723,26 @@ export default function ActiveWorkoutScreen() {
       unit: settings.weightUnit,
       type: exerciseType,
       restTimer: opts?.restTimerSeconds ?? settings.defaultRestTime,
-      autoProgressionEnabled: true,
-      autoProgressionMinReps: hasPreferredRange ? preferredMin : settings.defaultAutoProgressionMinReps,
-      autoProgressionMaxReps: hasPreferredRange ? preferredMax : settings.defaultAutoProgressionMaxReps,
-      autoProgressionUseDefaultRange: hasPreferredRange ? false : true,
-      autoProgressionUsePreferredRange: hasPreferredRange ? true : false,
+      autoProgressionEnabled:
+        exerciseType !== 'bodyweight' &&
+        exerciseType !== 'assisted-bodyweight' &&
+        preferredEnabled,
+      autoProgressionMinReps:
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight'
+          ? (hasPreferredRange ? preferredMin : settings.defaultAutoProgressionMinReps)
+          : undefined,
+      autoProgressionMaxReps:
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight'
+          ? (hasPreferredRange ? preferredMax : settings.defaultAutoProgressionMaxReps)
+          : undefined,
+      autoProgressionUseDefaultRange:
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight'
+          ? (hasPreferredRange ? false : true)
+          : false,
+      autoProgressionUsePreferredRange:
+        exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight'
+          ? (hasPreferredRange ? true : false)
+          : false,
       primaryMuscle: muscleMeta?.primaryMuscle,
       secondaryMuscles: muscleMeta?.secondaryMuscles,
       groupType: opts?.groupType,
@@ -1255,7 +1278,7 @@ export default function ActiveWorkoutScreen() {
 
     const minReps = exercise.autoProgressionUseDefaultRange === false
       ? (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8)
-      : (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8);
+      : (settings.defaultAutoProgressionMinReps ?? exercise.autoProgressionMinReps ?? 8);
 
     Alert.alert(
       'Increase weight?',
@@ -1318,11 +1341,18 @@ export default function ActiveWorkoutScreen() {
     );
     const predefinedCustomization =
       (predefinedExerciseCustomizations as any)[predefinedEx?.name || ex.name];
+    const preferredEnabled =
+      (customEx?.preferredAutoProgressionEnabled ?? predefinedCustomization?.preferredAutoProgressionEnabled) !== false;
     const preferredMin =
       customEx?.preferredAutoProgressionMinReps ?? predefinedCustomization?.preferredAutoProgressionMinReps;
     const preferredMax =
       customEx?.preferredAutoProgressionMaxReps ?? predefinedCustomization?.preferredAutoProgressionMaxReps;
-    const hasPreferredRange = typeof preferredMin === 'number' && typeof preferredMax === 'number';
+    const autoProgressionAvailable = ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+    const hasPreferredRange =
+      autoProgressionAvailable &&
+      preferredEnabled &&
+      typeof preferredMin === 'number' &&
+      typeof preferredMax === 'number';
 
     const isSuperset = ex.groupType === 'superset' && typeof ex.groupId === 'string';
     const mate = isSuperset
@@ -1332,7 +1362,8 @@ export default function ActiveWorkoutScreen() {
     const restTimerEnabled = isSuperset
       ? !disabledTimers.has(ex.id) && (!mate || !disabledTimers.has(mate.id))
       : !disabledTimers.has(ex.id);
-    const autoProgressionEnabled = settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
+    const autoProgressionEnabled =
+      autoProgressionAvailable && settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
 
     return {
       ex,
@@ -1341,6 +1372,7 @@ export default function ActiveWorkoutScreen() {
       restTimerSeconds,
       restTimerEnabled,
       autoProgressionEnabled,
+      autoProgressionAvailable,
       preferredMin,
       preferredMax,
       hasPreferredRange,
@@ -1421,6 +1453,7 @@ export default function ActiveWorkoutScreen() {
     secondaryMuscles: MuscleGroup[];
     type: ExerciseType;
     muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }) => {
@@ -1440,6 +1473,7 @@ export default function ActiveWorkoutScreen() {
       exerciseType: exerciseData.type,
       type: exerciseData.type, // Alias for convenience
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionEnabled: exerciseData.preferredAutoProgressionEnabled,
       preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
       preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     };
@@ -1457,6 +1491,9 @@ export default function ActiveWorkoutScreen() {
       }
     }
     
+    const autoProgressionAvailable =
+      exerciseData.type !== 'bodyweight' && exerciseData.type !== 'assisted-bodyweight';
+
     const exerciseToAdd: WorkoutExercise = {
       id: generateId(),
       exerciseId: customExerciseId,
@@ -1467,11 +1504,22 @@ export default function ActiveWorkoutScreen() {
       type: exerciseData.type,
       primaryMuscle: exerciseData.primaryMuscle,
       secondaryMuscles: exerciseData.secondaryMuscles,
-      autoProgressionEnabled: true,
-      autoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps ?? settings.defaultAutoProgressionMinReps,
-      autoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps,
-      autoProgressionUseDefaultRange: exerciseData.preferredAutoProgressionMinReps == null || exerciseData.preferredAutoProgressionMaxReps == null,
-      autoProgressionUsePreferredRange: exerciseData.preferredAutoProgressionMinReps != null && exerciseData.preferredAutoProgressionMaxReps != null,
+      autoProgressionEnabled:
+        autoProgressionAvailable && exerciseData.preferredAutoProgressionEnabled !== false,
+      autoProgressionMinReps: autoProgressionAvailable
+        ? (exerciseData.preferredAutoProgressionMinReps ?? settings.defaultAutoProgressionMinReps)
+        : undefined,
+      autoProgressionMaxReps: autoProgressionAvailable
+        ? (exerciseData.preferredAutoProgressionMaxReps ?? settings.defaultAutoProgressionMaxReps)
+        : undefined,
+      autoProgressionUseDefaultRange: autoProgressionAvailable
+        ? (exerciseData.preferredAutoProgressionMinReps == null || exerciseData.preferredAutoProgressionMaxReps == null)
+        : false,
+      autoProgressionUsePreferredRange:
+        autoProgressionAvailable &&
+        exerciseData.preferredAutoProgressionEnabled !== false &&
+        exerciseData.preferredAutoProgressionMinReps != null &&
+        exerciseData.preferredAutoProgressionMaxReps != null,
       completedSets: [],
       weight: defaultWeight, // Set default weight for bodyweight exercises
     };
@@ -2109,7 +2157,11 @@ export default function ActiveWorkoutScreen() {
                                 <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
                                   <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
                                     {getIncreaseWeightSuggestion(exercise.completedSets, {
-                                      enabled: settings.autoProgressionEnabled && exercise.autoProgressionEnabled !== false,
+                                      enabled:
+                                        exercise.type !== 'bodyweight' &&
+                                        exercise.type !== 'assisted-bodyweight' &&
+                                        settings.autoProgressionEnabled &&
+                                        exercise.autoProgressionEnabled !== false,
                                       minReps:
                                         exercise.autoProgressionUseDefaultRange === false
                                           ? exercise.autoProgressionMinReps
@@ -2293,7 +2345,11 @@ export default function ActiveWorkoutScreen() {
                               <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
                                 <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
                                   {getIncreaseWeightSuggestion(exA.completedSets, {
-                                    enabled: settings.autoProgressionEnabled && exA.autoProgressionEnabled !== false,
+                                    enabled:
+                                      exA.type !== 'bodyweight' &&
+                                      exA.type !== 'assisted-bodyweight' &&
+                                      settings.autoProgressionEnabled &&
+                                      exA.autoProgressionEnabled !== false,
                                     minReps:
                                       exA.autoProgressionUseDefaultRange === false
                                         ? exA.autoProgressionMinReps
@@ -2402,7 +2458,11 @@ export default function ActiveWorkoutScreen() {
                             <View style={{ width: 124, marginLeft: 8 }} className="flex-row items-center justify-end">
                               <View style={{ width: 50, alignItems: 'flex-end', marginRight: 6 }}>
                                 {getIncreaseWeightSuggestion(exB.completedSets, {
-                                  enabled: settings.autoProgressionEnabled && exB.autoProgressionEnabled !== false,
+                                  enabled:
+                                    exB.type !== 'bodyweight' &&
+                                    exB.type !== 'assisted-bodyweight' &&
+                                    settings.autoProgressionEnabled &&
+                                    exB.autoProgressionEnabled !== false,
                                   minReps:
                                     exB.autoProgressionUseDefaultRange === false
                                       ? exB.autoProgressionMinReps
@@ -3027,7 +3087,7 @@ export default function ActiveWorkoutScreen() {
           if (exerciseQuickActionsIndex === null) return;
           toggleRestTimerEnabledForIndex(exerciseQuickActionsIndex);
         }}
-        onChangeAutoProgressionMinReps={(reps) => {
+        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3042,8 +3102,8 @@ export default function ActiveWorkoutScreen() {
             };
             return next;
           });
-        }}
-        onChangeAutoProgressionMaxReps={(reps) => {
+        }) : undefined}
+        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3058,8 +3118,8 @@ export default function ActiveWorkoutScreen() {
             };
             return next;
           });
-        }}
-        onToggleAutoProgressionEnabled={() => {
+        }) : undefined}
+        onToggleAutoProgressionEnabled={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3074,11 +3134,11 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionMinReps:
                   ex.autoProgressionUseDefaultRange === false
                     ? ex.autoProgressionMinReps
-                    : (ex.autoProgressionMinReps ?? (settings.defaultAutoProgressionMinReps ?? 8)),
+                    : (settings.defaultAutoProgressionMinReps ?? ex.autoProgressionMinReps ?? 8),
                 autoProgressionMaxReps:
                   ex.autoProgressionUseDefaultRange === false
                     ? ex.autoProgressionMaxReps
-                    : (ex.autoProgressionMaxReps ?? (settings.defaultAutoProgressionMaxReps ?? 12)),
+                    : (settings.defaultAutoProgressionMaxReps ?? ex.autoProgressionMaxReps ?? 12),
                 autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange === false ? false : true,
                 autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
               };
@@ -3087,8 +3147,8 @@ export default function ActiveWorkoutScreen() {
             }
             return next;
           });
-        }}
-        onResetAutoProgressionToDefaultRange={() => {
+        }) : undefined}
+        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3103,8 +3163,8 @@ export default function ActiveWorkoutScreen() {
             };
             return next;
           });
-        }}
-        onResetAutoProgressionToPreferredRange={() => {
+        }) : undefined}
+        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
           if (exerciseQuickActionsIndex === null) return;
           const meta = quickActionsMeta;
           if (!meta) return;
@@ -3124,7 +3184,7 @@ export default function ActiveWorkoutScreen() {
             };
             return next;
           });
-        }}
+        }) : undefined}
         onAddToSuperset={() => {
           if (exerciseQuickActionsIndex === null) return;
           handleAddToSuperset(exerciseQuickActionsIndex);

@@ -110,6 +110,7 @@ export default function ExercisesScreen() {
     secondaryMuscles: MuscleGroup[];
     type: ExerciseType;
     muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }) => {
@@ -126,6 +127,7 @@ export default function ExercisesScreen() {
       exerciseType: exerciseData.type,
       type: exerciseData.type, // Alias for convenience
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionEnabled: exerciseData.preferredAutoProgressionEnabled,
       preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
       preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     });
@@ -159,6 +161,16 @@ export default function ExercisesScreen() {
     });
     return grouped;
   }, [filteredExercises]);
+
+  const navigateToExerciseDetail = useCallback((exerciseName: string) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    router.push({
+      pathname: '/_hidden/exercises/[exerciseName]',
+      params: { exerciseName },
+    });
+  }, [router]);
 
   return (
     <ScreenContainer className="p-4">
@@ -197,15 +209,7 @@ export default function ExercisesScreen() {
                 {exercises.map((exercise) => (
                   <Pressable
                     key={exercise.name}
-                    onPress={() => {
-                      if (Platform.OS !== 'web') {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      }
-                      router.push({
-                        pathname: '/_hidden/exercises/[exerciseName]',
-                        params: { exerciseName: exercise.name },
-                      });
-                    }}
+                    onPress={() => navigateToExerciseDetail(exercise.name)}
                     style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}
                     className="flex-row items-center justify-between py-2 border-b border-border"
                   >
@@ -243,6 +247,8 @@ export default function ExercisesScreen() {
                           if (!exercise.isCustom) {
                             // Edit predefined exercise customization
                             setEditingPredefinedExercise(exercise.name);
+                          } else {
+                            navigateToExerciseDetail(exercise.name);
                           }
                         }}
                         style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}
@@ -286,22 +292,28 @@ export default function ExercisesScreen() {
         onSave={async (customization, options) => {
           if (editingPredefinedExercise) {
             const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
+            const prevPreferredEnabled = previous?.preferredAutoProgressionEnabled !== false;
             const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
             const prevPreferredMax = previous?.preferredAutoProgressionMaxReps;
+            const nextPreferredEnabled = customization.preferredAutoProgressionEnabled !== false;
             const nextPreferredMin = customization.preferredAutoProgressionMinReps;
             const nextPreferredMax = customization.preferredAutoProgressionMaxReps;
 
             await updatePredefinedExerciseCustomization(editingPredefinedExercise, customization);
 
             const preferredChanged =
-              prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+              prevPreferredEnabled !== nextPreferredEnabled ||
+              prevPreferredMin !== nextPreferredMin ||
+              prevPreferredMax !== nextPreferredMax;
 
             if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
               const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
                 (ex) => ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase()
               );
               const hasPreferred =
-                typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+                nextPreferredEnabled &&
+                typeof nextPreferredMin === 'number' &&
+                typeof nextPreferredMax === 'number';
 
               for (const template of templates) {
                 let changed = false;
@@ -312,16 +324,24 @@ export default function ExercisesScreen() {
                   if (!isMatch) return ex;
 
                   changed = true;
+                  const autoProgressionAvailable =
+                    ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+                  const applyPreferred = autoProgressionAvailable && hasPreferred;
                   return {
                     ...ex,
-                    autoProgressionMinReps: hasPreferred
+                    autoProgressionEnabled: autoProgressionAvailable ? nextPreferredEnabled : false,
+                    autoProgressionMinReps: autoProgressionAvailable
+                      ? (applyPreferred
                       ? nextPreferredMin
-                      : settings.defaultAutoProgressionMinReps,
-                    autoProgressionMaxReps: hasPreferred
+                      : settings.defaultAutoProgressionMinReps)
+                      : undefined,
+                    autoProgressionMaxReps: autoProgressionAvailable
+                      ? (applyPreferred
                       ? nextPreferredMax
-                      : settings.defaultAutoProgressionMaxReps,
-                    autoProgressionUseDefaultRange: !hasPreferred,
-                    autoProgressionUsePreferredRange: hasPreferred,
+                      : settings.defaultAutoProgressionMaxReps)
+                      : undefined,
+                    autoProgressionUseDefaultRange: autoProgressionAvailable ? !applyPreferred : false,
+                    autoProgressionUsePreferredRange: autoProgressionAvailable ? applyPreferred : false,
                   };
                 });
 
@@ -338,6 +358,8 @@ export default function ExercisesScreen() {
           }
         }}
         exerciseName={editingPredefinedExercise || ''}
+        defaultPreferredMinReps={settings.defaultAutoProgressionMinReps}
+        defaultPreferredMaxReps={settings.defaultAutoProgressionMaxReps}
         currentCustomization={editingPredefinedExercise ? predefinedExerciseCustomizations[editingPredefinedExercise] : undefined}
       />
     </ScreenContainer>

@@ -217,10 +217,15 @@ export function TemplateCard({
         </CardHeader>
         <CardContent className="gap-2">
           {/* Exercise preview */}
-          <View className="gap-1">
+          <View className="gap-1" style={{ minHeight: 52 }}>
             {template.exercises.slice(0, 3).map((ex, idx) => (
               <Text key={idx} className="text-xs text-muted">
                 • {ex.name}
+              </Text>
+            ))}
+            {Array.from({ length: Math.max(0, 3 - template.exercises.length) }).map((_, idx) => (
+              <Text key={`placeholder-${idx}`} className="text-xs text-muted" style={{ opacity: 0 }}>
+                •
               </Text>
             ))}
             {template.exercises.length > 3 && (

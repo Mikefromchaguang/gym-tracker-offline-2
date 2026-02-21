@@ -54,6 +54,7 @@ interface GymContextState {
     muscleContributions?: Record<string, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }>;
@@ -143,6 +144,7 @@ interface GymContextValue extends GymContextState {
     muscleContributions?: Record<string, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }) => Promise<void>;
@@ -1028,6 +1030,7 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     muscleContributions?: Record<string, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }) => {

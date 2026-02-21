@@ -229,33 +229,35 @@ export function ExerciseQuickActionsSheet({
 
               {(onResetAutoProgressionToDefaultRange || onResetAutoProgressionToPreferredRange) && (
                 <View className="mt-2 gap-2">
-                  {onResetAutoProgressionToDefaultRange && (
-                    <Button
-                      variant="secondary"
-                      onPress={() => {
-                        onResetAutoProgressionToDefaultRange();
-                      }}
-                      className="w-full"
-                    >
-                      <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
-                      <Text className="text-sm font-semibold text-foreground">Reset to system default</Text>
-                    </Button>
-                  )}
+                  <View className="flex-row gap-2">
+                    {onResetAutoProgressionToDefaultRange && (
+                      <Button
+                        variant="secondary"
+                        onPress={() => {
+                          onResetAutoProgressionToDefaultRange();
+                        }}
+                        className="flex-1"
+                      >
+                        <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
+                        <Text className="text-sm font-semibold text-foreground">Default range</Text>
+                      </Button>
+                    )}
 
-                  {onResetAutoProgressionToPreferredRange && (
-                    <Button
-                      variant="secondary"
-                      disabled={!hasPreferredAutoProgressionRange}
-                      onPress={() => {
-                        if (!hasPreferredAutoProgressionRange) return;
-                        onResetAutoProgressionToPreferredRange();
-                      }}
-                      className="w-full"
-                    >
-                      <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
-                      <Text className="text-sm font-semibold text-foreground">Reset to preferred</Text>
-                    </Button>
-                  )}
+                    {onResetAutoProgressionToPreferredRange && (
+                      <Button
+                        variant="secondary"
+                        disabled={!hasPreferredAutoProgressionRange}
+                        onPress={() => {
+                          if (!hasPreferredAutoProgressionRange) return;
+                          onResetAutoProgressionToPreferredRange();
+                        }}
+                        className="flex-1"
+                      >
+                        <IconSymbol size={16} name="arrow.counterclockwise" color={colors.foreground} />
+                        <Text className="text-sm font-semibold text-foreground">Preferred range</Text>
+                      </Button>
+                    )}
+                  </View>
                   {onResetAutoProgressionToPreferredRange && !hasPreferredAutoProgressionRange && (
                     <Text className="text-xs text-muted">No preferred range set for this exercise.</Text>
                   )}

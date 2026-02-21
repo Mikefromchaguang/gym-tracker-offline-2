@@ -918,6 +918,9 @@ export default function HomeScreen() {
                       key={plan.id}
                       style={{ width: routineCardWidth, marginRight: index === localWeekPlans.length - 1 ? 0 : routineCardSpacing }}
                     >
+                      <Animated.View
+                        layout={Platform.OS === 'web' ? undefined : LinearTransition.duration(120)}
+                      >
                       <Card>
                         <CardHeader>
                           <View className="flex-row items-center justify-between">
@@ -1018,6 +1021,7 @@ export default function HomeScreen() {
                           </View>
                         </CardContent>
                       </Card>
+                      </Animated.View>
                     </View>
                   );
                 })}

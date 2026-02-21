@@ -891,12 +891,15 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     secondaryMuscles: MuscleGroup[];
     type: ExerciseType;
     muscleContributions: Record<MuscleGroup, number>;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }, options?: { preferredRangeApplyMode?: 'new-only' | 'existing-templates' }) => {
     const existingCustomExercise = customExercises.find((ex) => ex.name === exerciseNameStr);
+    const prevPreferredEnabled = existingCustomExercise?.preferredAutoProgressionEnabled !== false;
     const prevPreferredMin = existingCustomExercise?.preferredAutoProgressionMinReps;
     const prevPreferredMax = existingCustomExercise?.preferredAutoProgressionMaxReps;
+    const nextPreferredEnabled = exerciseData.preferredAutoProgressionEnabled !== false;
     const nextPreferredMin = exerciseData.preferredAutoProgressionMinReps;
     const nextPreferredMax = exerciseData.preferredAutoProgressionMaxReps;
 
@@ -907,11 +910,15 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       secondaryMuscles: exerciseData.secondaryMuscles,
       exerciseType: exerciseData.type,
       muscleContributions: exerciseData.muscleContributions,
+      preferredAutoProgressionEnabled: nextPreferredEnabled,
       preferredAutoProgressionMinReps: exerciseData.preferredAutoProgressionMinReps,
       preferredAutoProgressionMaxReps: exerciseData.preferredAutoProgressionMaxReps,
     });
 
-    const preferredChanged = prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+    const preferredChanged =
+      prevPreferredEnabled !== nextPreferredEnabled ||
+      prevPreferredMin !== nextPreferredMin ||
+      prevPreferredMax !== nextPreferredMax;
 
     if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
       const linkedCount = templates.reduce((acc, template) => {
@@ -926,7 +933,9 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
       if (linkedCount > 0) {
         const hasPreferred =
-          typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+          nextPreferredEnabled &&
+          typeof nextPreferredMin === 'number' &&
+          typeof nextPreferredMax === 'number';
 
         for (const template of templates) {
           let changed = false;
@@ -938,17 +947,25 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
             if (!isMatch) return ex;
             changed = true;
+            const autoProgressionAvailable =
+              ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+            const applyPreferred = autoProgressionAvailable && hasPreferred;
 
             return {
               ...ex,
-              autoProgressionMinReps: hasPreferred
+              autoProgressionEnabled: autoProgressionAvailable ? nextPreferredEnabled : false,
+              autoProgressionMinReps: autoProgressionAvailable
+                ? (applyPreferred
                 ? nextPreferredMin
-                : settings.defaultAutoProgressionMinReps,
-              autoProgressionMaxReps: hasPreferred
+                : settings.defaultAutoProgressionMinReps)
+                : undefined,
+              autoProgressionMaxReps: autoProgressionAvailable
+                ? (applyPreferred
                 ? nextPreferredMax
-                : settings.defaultAutoProgressionMaxReps,
-              autoProgressionUseDefaultRange: !hasPreferred,
-              autoProgressionUsePreferredRange: hasPreferred,
+                : settings.defaultAutoProgressionMaxReps)
+                : undefined,
+              autoProgressionUseDefaultRange: autoProgressionAvailable ? !applyPreferred : false,
+              autoProgressionUsePreferredRange: autoProgressionAvailable ? applyPreferred : false,
             };
           });
 
@@ -1822,6 +1839,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
           secondaryMuscles: currentExercise?.secondaryMuscles || [],
           type: currentExercise?.exerciseType || 'weighted',
           muscleContributions: currentExercise?.muscleContributions || {},
+          preferredAutoProgressionEnabled:
+            currentExercise?.preferredAutoProgressionEnabled !== false,
           preferredAutoProgressionMinReps: currentExercise?.preferredAutoProgressionMinReps,
           preferredAutoProgressionMaxReps: currentExercise?.preferredAutoProgressionMaxReps,
         }}
@@ -1834,14 +1853,18 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         onSave={async (customization, options) => {
           if (editingPredefinedExercise) {
             const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
+            const prevPreferredEnabled = previous?.preferredAutoProgressionEnabled !== false;
             const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
             const prevPreferredMax = previous?.preferredAutoProgressionMaxReps;
+            const nextPreferredEnabled = customization.preferredAutoProgressionEnabled !== false;
             const nextPreferredMin = customization.preferredAutoProgressionMinReps;
             const nextPreferredMax = customization.preferredAutoProgressionMaxReps;
             await updatePredefinedExerciseCustomization(editingPredefinedExercise, customization);
 
             const preferredChanged =
-              prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+              prevPreferredEnabled !== nextPreferredEnabled ||
+              prevPreferredMin !== nextPreferredMin ||
+              prevPreferredMax !== nextPreferredMax;
 
             if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
               const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
@@ -1859,7 +1882,9 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
               if (linkedCount > 0) {
                 const hasPreferred =
-                  typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+                  nextPreferredEnabled &&
+                  typeof nextPreferredMin === 'number' &&
+                  typeof nextPreferredMax === 'number';
 
                 for (const template of templates) {
                   let changed = false;
@@ -1870,16 +1895,24 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                     if (!isMatch) return ex;
 
                     changed = true;
+                    const autoProgressionAvailable =
+                      ex.type !== 'bodyweight' && ex.type !== 'assisted-bodyweight';
+                    const applyPreferred = autoProgressionAvailable && hasPreferred;
                     return {
                       ...ex,
-                      autoProgressionMinReps: hasPreferred
+                      autoProgressionEnabled: autoProgressionAvailable ? nextPreferredEnabled : false,
+                      autoProgressionMinReps: autoProgressionAvailable
+                        ? (applyPreferred
                         ? nextPreferredMin
-                        : settings.defaultAutoProgressionMinReps,
-                      autoProgressionMaxReps: hasPreferred
+                        : settings.defaultAutoProgressionMinReps)
+                        : undefined,
+                      autoProgressionMaxReps: autoProgressionAvailable
+                        ? (applyPreferred
                         ? nextPreferredMax
-                        : settings.defaultAutoProgressionMaxReps,
-                      autoProgressionUseDefaultRange: !hasPreferred,
-                      autoProgressionUsePreferredRange: hasPreferred,
+                        : settings.defaultAutoProgressionMaxReps)
+                        : undefined,
+                      autoProgressionUseDefaultRange: autoProgressionAvailable ? !applyPreferred : false,
+                      autoProgressionUsePreferredRange: autoProgressionAvailable ? applyPreferred : false,
                     };
                   });
 

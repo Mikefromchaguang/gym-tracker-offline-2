@@ -30,6 +30,7 @@ interface EditPredefinedExerciseModalProps {
       secondaryMuscles?: MuscleGroup[];
       muscleContributions?: Record<MuscleGroup, number>;
       exerciseType?: ExerciseType;
+      preferredAutoProgressionEnabled?: boolean;
       preferredAutoProgressionMinReps?: number;
       preferredAutoProgressionMaxReps?: number;
     },
@@ -45,6 +46,7 @@ interface EditPredefinedExerciseModalProps {
     muscleContributions?: Record<MuscleGroup, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   };
@@ -67,6 +69,7 @@ export function EditPredefinedExerciseModal({
   const [secondaryMuscles, setSecondaryMuscles] = useState<MuscleGroup[]>([]);
   const [muscleContributions, setMuscleContributions] = useState<Record<MuscleGroup, number>>({} as Record<MuscleGroup, number>);
   const [exerciseType, setExerciseType] = useState<ExerciseType>('weighted');
+  const [preferredAutoProgressionEnabled, setPreferredAutoProgressionEnabled] = useState(true);
   const [preferredMinDraft, setPreferredMinDraft] = useState('');
   const [preferredMaxDraft, setPreferredMaxDraft] = useState('');
   const [preferredRangeApplyMode, setPreferredRangeApplyMode] =
@@ -85,6 +88,7 @@ export function EditPredefinedExerciseModal({
         setSecondaryMuscles(currentCustomization.secondaryMuscles || predefinedExercise?.secondaryMuscles || []);
         setMuscleContributions(currentCustomization.muscleContributions || predefinedExercise?.muscleContributions || {});
         setExerciseType(currentCustomization.exerciseType || currentCustomization.type || predefinedExercise?.exerciseType || 'weighted');
+        setPreferredAutoProgressionEnabled(currentCustomization.preferredAutoProgressionEnabled !== false);
         setPreferredMinDraft(
           typeof currentCustomization.preferredAutoProgressionMinReps === 'number'
             ? String(currentCustomization.preferredAutoProgressionMinReps)
@@ -102,6 +106,7 @@ export function EditPredefinedExerciseModal({
         setSecondaryMuscles(predefinedExercise.secondaryMuscles || []);
         setMuscleContributions(predefinedExercise.muscleContributions || calculateDefaultContributions(predefinedExercise.primaryMuscle, predefinedExercise.secondaryMuscles));
         setExerciseType(predefinedExercise.exerciseType || 'weighted');
+        setPreferredAutoProgressionEnabled(true);
         setPreferredMinDraft(String(defaultPreferredMinReps ?? 8));
         setPreferredMaxDraft(String(defaultPreferredMaxReps ?? 12));
         setPreferredRangeApplyMode('new-only');
@@ -131,19 +136,27 @@ export function EditPredefinedExerciseModal({
       return;
     }
 
-    const parsedMin = preferredMinDraft.trim().length > 0 ? parseInt(preferredMinDraft, 10) : undefined;
-    const parsedMax = preferredMaxDraft.trim().length > 0 ? parseInt(preferredMaxDraft, 10) : undefined;
-    if ((parsedMin && Number.isNaN(parsedMin)) || (parsedMax && Number.isNaN(parsedMax))) {
-      Alert.alert('Invalid Range', 'Preferred rep range must be numeric');
-      return;
-    }
-    if ((parsedMin !== undefined && parsedMin < 1) || (parsedMax !== undefined && parsedMax < 1)) {
-      Alert.alert('Invalid Range', 'Preferred rep range must be at least 1');
-      return;
-    }
-    if (parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax) {
-      Alert.alert('Invalid Range', 'Preferred rep range min cannot exceed max');
-      return;
+    const effectivePreferredEnabled = autoProgressionAvailable && preferredAutoProgressionEnabled;
+
+    const parsedMin = effectivePreferredEnabled && preferredMinDraft.trim().length > 0
+      ? parseInt(preferredMinDraft, 10)
+      : undefined;
+    const parsedMax = effectivePreferredEnabled && preferredMaxDraft.trim().length > 0
+      ? parseInt(preferredMaxDraft, 10)
+      : undefined;
+    if (effectivePreferredEnabled) {
+      if ((parsedMin && Number.isNaN(parsedMin)) || (parsedMax && Number.isNaN(parsedMax))) {
+        Alert.alert('Invalid Range', 'Preferred rep range must be numeric');
+        return;
+      }
+      if ((parsedMin !== undefined && parsedMin < 1) || (parsedMax !== undefined && parsedMax < 1)) {
+        Alert.alert('Invalid Range', 'Preferred rep range must be at least 1');
+        return;
+      }
+      if (parsedMin !== undefined && parsedMax !== undefined && parsedMin > parsedMax) {
+        Alert.alert('Invalid Range', 'Preferred rep range min cannot exceed max');
+        return;
+      }
     }
 
     try {
@@ -153,8 +166,9 @@ export function EditPredefinedExerciseModal({
         primaryMuscle,
         secondaryMuscles,
         muscleContributions,
-        preferredAutoProgressionMinReps: parsedMin,
-        preferredAutoProgressionMaxReps: parsedMax,
+        preferredAutoProgressionEnabled: effectivePreferredEnabled,
+        preferredAutoProgressionMinReps: effectivePreferredEnabled ? parsedMin : undefined,
+        preferredAutoProgressionMaxReps: effectivePreferredEnabled ? parsedMax : undefined,
       };
       await onSave(customization, { preferredRangeApplyMode });
       if (Platform.OS !== 'web') {
@@ -200,6 +214,9 @@ export function EditPredefinedExerciseModal({
   const handleSecondaryMusclesChange = (nextSecondary: MuscleGroup[]) => {
     setSecondaryMuscles(nextSecondary.filter((m) => m !== primaryMuscle));
   };
+
+  const autoProgressionAvailable =
+    exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight';
 
   return (
     <Modal
@@ -310,60 +327,86 @@ export function EditPredefinedExerciseModal({
 
           <View style={{ gap: 8 }}>
             <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
-              Preferred rep range
+              Auto-progression
             </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <Input
-                  placeholder="Min"
-                  keyboardType="numeric"
-                  value={preferredMinDraft}
-                  onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
-                />
-              </View>
-              <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
-              <View style={{ flex: 1 }}>
-                <Input
-                  placeholder="Max"
-                  keyboardType="numeric"
-                  value={preferredMaxDraft}
-                  onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
-                />
-              </View>
-            </View>
-            <Text style={{ fontSize: 12, color: colors.muted }}>
-              Used as this exercise's default auto-progression range.
-            </Text>
+            {autoProgressionAvailable ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: colors.muted }}>
+                    {preferredAutoProgressionEnabled ? 'Enabled' : 'Disabled'}
+                  </Text>
+                  <Button
+                    variant="outline"
+                    onPress={() => setPreferredAutoProgressionEnabled((prev) => !prev)}
+                  >
+                    <Text className="text-foreground font-semibold">
+                      {preferredAutoProgressionEnabled ? 'Disable' : 'Enable'}
+                    </Text>
+                  </Button>
+                </View>
 
-            <View style={{ gap: 8, marginTop: 4 }}>
-              <Button
-                variant="secondary"
-                onPress={() => {
-                  Alert.alert(
-                    'Apply preferred rep range',
-                    'Choose how preferred rep range changes should be applied.',
-                    [
-                      {
-                        text: 'Newly added only',
-                        onPress: () => setPreferredRangeApplyMode('new-only'),
-                      },
-                      {
-                        text: 'Existing in all templates',
-                        onPress: () => setPreferredRangeApplyMode('existing-templates'),
-                      },
-                      { text: 'Cancel', style: 'cancel' },
-                    ]
-                  );
-                }}
-              >
-                <Text className="text-foreground font-semibold">Apply rep range</Text>
-              </Button>
+                {preferredAutoProgressionEnabled && (
+                  <>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <View style={{ flex: 1 }}>
+                        <Input
+                          placeholder="Min"
+                          keyboardType="numeric"
+                          value={preferredMinDraft}
+                          onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
+                        />
+                      </View>
+                      <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
+                      <View style={{ flex: 1 }}>
+                        <Input
+                          placeholder="Max"
+                          keyboardType="numeric"
+                          value={preferredMaxDraft}
+                          onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
+                        />
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 12, color: colors.muted }}>
+                      Used as this exercise's default auto-progression range.
+                    </Text>
+
+                    <View style={{ gap: 8, marginTop: 4 }}>
+                      <Button
+                        variant="secondary"
+                        onPress={() => {
+                          Alert.alert(
+                            'Apply preferred rep range',
+                            'Choose how preferred rep range changes should be applied.',
+                            [
+                              {
+                                text: 'Newly added only',
+                                onPress: () => setPreferredRangeApplyMode('new-only'),
+                              },
+                              {
+                                text: 'Existing in all templates',
+                                onPress: () => setPreferredRangeApplyMode('existing-templates'),
+                              },
+                              { text: 'Cancel', style: 'cancel' },
+                            ]
+                          );
+                        }}
+                      >
+                        <Text className="text-foreground font-semibold">Apply rep range</Text>
+                      </Button>
+                      <Text style={{ fontSize: 12, color: colors.muted }}>
+                        {preferredRangeApplyMode === 'existing-templates'
+                          ? 'Mode: Existing exercises in all templates'
+                          : 'Mode: Newly added exercises only'}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </>
+            ) : (
               <Text style={{ fontSize: 12, color: colors.muted }}>
-                {preferredRangeApplyMode === 'existing-templates'
-                  ? 'Mode: Existing exercises in all templates'
-                  : 'Mode: Newly added exercises only'}
+                Unavailable for bodyweight and assisted bodyweight exercises.
               </Text>
-            </View>
+            )}
           </View>
 
           {/* Info */}

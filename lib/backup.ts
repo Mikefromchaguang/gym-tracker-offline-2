@@ -46,6 +46,7 @@ export interface BackupData {
       muscleContributions?: Record<MuscleGroup, number>;
       exerciseType?: any;
       type?: any;
+      preferredAutoProgressionEnabled?: boolean;
       preferredAutoProgressionMinReps?: number;
       preferredAutoProgressionMaxReps?: number;
     }

@@ -10,7 +10,7 @@ import { CompletedWorkout } from '@/lib/types';
 import { useColors } from '@/hooks/use-colors';
 import { useBodyweight } from '@/hooks/use-bodyweight';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { formatWeight, formatVolume } from '@/lib/unit-conversion';
+import { formatWeight, formatVolume, convertWeight } from '@/lib/unit-conversion';
 import { calculateSetVolume } from '@/lib/volume-calculation';
 import { useMemo } from 'react';
 import * as Haptics from 'expo-haptics';
@@ -195,9 +195,9 @@ export function WorkoutDetailModal({ workout, visible, onClose }: WorkoutDetailM
             <Card className="flex-1">
               <CardContent className="items-center gap-1 pt-4">
                 <Text className="text-2xl font-bold text-primary">
-                  {formatVolume(totalVolume, settings.weightUnit)}
+                  {Math.round(convertWeight(totalVolume, settings.weightUnit))}
                 </Text>
-                <Text className="text-xs text-muted">Volume</Text>
+                <Text className="text-xs text-muted">Volume ({settings.weightUnit})</Text>
               </CardContent>
             </Card>
           </View>

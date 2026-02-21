@@ -222,6 +222,7 @@ export interface ExerciseMetadata {
   exerciseType: ExerciseType;
   type?: ExerciseType; // Alias for exerciseType (for convenience)
   muscleContributions?: Partial<Record<MuscleGroup, number>>; // Percentage contribution per muscle (must sum to 100)
+  preferredAutoProgressionEnabled?: boolean;
   preferredAutoProgressionMinReps?: number;
   preferredAutoProgressionMaxReps?: number;
 }

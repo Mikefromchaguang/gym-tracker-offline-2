@@ -1021,6 +1021,7 @@ export const PredefinedExerciseCustomizationStorage = {
     muscleContributions?: Record<MuscleGroup, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }>> {
@@ -1039,6 +1040,7 @@ export const PredefinedExerciseCustomizationStorage = {
     muscleContributions?: Record<MuscleGroup, number>;
     exerciseType?: ExerciseType;
     type?: ExerciseType;
+    preferredAutoProgressionEnabled?: boolean;
     preferredAutoProgressionMinReps?: number;
     preferredAutoProgressionMaxReps?: number;
   }): Promise<void> {
