@@ -1436,21 +1436,6 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         </View>
       </ScrollView>
 
-      {/* Edit Exercise Modal */}
-      <CreateExerciseModal
-        visible={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        onSave={handleSaveEdit}
-        mode="edit"
-        existingExercise={currentExercise ? {
-          name: currentExercise.name,
-          primaryMuscle: currentExercise.primaryMuscle || 'chest',
-          secondaryMuscles: currentExercise.secondaryMuscles || [],
-          type: currentExercise.exerciseType || 'weighted',
-          muscleContributions: (currentExercise.muscleContributions || {}) as Record<MuscleGroup, number>,
-        } : undefined}
-      />
-
       {/* Volume History Modal */}
       <Modal
         visible={showVolumeHistory}

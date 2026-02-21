@@ -91,6 +91,18 @@ export function ExerciseQuickActionsSheet({
     );
   }, [visible, exerciseName]);
 
+  // Keep rep range drafts in sync with external updates while sheet is open
+  // (e.g., reset to default / reset to preferred actions).
+  useEffect(() => {
+    if (!visible || !exerciseName) return;
+    setMinRepsDraft(
+      autoProgressionMinReps && autoProgressionMinReps > 0 ? String(autoProgressionMinReps) : ''
+    );
+    setMaxRepsDraft(
+      autoProgressionMaxReps && autoProgressionMaxReps > 0 ? String(autoProgressionMaxReps) : ''
+    );
+  }, [visible, exerciseName, autoProgressionMinReps, autoProgressionMaxReps]);
+
   const handleRequestClose = useCallback(() => {
     // If the user clears the input and closes the sheet, interpret as "disabled".
     // Prefer the explicit enable/disable mechanism when available.

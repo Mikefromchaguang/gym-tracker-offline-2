@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useState, useCallback, useMemo } from 'react';
-import { MuscleGroup, PREDEFINED_EXERCISES, getExerciseMuscles, getEffectiveExerciseMuscles, ExerciseType } from '@/lib/types';
+import { MuscleGroup, PREDEFINED_EXERCISES, PREDEFINED_EXERCISES_WITH_MUSCLES, getExerciseMuscles, getEffectiveExerciseMuscles, ExerciseType } from '@/lib/types';
 import { PRIMARY_MUSCLE_GROUPS, getMuscleGroupDisplayName } from '@/lib/muscle-groups';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
@@ -28,7 +28,18 @@ export default function ExercisesScreen() {
   const router = useRouter();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { customExercises, addCustomExercise, deleteCustomExercise, workouts, predefinedExerciseCustomizations, updatePredefinedExerciseCustomization, deletePredefinedExerciseCustomization } = useGym();
+  const {
+    customExercises,
+    addCustomExercise,
+    deleteCustomExercise,
+    workouts,
+    templates,
+    settings,
+    updateTemplate,
+    predefinedExerciseCustomizations,
+    updatePredefinedExerciseCustomization,
+    deletePredefinedExerciseCustomization,
+  } = useGym();
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [editingPredefinedExercise, setEditingPredefinedExercise] = useState<string | null>(null);
@@ -272,9 +283,53 @@ export default function ExercisesScreen() {
       <EditPredefinedExerciseModal
         visible={!!editingPredefinedExercise}
         onClose={() => setEditingPredefinedExercise(null)}
-        onSave={async (customization) => {
+        onSave={async (customization, options) => {
           if (editingPredefinedExercise) {
+            const previous = predefinedExerciseCustomizations[editingPredefinedExercise];
+            const prevPreferredMin = previous?.preferredAutoProgressionMinReps;
+            const prevPreferredMax = previous?.preferredAutoProgressionMaxReps;
+            const nextPreferredMin = customization.preferredAutoProgressionMinReps;
+            const nextPreferredMax = customization.preferredAutoProgressionMaxReps;
+
             await updatePredefinedExerciseCustomization(editingPredefinedExercise, customization);
+
+            const preferredChanged =
+              prevPreferredMin !== nextPreferredMin || prevPreferredMax !== nextPreferredMax;
+
+            if (preferredChanged && options?.preferredRangeApplyMode === 'existing-templates') {
+              const predefined = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
+                (ex) => ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase()
+              );
+              const hasPreferred =
+                typeof nextPreferredMin === 'number' && typeof nextPreferredMax === 'number';
+
+              for (const template of templates) {
+                let changed = false;
+                const nextExercises = template.exercises.map((ex) => {
+                  const isMatch =
+                    ex.name.toLowerCase() === editingPredefinedExercise.toLowerCase() ||
+                    (predefined?.id ? ex.exerciseId === predefined.id : false);
+                  if (!isMatch) return ex;
+
+                  changed = true;
+                  return {
+                    ...ex,
+                    autoProgressionMinReps: hasPreferred
+                      ? nextPreferredMin
+                      : settings.defaultAutoProgressionMinReps,
+                    autoProgressionMaxReps: hasPreferred
+                      ? nextPreferredMax
+                      : settings.defaultAutoProgressionMaxReps,
+                    autoProgressionUseDefaultRange: !hasPreferred,
+                    autoProgressionUsePreferredRange: hasPreferred,
+                  };
+                });
+
+                if (changed) {
+                  await updateTemplate({ ...template, exercises: nextExercises });
+                }
+              }
+            }
           }
         }}
         onReset={async () => {
