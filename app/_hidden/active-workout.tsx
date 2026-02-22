@@ -1587,36 +1587,36 @@ export default function ActiveWorkoutScreen() {
             }
 
             try {
-              const templateExercises: Exercise[] = exercises.map((ex) => ({
+              const templateExercises: Exercise[] = exercises.map((ex) => {
                 const useExerciseSpecificRange =
                   ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false;
 
                 return {
-                id: ex.id,
-                exerciseId: ex.exerciseId,
-                name: ex.name,
-                sets: ex.completedSets.length,
-                reps: ex.completedSets.length > 0 ? ex.completedSets[0].reps : 10,
-                weight: ex.completedSets.length > 0 ? ex.completedSets[0].weight : undefined,
-                unit: ex.completedSets.length > 0 ? ex.completedSets[0].unit : settings.weightUnit,
-                type: ex.type,
-                notes: ex.notes,
-                restTimer: ex.restTimer || 180,
-                timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
-                autoProgressionEnabled: ex.autoProgressionEnabled,
-                autoProgressionMinReps: ex.autoProgressionMinReps,
-                autoProgressionMaxReps: ex.autoProgressionMaxReps,
-                autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
-                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
-                primaryMuscle: ex.primaryMuscle,
-                secondaryMuscles: ex.secondaryMuscles,
-                setDetails: ex.completedSets.map((set) => ({
-                  reps: set.reps,
-                  weight: set.weight,
-                  unit: set.unit,
-                  setType: set.setType,
-                })),
-              };
+                  id: ex.id,
+                  exerciseId: ex.exerciseId,
+                  name: ex.name,
+                  sets: ex.completedSets.length,
+                  reps: ex.completedSets.length > 0 ? ex.completedSets[0].reps : 10,
+                  weight: ex.completedSets.length > 0 ? ex.completedSets[0].weight : undefined,
+                  unit: ex.completedSets.length > 0 ? ex.completedSets[0].unit : settings.weightUnit,
+                  type: ex.type,
+                  notes: ex.notes,
+                  restTimer: ex.restTimer || 180,
+                  timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
+                  autoProgressionEnabled: ex.autoProgressionEnabled,
+                  autoProgressionMinReps: ex.autoProgressionMinReps,
+                  autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                  autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
+                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
+                  primaryMuscle: ex.primaryMuscle,
+                  secondaryMuscles: ex.secondaryMuscles,
+                  setDetails: ex.completedSets.map((set) => ({
+                    reps: set.reps,
+                    weight: set.weight,
+                    unit: set.unit,
+                    setType: set.setType,
+                  })),
+                };
               });
 
               await addTemplate({
@@ -1828,13 +1828,13 @@ export default function ActiveWorkoutScreen() {
                   
                   // Only save contributions for the current primary and secondary muscles
                   // Filter out any old muscle contributions to prevent showing wrong muscles in analytics
-                  const allCurrentMuscles = [finalPrimaryMuscle, ...finalSecondaryMuscles].filter(Boolean);
-                  const filteredContributions = muscleMeta?.muscleContributions 
-                    ? Object.fromEntries(
-                        Object.entries(muscleMeta.muscleContributions).filter(([muscle]) => 
+                  const allCurrentMuscles = [finalPrimaryMuscle, ...finalSecondaryMuscles].filter(Boolean) as MuscleGroup[];
+                  const filteredContributions: Record<MuscleGroup, number> | undefined = muscleMeta?.muscleContributions
+                    ? (Object.fromEntries(
+                        Object.entries(muscleMeta.muscleContributions).filter(([muscle]) =>
                           allCurrentMuscles.includes(muscle as MuscleGroup)
                         )
-                      )
+                      ) as Record<MuscleGroup, number>)
                     : undefined;
 
                   return {
@@ -3151,18 +3151,15 @@ export default function ActiveWorkoutScreen() {
             return next;
           });
         }) : undefined}
-              autoProgressionUseDefaultRange:
-                ex.autoProgressionUsePreferredRange === true
-                  ? false
-                  : (ex.autoProgressionUseDefaultRange === false ? false : true),
         onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
-                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
+          if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
             const ex = next[exerciseQuickActionsIndex];
-                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
+            if (!ex) return prev;
             const nextMax = reps ?? undefined;
             next[exerciseQuickActionsIndex] = {
+              ...ex,
               autoProgressionMaxReps: nextMax,
               autoProgressionUseDefaultRange: false,
               autoProgressionUsePreferredRange: false,
@@ -3182,15 +3179,18 @@ export default function ActiveWorkoutScreen() {
               next[exerciseQuickActionsIndex] = {
                 ...ex,
                 autoProgressionEnabled: true,
+                autoProgressionUseDefaultRange:
+                  ex.autoProgressionUsePreferredRange === true
+                    ? false
+                    : (ex.autoProgressionUseDefaultRange === false ? false : true),
                 autoProgressionMinReps:
-                  ex.autoProgressionUseDefaultRange === false
+                  (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                     ? ex.autoProgressionMinReps
                     : (settings.defaultAutoProgressionMinReps ?? ex.autoProgressionMinReps ?? 8),
                 autoProgressionMaxReps:
-                  ex.autoProgressionUseDefaultRange === false
+                  (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                     ? ex.autoProgressionMaxReps
                     : (settings.defaultAutoProgressionMaxReps ?? ex.autoProgressionMaxReps ?? 12),
-                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange === false ? false : true,
                 autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
               };
             } else {
