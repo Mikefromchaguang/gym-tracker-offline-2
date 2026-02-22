@@ -425,11 +425,11 @@ export default function ActiveWorkoutScreen() {
               settings.autoProgressionEnabled &&
               ex.autoProgressionEnabled !== false,
             minReps:
-              ex.autoProgressionUseDefaultRange === false
+              (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                 ? ex.autoProgressionMinReps
                 : settings.defaultAutoProgressionMinReps,
             maxReps:
-              ex.autoProgressionUseDefaultRange === false
+              (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                 ? ex.autoProgressionMaxReps
                 : settings.defaultAutoProgressionMaxReps,
           });
@@ -1322,7 +1322,7 @@ export default function ActiveWorkoutScreen() {
     const exercise = exercises[exerciseIndex];
     if (!exercise) return;
 
-    const minReps = exercise.autoProgressionUseDefaultRange === false
+    const minReps = (exercise.autoProgressionUsePreferredRange === true || exercise.autoProgressionUseDefaultRange === false)
       ? (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8)
       : (settings.defaultAutoProgressionMinReps ?? exercise.autoProgressionMinReps ?? 8);
 
@@ -1588,6 +1588,10 @@ export default function ActiveWorkoutScreen() {
 
             try {
               const templateExercises: Exercise[] = exercises.map((ex) => ({
+                const useExerciseSpecificRange =
+                  ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false;
+
+                return {
                 id: ex.id,
                 exerciseId: ex.exerciseId,
                 name: ex.name,
@@ -1602,8 +1606,8 @@ export default function ActiveWorkoutScreen() {
                 autoProgressionEnabled: ex.autoProgressionEnabled,
                 autoProgressionMinReps: ex.autoProgressionMinReps,
                 autoProgressionMaxReps: ex.autoProgressionMaxReps,
-                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
-                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
+                autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
+                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
                 primaryMuscle: ex.primaryMuscle,
                 secondaryMuscles: ex.secondaryMuscles,
                 setDetails: ex.completedSets.map((set) => ({
@@ -1612,7 +1616,8 @@ export default function ActiveWorkoutScreen() {
                   unit: set.unit,
                   setType: set.setType,
                 })),
-              }));
+              };
+              });
 
               await addTemplate({
                 id: generateId(),
@@ -1663,32 +1668,37 @@ export default function ActiveWorkoutScreen() {
                 return;
               }
 
-              const templateExercises: Exercise[] = exercises.map((ex) => ({
-                id: ex.id,
-                exerciseId: ex.exerciseId,
-                name: ex.name,
-                sets: ex.completedSets.length,
-                reps: ex.completedSets.length > 0 ? ex.completedSets[0].reps : 10,
-                weight: ex.completedSets.length > 0 ? ex.completedSets[0].weight : undefined,
-                unit: ex.completedSets.length > 0 ? ex.completedSets[0].unit : settings.weightUnit,
-                type: ex.type,
-                notes: ex.notes,
-                restTimer: ex.restTimer || 180,
-                timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
-                autoProgressionEnabled: ex.autoProgressionEnabled,
-                autoProgressionMinReps: ex.autoProgressionMinReps,
-                autoProgressionMaxReps: ex.autoProgressionMaxReps,
-                autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
-                autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
-                primaryMuscle: ex.primaryMuscle,
-                secondaryMuscles: ex.secondaryMuscles,
-                setDetails: ex.completedSets.map((set) => ({
-                  reps: set.reps,
-                  weight: set.weight,
-                  unit: set.unit,
-                  setType: set.setType,
-                })),
-              }));
+              const templateExercises: Exercise[] = exercises.map((ex) => {
+                const useExerciseSpecificRange =
+                  ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false;
+
+                return {
+                  id: ex.id,
+                  exerciseId: ex.exerciseId,
+                  name: ex.name,
+                  sets: ex.completedSets.length,
+                  reps: ex.completedSets.length > 0 ? ex.completedSets[0].reps : 10,
+                  weight: ex.completedSets.length > 0 ? ex.completedSets[0].weight : undefined,
+                  unit: ex.completedSets.length > 0 ? ex.completedSets[0].unit : settings.weightUnit,
+                  type: ex.type,
+                  notes: ex.notes,
+                  restTimer: ex.restTimer || 180,
+                  timerEnabled: !disabledTimers.has(ex.id), // Save timer enabled/disabled state
+                  autoProgressionEnabled: ex.autoProgressionEnabled,
+                  autoProgressionMinReps: ex.autoProgressionMinReps,
+                  autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                  autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
+                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
+                  primaryMuscle: ex.primaryMuscle,
+                  secondaryMuscles: ex.secondaryMuscles,
+                  setDetails: ex.completedSets.map((set) => ({
+                    reps: set.reps,
+                    weight: set.weight,
+                    unit: set.unit,
+                    setType: set.setType,
+                  })),
+                };
+              });
 
               await updateTemplate({
                 ...template,
@@ -3082,14 +3092,14 @@ export default function ActiveWorkoutScreen() {
         autoProgressionEnabled={quickActionsMeta?.autoProgressionEnabled ?? false}
         autoProgressionMinReps={
           quickActionsMeta
-            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+            ? ((quickActionsMeta.ex.autoProgressionUsePreferredRange === true || quickActionsMeta.ex.autoProgressionUseDefaultRange === false)
               ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
               : (settings.defaultAutoProgressionMinReps ?? quickActionsMeta.ex.autoProgressionMinReps ?? null))
             : null
         }
         autoProgressionMaxReps={
           quickActionsMeta
-            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+            ? ((quickActionsMeta.ex.autoProgressionUsePreferredRange === true || quickActionsMeta.ex.autoProgressionUseDefaultRange === false)
               ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
               : (settings.defaultAutoProgressionMaxReps ?? quickActionsMeta.ex.autoProgressionMaxReps ?? null))
             : null
@@ -3141,15 +3151,18 @@ export default function ActiveWorkoutScreen() {
             return next;
           });
         }) : undefined}
+              autoProgressionUseDefaultRange:
+                ex.autoProgressionUsePreferredRange === true
+                  ? false
+                  : (ex.autoProgressionUseDefaultRange === false ? false : true),
         onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
-          if (exerciseQuickActionsIndex === null) return;
+                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
           setExercises((prev) => {
             const next = [...prev];
             const ex = next[exerciseQuickActionsIndex];
-            if (!ex) return prev;
+                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
             const nextMax = reps ?? undefined;
             next[exerciseQuickActionsIndex] = {
-              ...ex,
               autoProgressionMaxReps: nextMax,
               autoProgressionUseDefaultRange: false,
               autoProgressionUsePreferredRange: false,

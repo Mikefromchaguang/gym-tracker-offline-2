@@ -2830,14 +2830,14 @@ export default function TemplateCreateScreen() {
         autoProgressionEnabled={quickActionsMeta?.autoProgressionEnabled ?? false}
         autoProgressionMinReps={
           quickActionsMeta
-            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+            ? ((quickActionsMeta.ex.autoProgressionUsePreferredRange === true || quickActionsMeta.ex.autoProgressionUseDefaultRange === false)
               ? (quickActionsMeta.ex.autoProgressionMinReps ?? null)
               : (settings.defaultAutoProgressionMinReps ?? quickActionsMeta.ex.autoProgressionMinReps ?? null))
             : null
         }
         autoProgressionMaxReps={
           quickActionsMeta
-            ? (quickActionsMeta.ex.autoProgressionUseDefaultRange === false
+            ? ((quickActionsMeta.ex.autoProgressionUsePreferredRange === true || quickActionsMeta.ex.autoProgressionUseDefaultRange === false)
               ? (quickActionsMeta.ex.autoProgressionMaxReps ?? null)
               : (settings.defaultAutoProgressionMaxReps ?? quickActionsMeta.ex.autoProgressionMaxReps ?? null))
             : null
@@ -2926,15 +2926,18 @@ export default function TemplateCreateScreen() {
             return {
               ...ex,
               autoProgressionEnabled: true,
+              autoProgressionUseDefaultRange:
+                ex.autoProgressionUsePreferredRange === true
+                  ? false
+                  : (ex.autoProgressionUseDefaultRange === false ? false : true),
               autoProgressionMinReps:
-                ex.autoProgressionUseDefaultRange === false
+                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                   ? ex.autoProgressionMinReps
                   : (settings.defaultAutoProgressionMinReps ?? ex.autoProgressionMinReps ?? fallbackMin),
               autoProgressionMaxReps:
-                ex.autoProgressionUseDefaultRange === false
+                (ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false)
                   ? ex.autoProgressionMaxReps
                   : (settings.defaultAutoProgressionMaxReps ?? ex.autoProgressionMaxReps ?? fallbackMax),
-              autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange === false ? false : true,
               autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
             };
           }));
