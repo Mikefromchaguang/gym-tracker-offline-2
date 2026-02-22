@@ -194,13 +194,14 @@ export default function ActiveWorkoutScreen() {
   const resolveExercisePreferenceMeta = useCallback((exerciseName: string, exerciseId?: string) => {
     const normalizedName = exerciseName.trim().toLowerCase();
     const normalizedExerciseId = typeof exerciseId === 'string' ? exerciseId.trim().toLowerCase() : undefined;
+    const hasExerciseId = !!normalizedExerciseId;
 
     const customEx = customExercises.find(
       (item) =>
-        item.id === exerciseId ||
-        generateExerciseId(item.name) === exerciseId ||
+        (hasExerciseId && typeof item.id === 'string' && item.id.trim().toLowerCase() === normalizedExerciseId) ||
+        (hasExerciseId && generateExerciseId(item.name).trim().toLowerCase() === normalizedExerciseId) ||
         item.name.trim().toLowerCase() === normalizedName ||
-        (!!normalizedExerciseId && item.name.trim().toLowerCase() === normalizedExerciseId)
+        (hasExerciseId && item.name.trim().toLowerCase() === normalizedExerciseId)
     );
 
     const predefinedByName = PREDEFINED_EXERCISES_WITH_MUSCLES.find(
@@ -208,16 +209,18 @@ export default function ActiveWorkoutScreen() {
         item.name.toLowerCase() === normalizedName ||
         (!!normalizedExerciseId && item.name.toLowerCase() === normalizedExerciseId)
     );
-    const predefinedById = exerciseId
+    const predefinedById = hasExerciseId
       ? PREDEFINED_EXERCISES_WITH_MUSCLES.find(
-          (item) => item.id === exerciseId || generateExerciseId(item.name) === exerciseId
+          (item) =>
+            (typeof item.id === 'string' && item.id.trim().toLowerCase() === normalizedExerciseId) ||
+            generateExerciseId(item.name).trim().toLowerCase() === normalizedExerciseId
         )
       : undefined;
     const predefinedEx = predefinedByName || predefinedById;
 
     const predefinedNameLower = predefinedEx?.name?.toLowerCase();
     const exactCustomization = (predefinedExerciseCustomizations as any)[predefinedEx?.name || exerciseName];
-    const caseInsensitiveCustomization = Object.entries(predefinedExerciseCustomizations as any).find(
+    const caseInsensitiveCustomization = [...Object.entries(predefinedExerciseCustomizations as any)].reverse().find(
       ([name]) => {
         const key = name.toLowerCase();
         return (
