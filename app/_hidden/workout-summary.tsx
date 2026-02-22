@@ -26,7 +26,8 @@ function completedExercisesToTemplateExercises(
   completedExercises: CompletedExercise[],
   unit: WeightUnit,
   predefinedExerciseCustomizations: Record<string, any>,
-  customExercises: any[]
+  customExercises: any[],
+  existingTemplateExercises?: TemplateExercise[]
 ): TemplateExercise[] {
   return completedExercises.map((ex) => {
     // Use saved metadata if available, otherwise infer from exercise name
@@ -45,9 +46,16 @@ function completedExercisesToTemplateExercises(
     }));
 
     const lastSet = ex.sets[ex.sets.length - 1];
+    const existingExercise = existingTemplateExercises?.find((candidate) => {
+      if (ex.exerciseId && candidate.exerciseId) {
+        return candidate.exerciseId === ex.exerciseId;
+      }
+      return candidate.name.toLowerCase() === ex.name.toLowerCase();
+    });
 
     return {
       id: ex.id,
+      exerciseId: ex.exerciseId,
       name: ex.name,
       groupType: ex.groupType,
       groupId: ex.groupId,
@@ -69,6 +77,13 @@ function completedExercisesToTemplateExercises(
       restTimer: ex.restTimer ?? 180,
       timerEnabled: ex.timerEnabled ?? true,
       notes: ex.notes,
+      autoProgressionEnabled: ex.autoProgressionEnabled ?? existingExercise?.autoProgressionEnabled,
+      autoProgressionMinReps: ex.autoProgressionMinReps ?? existingExercise?.autoProgressionMinReps,
+      autoProgressionMaxReps: ex.autoProgressionMaxReps ?? existingExercise?.autoProgressionMaxReps,
+      autoProgressionUseDefaultRange:
+        ex.autoProgressionUseDefaultRange ?? existingExercise?.autoProgressionUseDefaultRange,
+      autoProgressionUsePreferredRange:
+        ex.autoProgressionUsePreferredRange ?? existingExercise?.autoProgressionUsePreferredRange,
     };
   });
 }
@@ -181,7 +196,8 @@ export default function WorkoutSummaryScreen() {
                   workout.exercises,
                   settings.weightUnit,
                   predefinedExerciseCustomizations,
-                  customExercises
+                  customExercises,
+                  template.exercises
                 ),
                 updatedAt: Date.now(),
               });

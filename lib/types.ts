@@ -157,6 +157,11 @@ export interface CompletedExercise {
   restTimer?: number;
   timerEnabled?: boolean;
   notes?: string;
+  autoProgressionEnabled?: boolean;
+  autoProgressionMinReps?: number;
+  autoProgressionMaxReps?: number;
+  autoProgressionUseDefaultRange?: boolean;
+  autoProgressionUsePreferredRange?: boolean;
 
   // Optional grouping metadata (e.g. supersets)
   groupType?: ExerciseGroupType;

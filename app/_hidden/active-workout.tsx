@@ -1588,9 +1588,6 @@ export default function ActiveWorkoutScreen() {
 
             try {
               const templateExercises: Exercise[] = exercises.map((ex) => {
-                const useExerciseSpecificRange =
-                  ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false;
-
                 return {
                   id: ex.id,
                   exerciseId: ex.exerciseId,
@@ -1606,8 +1603,8 @@ export default function ActiveWorkoutScreen() {
                   autoProgressionEnabled: ex.autoProgressionEnabled,
                   autoProgressionMinReps: ex.autoProgressionMinReps,
                   autoProgressionMaxReps: ex.autoProgressionMaxReps,
-                  autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
-                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
+                  autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                   primaryMuscle: ex.primaryMuscle,
                   secondaryMuscles: ex.secondaryMuscles,
                   setDetails: ex.completedSets.map((set) => ({
@@ -1669,9 +1666,6 @@ export default function ActiveWorkoutScreen() {
               }
 
               const templateExercises: Exercise[] = exercises.map((ex) => {
-                const useExerciseSpecificRange =
-                  ex.autoProgressionUsePreferredRange === true || ex.autoProgressionUseDefaultRange === false;
-
                 return {
                   id: ex.id,
                   exerciseId: ex.exerciseId,
@@ -1687,8 +1681,8 @@ export default function ActiveWorkoutScreen() {
                   autoProgressionEnabled: ex.autoProgressionEnabled,
                   autoProgressionMinReps: ex.autoProgressionMinReps,
                   autoProgressionMaxReps: ex.autoProgressionMaxReps,
-                  autoProgressionUseDefaultRange: useExerciseSpecificRange ? false : true,
-                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange === true,
+                  autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                  autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                   primaryMuscle: ex.primaryMuscle,
                   secondaryMuscles: ex.secondaryMuscles,
                   setDetails: ex.completedSets.map((set) => ({
@@ -1852,6 +1846,11 @@ export default function ActiveWorkoutScreen() {
                     restTimer: ex.restTimer,
                     timerEnabled: !disabledTimers.has(ex.id),
                     notes: ex.notes,
+                    autoProgressionEnabled: ex.autoProgressionEnabled,
+                    autoProgressionMinReps: ex.autoProgressionMinReps,
+                    autoProgressionMaxReps: ex.autoProgressionMaxReps,
+                    autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+                    autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
                     // Save sets with original weight values (don't transform)
                     // Volume calculations will apply the formulas when reading
                     sets: ex.completedSets,
