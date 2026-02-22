@@ -809,6 +809,46 @@ export default function TemplateCreateScreen() {
     }
   }, []);
 
+  const handleKeepOnlySet = useCallback((exerciseIndex: number, setIndex: number) => {
+    Alert.alert(
+      'Remove all other sets?',
+      'This will keep only the selected set and delete the rest. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove all but this',
+          style: 'destructive',
+          onPress: () => {
+            setExercises((prev) => {
+              const base = prev[exerciseIndex];
+              if (!base) return prev;
+
+              const shouldSyncSuperset = base.groupType === 'superset' && typeof base.groupId === 'string';
+              const mateIndex = shouldSyncSuperset
+                ? prev.findIndex((ex, idx) => idx !== exerciseIndex && ex.groupType === 'superset' && ex.groupId === base.groupId)
+                : -1;
+              const indicesToUpdate = mateIndex >= 0 ? [exerciseIndex, mateIndex] : [exerciseIndex];
+
+              return prev.map((ex, exIdx) => {
+                if (!indicesToUpdate.includes(exIdx)) return ex;
+                const selected = ex.sets[setIndex] ?? ex.sets[0];
+                if (!selected) return ex;
+                return {
+                  ...ex,
+                  sets: [{ ...selected, setNumber: 1 }],
+                };
+              });
+            });
+
+            if (Platform.OS !== 'web') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
   const handleDeleteExercise = useCallback((exerciseId: string) => {
     Alert.alert('Remove Exercise?', 'Are you sure you want to remove this exercise from your routine?', [
       { text: 'Cancel', style: 'cancel' },
@@ -3040,6 +3080,26 @@ export default function TemplateCreateScreen() {
             
             <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
             
+            <Pressable
+              onPress={() => {
+                if (showSetMenu) {
+                  handleKeepOnlySet(showSetMenu.exerciseIndex, showSetMenu.setIndex);
+                  setShowSetMenu(null);
+                  setSetMenuPosition(null);
+                }
+              }}
+              style={({ pressed }) => [{
+                paddingVertical: 12,
+                paddingHorizontal: 16,
+                backgroundColor: pressed ? colors.surface : colors.background,
+                borderRadius: 8,
+              }]}
+            >
+              <Text style={{ color: colors.foreground, fontSize: 16 }}>Remove all but this</Text>
+            </Pressable>
+
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
+
             <Pressable
               onPress={() => {
                 if (showSetMenu) {
