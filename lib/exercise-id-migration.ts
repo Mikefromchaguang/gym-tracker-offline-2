@@ -370,6 +370,7 @@ export async function runExerciseIdMigration(): Promise<void> {
           defaultAutoProgressionMinReps: 8,
           defaultAutoProgressionMaxReps: 12,
           defaultAutoProgressionWeightIncrement: 2.5,
+          autoProgressionUpdateSetsFirst: false,
           bodyMapGender: 'male',
           weekStartDay: 1,
           showQuotes: true,

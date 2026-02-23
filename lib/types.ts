@@ -209,6 +209,7 @@ export interface AppSettings {
   defaultAutoProgressionMinReps: number;
   defaultAutoProgressionMaxReps: number;
   defaultAutoProgressionWeightIncrement: number;
+  autoProgressionUpdateSetsFirst?: boolean;
   bodyMapGender: 'male' | 'female'; // Gender for body map visualization
   weekStartDay: WeekStartDay; // Day to start the week (0 = Sunday, 1 = Monday, etc.)
   showQuotes: boolean; // Whether to show inspirational quotes on home screen

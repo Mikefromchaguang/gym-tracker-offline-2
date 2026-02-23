@@ -239,17 +239,21 @@ export default function ActiveWorkoutScreen() {
     };
   }, [customExercises, predefinedExerciseCustomizations]);
 
+  const getLastSessionSourceSets = useCallback((exerciseName: string) => {
+    const mostRecentWorkout = [...workouts]
+      .sort((a, b) => b.endTime - a.endTime)
+      .find((w) => w.exercises.some((ex) => ex.name === exerciseName && ex.sets.length > 0));
+
+    return mostRecentWorkout?.exercises.find((ex) => ex.name === exerciseName)?.sets ?? [];
+  }, [workouts]);
+
   const syncExerciseToLastSession = useCallback(
     (exerciseIndex: number) => {
       setExercises((prev) => {
         const target = prev[exerciseIndex];
         if (!target) return prev;
 
-        const mostRecentWorkout = [...workouts]
-          .sort((a, b) => b.endTime - a.endTime)
-          .find((w) => w.exercises.some((ex) => ex.name === target.name && ex.sets.length > 0));
-
-        const sourceSets = mostRecentWorkout?.exercises.find((ex) => ex.name === target.name)?.sets ?? [];
+        const sourceSets = getLastSessionSourceSets(target.name);
         if (sourceSets.length === 0) {
           Alert.alert('No previous session found', `Couldn't find any logged sets for ${target.name}.`);
           return prev;
@@ -280,7 +284,7 @@ export default function ActiveWorkoutScreen() {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
-    [workouts]
+    [getLastSessionSourceSets]
   );
 
   // All available exercises (predefined + custom)
@@ -419,7 +423,25 @@ export default function ActiveWorkoutScreen() {
                 setType: 'working' as const,
               }));
 
-          const progressionResult = applyAutoProgressionOnStart(baseSetDetails, {
+          const shouldUpdateSetsFirst =
+            settings.autoProgressionEnabled &&
+            settings.autoProgressionUpdateSetsFirst === true &&
+            autoProgressionAvailable &&
+            ex.autoProgressionEnabled !== false;
+          const sourceSets = shouldUpdateSetsFirst ? getLastSessionSourceSets(ex.name) : [];
+          const setsBeforeProgression = shouldUpdateSetsFirst && sourceSets.length > 0
+            ? baseSetDetails.map((setConfig, idx) => {
+                const src = sourceSets[idx];
+                if (!src) return setConfig;
+                return {
+                  ...setConfig,
+                  reps: src.reps ?? setConfig.reps,
+                  weight: src.weight ?? setConfig.weight,
+                };
+              })
+            : baseSetDetails;
+
+          const progressionResult = applyAutoProgressionOnStart(setsBeforeProgression, {
             enabled:
               autoProgressionAvailable &&
               settings.autoProgressionEnabled &&
@@ -548,6 +570,7 @@ export default function ActiveWorkoutScreen() {
     templateId,
     templates,
     customExercises,
+    getLastSessionSourceSets,
     updateTemplate,
     settings.weightUnit,
     focusCounter,
@@ -1315,7 +1338,7 @@ export default function ActiveWorkoutScreen() {
   const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseIndex: number) => {
     const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
     if (increment <= 0) {
-      Alert.alert('Invalid increment', 'Set a default weight increment in Preferences first.');
+      Alert.alert('Invalid increment', 'Set a default weight increment in Settings first.');
       return;
     }
 

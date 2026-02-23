@@ -917,7 +917,7 @@ export default function TemplateCreateScreen() {
   const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseId: string) => {
     const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
     if (increment <= 0) {
-      Alert.alert('Invalid increment', 'Set a default weight increment in Preferences first.');
+      Alert.alert('Invalid increment', 'Set a default weight increment in Settings first.');
       return;
     }
 

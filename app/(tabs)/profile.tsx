@@ -196,7 +196,7 @@ export default function ProfileScreen() {
                 <IconSymbol size={24} name="gearshape" color={colors.background} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 18, fontWeight: '600', color: colors.foreground }}>Preferences</Text>
+                <Text style={{ fontSize: 18, fontWeight: '600', color: colors.foreground }}>Settings</Text>
                 <Text style={{ fontSize: 14, color: colors.muted, marginTop: 2 }}>
                   Units, default rest time, and more
                 </Text>

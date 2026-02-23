@@ -183,6 +183,7 @@ const initialState: GymContextState = {
     defaultAutoProgressionMinReps: 8,
     defaultAutoProgressionMaxReps: 12,
     defaultAutoProgressionWeightIncrement: 2.5,
+    autoProgressionUpdateSetsFirst: false,
     bodyMapGender: 'male', // Default to male body map
     weekStartDay: 1, // Default Monday (0 = Sunday, 1 = Monday, etc.)
     showQuotes: true, // Show inspirational quotes by default

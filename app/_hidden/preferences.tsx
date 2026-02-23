@@ -461,7 +461,7 @@ export default function PreferencesScreen() {
           <Pressable onPress={() => router.back()} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
             <IconSymbol name="chevron.left" size={28} color={colors.foreground} />
           </Pressable>
-          <Text className="text-3xl font-bold text-foreground">Preferences</Text>
+          <Text className="text-3xl font-bold text-foreground">Settings</Text>
           <Text className="text-base text-muted">Update app defaults and units</Text>
         </View>
 
@@ -608,24 +608,21 @@ export default function PreferencesScreen() {
                       textAlign: 'center',
                     }}
                   />
+                  <Pressable
+                    onPress={handleApplyDefaultRepRange}
+                    style={({ pressed }) => [
+                      {
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        backgroundColor: colors.primary,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.background }}>Apply</Text>
+                  </Pressable>
                 </View>
-              </View>
-
-              <View style={{ alignItems: 'flex-end' }}>
-                <Pressable
-                  onPress={handleApplyDefaultRepRange}
-                  style={({ pressed }) => [
-                    {
-                      paddingHorizontal: 12,
-                      paddingVertical: 6,
-                      borderRadius: 8,
-                      backgroundColor: colors.primary,
-                      opacity: pressed ? 0.7 : 1,
-                    },
-                  ]}
-                >
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.background }}>Apply default range</Text>
-                </Pressable>
               </View>
 
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -653,6 +650,37 @@ export default function PreferencesScreen() {
                   <Text style={{ color: colors.muted, fontSize: 14, fontWeight: '700' }}>
                     {settings.weightUnit}
                   </Text>
+                </View>
+              </View>
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
+                <Text style={{ fontSize: 13, color: colors.muted }}>Update sets first</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>
+                    {settings.autoProgressionUpdateSetsFirst ? 'Enabled' : 'Disabled'}
+                  </Text>
+                  <Pressable
+                    onPress={async () => {
+                      const nextEnabled = !settings.autoProgressionUpdateSetsFirst;
+                      await updateSettings({ autoProgressionUpdateSetsFirst: nextEnabled });
+                      if (Platform.OS !== 'web') {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }
+                    }}
+                    style={({ pressed }) => [
+                      {
+                        paddingHorizontal: 16,
+                        paddingVertical: 8,
+                        borderRadius: 10,
+                        backgroundColor: colors.primary,
+                        opacity: pressed ? 0.7 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
+                      Change
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             </View>
