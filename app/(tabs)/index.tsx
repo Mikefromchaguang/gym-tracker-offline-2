@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { TemplateCard } from '@/components/template-card';
 import { useGym } from '@/lib/gym-context';
 import { useRouter } from 'expo-router';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColors } from '@/hooks/use-colors';
 import { useBodyweight } from '@/hooks/use-bodyweight';
@@ -63,6 +63,8 @@ export default function HomeScreen() {
   const [currentPlanIndex, setCurrentPlanIndex] = useState(0);
   const [showWeekPlanMenu, setShowWeekPlanMenu] = useState(false);
   const [selectedWeekPlanId, setSelectedWeekPlanId] = useState<string | null>(null);
+  const routineCarouselRef = useRef<ScrollView | null>(null);
+  const planCarouselRef = useRef<ScrollView | null>(null);
 
   const routineCardSpacing = 12;
   const routineCardWidth = useMemo(() => {
@@ -76,6 +78,48 @@ export default function HomeScreen() {
     () => routineCardWidth + routineCardSpacing,
     [routineCardWidth]
   );
+
+  const carouselLoopCopies = 3;
+
+  const routineCarouselItems = useMemo(() => {
+    if (localTemplates.length <= 1) {
+      return localTemplates.map((template, index) => ({
+        key: `0-${template.id}`,
+        template,
+        originalIndex: index,
+        copyIndex: 0,
+      }));
+    }
+
+    return Array.from({ length: carouselLoopCopies }, (_, copyIndex) =>
+      localTemplates.map((template, originalIndex) => ({
+        key: `${copyIndex}-${template.id}`,
+        template,
+        originalIndex,
+        copyIndex,
+      }))
+    ).flat();
+  }, [localTemplates]);
+
+  const planCarouselItems = useMemo(() => {
+    if (localWeekPlans.length <= 1) {
+      return localWeekPlans.map((plan, index) => ({
+        key: `0-${plan.id}`,
+        plan,
+        originalIndex: index,
+        copyIndex: 0,
+      }));
+    }
+
+    return Array.from({ length: carouselLoopCopies }, (_, copyIndex) =>
+      localWeekPlans.map((plan, originalIndex) => ({
+        key: `${copyIndex}-${plan.id}`,
+        plan,
+        originalIndex,
+        copyIndex,
+      }))
+    ).flat();
+  }, [localWeekPlans]);
 
   const activeWeekPlan = useMemo(() => {
     if (localWeekPlans.length === 0) return null;
@@ -93,6 +137,16 @@ export default function HomeScreen() {
     const day = activeWeekPlan.days.find((d) => d.dayIndex === today);
     return new Set(day?.routineIds || []);
   }, [activeWeekPlan]);
+
+  const todayRoutineIndex = useMemo(
+    () => localTemplates.findIndex((template) => todayRoutineIds.has(template.id)),
+    [localTemplates, todayRoutineIds]
+  );
+
+  const activePlanIndex = useMemo(
+    () => localWeekPlans.findIndex((plan) => plan.id === activeWeekPlanId),
+    [localWeekPlans, activeWeekPlanId]
+  );
 
   // Sync templates from context to local state
   useEffect(() => {
@@ -119,23 +173,115 @@ export default function HomeScreen() {
 
   const handleRoutineScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (localTemplates.length === 0) {
+        setCurrentRoutineIndex(0);
+        return;
+      }
+
       const x = e.nativeEvent.contentOffset.x;
       const rawIndex = routineSnapInterval > 0 ? Math.round(x / routineSnapInterval) : 0;
-      const maxIndex = Math.max(0, localTemplates.length - 1);
-      setCurrentRoutineIndex(Math.max(0, Math.min(rawIndex, maxIndex)));
+
+      if (localTemplates.length <= 1) {
+        setCurrentRoutineIndex(0);
+        return;
+      }
+
+      const baseLength = localTemplates.length;
+      let adjustedIndex = rawIndex;
+
+      if (rawIndex < baseLength) {
+        adjustedIndex = rawIndex + baseLength;
+      } else if (rawIndex >= baseLength * 2) {
+        adjustedIndex = rawIndex - baseLength;
+      }
+
+      if (adjustedIndex !== rawIndex) {
+        routineCarouselRef.current?.scrollTo({
+          x: adjustedIndex * routineSnapInterval,
+          animated: false,
+        });
+      }
+
+      setCurrentRoutineIndex(((adjustedIndex % baseLength) + baseLength) % baseLength);
     },
     [routineSnapInterval, localTemplates.length]
   );
 
   const handlePlanScrollEnd = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (localWeekPlans.length === 0) {
+        setCurrentPlanIndex(0);
+        return;
+      }
+
       const x = e.nativeEvent.contentOffset.x;
       const rawIndex = routineSnapInterval > 0 ? Math.round(x / routineSnapInterval) : 0;
-      const maxIndex = Math.max(0, localWeekPlans.length - 1);
-      setCurrentPlanIndex(Math.max(0, Math.min(rawIndex, maxIndex)));
+
+      if (localWeekPlans.length <= 1) {
+        setCurrentPlanIndex(0);
+        return;
+      }
+
+      const baseLength = localWeekPlans.length;
+      let adjustedIndex = rawIndex;
+
+      if (rawIndex < baseLength) {
+        adjustedIndex = rawIndex + baseLength;
+      } else if (rawIndex >= baseLength * 2) {
+        adjustedIndex = rawIndex - baseLength;
+      }
+
+      if (adjustedIndex !== rawIndex) {
+        planCarouselRef.current?.scrollTo({
+          x: adjustedIndex * routineSnapInterval,
+          animated: false,
+        });
+      }
+
+      setCurrentPlanIndex(((adjustedIndex % baseLength) + baseLength) % baseLength);
     },
     [routineSnapInterval, localWeekPlans.length]
   );
+
+  useEffect(() => {
+    if (localTemplates.length === 0 || routineSnapInterval <= 0) return;
+
+    if (localTemplates.length === 1) {
+      setCurrentRoutineIndex(0);
+      routineCarouselRef.current?.scrollTo({ x: 0, animated: false });
+      return;
+    }
+
+    const baseLength = localTemplates.length;
+    const preferredIndex = todayRoutineIndex >= 0 ? todayRoutineIndex : 0;
+    const targetDisplayIndex = baseLength + preferredIndex;
+
+    routineCarouselRef.current?.scrollTo({
+      x: targetDisplayIndex * routineSnapInterval,
+      animated: false,
+    });
+    setCurrentRoutineIndex(preferredIndex);
+  }, [localTemplates, todayRoutineIndex, routineSnapInterval]);
+
+  useEffect(() => {
+    if (localWeekPlans.length === 0 || routineSnapInterval <= 0) return;
+
+    if (localWeekPlans.length === 1) {
+      setCurrentPlanIndex(0);
+      planCarouselRef.current?.scrollTo({ x: 0, animated: false });
+      return;
+    }
+
+    const baseLength = localWeekPlans.length;
+    const preferredIndex = activePlanIndex >= 0 ? activePlanIndex : 0;
+    const targetDisplayIndex = baseLength + preferredIndex;
+
+    planCarouselRef.current?.scrollTo({
+      x: targetDisplayIndex * routineSnapInterval,
+      animated: false,
+    });
+    setCurrentPlanIndex(preferredIndex);
+  }, [localWeekPlans, activePlanIndex, routineSnapInterval]);
 
   const handleCreateWeekPlan = useCallback(() => {
     router.push('/_hidden/week-plans/edit');
@@ -825,6 +971,7 @@ export default function HomeScreen() {
 
             {localTemplates.length > 0 ? (
               <ScrollView
+                ref={routineCarouselRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 decelerationRate="fast"
@@ -835,17 +982,17 @@ export default function HomeScreen() {
                 onMomentumScrollEnd={handleRoutineScrollEnd}
                 contentContainerStyle={{ paddingRight: 4 }}
               >
-                {localTemplates.map((template, index) => (
+                {routineCarouselItems.map(({ key, template, originalIndex, copyIndex }, displayIndex) => (
                   <View
-                    key={template.id}
-                    style={{ width: routineCardWidth, marginRight: index === localTemplates.length - 1 ? 0 : routineCardSpacing }}
+                    key={key}
+                    style={{ width: routineCardWidth, marginRight: displayIndex === routineCarouselItems.length - 1 ? 0 : routineCardSpacing }}
                   >
                     <Animated.View
                       layout={Platform.OS === 'web' ? undefined : LinearTransition.duration(120)}
                     >
                       <TemplateCard
                         template={template}
-                        index={index}
+                        index={originalIndex}
                         totalCount={localTemplates.length}
                         isScheduledToday={todayRoutineIds.has(template.id)}
                         onMoveUp={handleMoveUp}
@@ -896,6 +1043,7 @@ export default function HomeScreen() {
 
             {localWeekPlans.length > 0 ? (
               <ScrollView
+                ref={planCarouselRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 decelerationRate="fast"
@@ -906,17 +1054,17 @@ export default function HomeScreen() {
                 onMomentumScrollEnd={handlePlanScrollEnd}
                 contentContainerStyle={{ paddingRight: 4 }}
               >
-                {localWeekPlans.map((plan, index) => {
+                {planCarouselItems.map(({ key, plan, originalIndex }, displayIndex) => {
                   const totalSessions = plan.days.reduce((acc, d) => acc + d.routineIds.length, 0);
                   const todayCount = plan.days.find((d) => d.dayIndex === new Date().getDay())?.routineIds.length || 0;
                   const isActive = activeWeekPlan?.id === plan.id;
-                  const isFirst = index === 0;
-                  const isLast = index === localWeekPlans.length - 1;
+                  const isFirst = originalIndex === 0;
+                  const isLast = originalIndex === localWeekPlans.length - 1;
 
                   return (
                     <View
-                      key={plan.id}
-                      style={{ width: routineCardWidth, marginRight: index === localWeekPlans.length - 1 ? 0 : routineCardSpacing }}
+                      key={key}
+                      style={{ width: routineCardWidth, marginRight: displayIndex === planCarouselItems.length - 1 ? 0 : routineCardSpacing }}
                     >
                       <Animated.View
                         layout={Platform.OS === 'web' ? undefined : LinearTransition.duration(120)}
@@ -926,7 +1074,7 @@ export default function HomeScreen() {
                           <View className="flex-row items-center justify-between">
                             <View style={{ flexDirection: 'column', marginRight: 8, marginLeft: -4 }}>
                               <Pressable
-                                onPress={() => handleMovePlanLeft(index)}
+                                onPress={() => handleMovePlanLeft(originalIndex)}
                                 disabled={isFirst}
                                 style={({ pressed }) => ({
                                   padding: 4,
@@ -936,7 +1084,7 @@ export default function HomeScreen() {
                                 <IconSymbol size={16} name="chevron.left" color={isFirst ? colors.muted : colors.foreground} />
                               </Pressable>
                               <Pressable
-                                onPress={() => handleMovePlanRight(index)}
+                                onPress={() => handleMovePlanRight(originalIndex)}
                                 disabled={isLast}
                                 style={({ pressed }) => ({
                                   padding: 4,
