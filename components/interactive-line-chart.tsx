@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Pressable, PanResponder } from 'react-native';
 import Svg, { Line as SvgLine, Circle, Text as SvgText, Polyline, Rect, Defs, LinearGradient, Stop, Path } from 'react-native-svg';
 import { useColors } from '@/hooks/use-colors';
 import { IconSymbol } from '@/components/ui/icon-symbol';
@@ -180,6 +180,7 @@ export function InteractiveLineChart({
   const colors = useColors();
   const [selectedPointIndex, setSelectedPointIndex] = useState<number | null>(null);
   const [selectedMarkerIndex, setSelectedMarkerIndex] = useState<number | null>(null);
+  const lastScrubSelectionRef = useRef<string | null>(null);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [chartSettings, setChartSettings] = useState<ChartSettings>({
     showRollingAverage: initialSettings?.showRollingAverage ?? true,
@@ -364,12 +365,92 @@ export function InteractiveLineChart({
     }
   };
 
+  const selectNearestTarget = React.useCallback(
+    (touchX: number, touchY: number, allowHaptic: boolean) => {
+      const targets: Array<{ kind: 'point' | 'marker'; index: number; px: number; py: number }> = [
+        ...sortedData.map((d, index) => ({
+          kind: 'point' as const,
+          index,
+          px: scaleX(d.x),
+          py: scaleY(d.y),
+        })),
+        ...(sanitized.markers || []).map((m, index) => ({
+          kind: 'marker' as const,
+          index,
+          px: scaleX(m.x),
+          py: scaleY(m.y),
+        })),
+      ];
+
+      if (targets.length === 0) return;
+
+      const clampedX = Math.max(padding.left, Math.min(width - padding.right, touchX));
+      const clampedY = Math.max(padding.top, Math.min(height - padding.bottom, touchY));
+
+      let nearest = targets[0];
+      let nearestScore = Number.POSITIVE_INFINITY;
+
+      for (const target of targets) {
+        const dx = Math.abs(target.px - clampedX);
+        const dy = Math.abs(target.py - clampedY);
+        // Prioritize horizontal proximity so dragging feels like timeline scrubbing.
+        const score = dx + dy * 0.12;
+        if (score < nearestScore) {
+          nearest = target;
+          nearestScore = score;
+        }
+      }
+
+      const selectionKey = `${nearest.kind}-${nearest.index}`;
+      const selectionChanged = selectionKey !== lastScrubSelectionRef.current;
+
+      if (nearest.kind === 'marker') {
+        handleMarkerTap(nearest.index);
+      } else {
+        handlePointTap(nearest.index);
+      }
+
+      if (selectionChanged) {
+        lastScrubSelectionRef.current = selectionKey;
+        if (allowHaptic) {
+          triggerHaptic();
+        }
+      }
+    },
+    [sortedData, sanitized.markers, padding.left, padding.right, padding.top, padding.bottom, width, height]
+  );
+
+  const panResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: () => true,
+        onPanResponderGrant: (event) => {
+          selectNearestTarget(event.nativeEvent.locationX, event.nativeEvent.locationY, true);
+        },
+        onPanResponderMove: (event) => {
+          selectNearestTarget(event.nativeEvent.locationX, event.nativeEvent.locationY, true);
+        },
+        onPanResponderRelease: () => {
+          lastScrubSelectionRef.current = null;
+        },
+        onPanResponderTerminate: () => {
+          lastScrubSelectionRef.current = null;
+        },
+      }),
+    [selectNearestTarget]
+  );
+
   const activePoint =
     selectedMarkerIndex !== null
       ? (sanitized.markers?.[selectedMarkerIndex] ?? null)
       : selectedPointIndex !== null
         ? sortedData[selectedPointIndex]
         : null;
+
+  const activePointColor = selectedMarkerIndex !== null
+    ? (sanitized.markers?.[selectedMarkerIndex]?.color ?? (colors.warning || '#f59e0b'))
+    : colors.primary;
 
   const selectedLabel = selectedPointIndex !== null && sanitized.xLabels ? sanitized.xLabels[selectedPointIndex] : null;
 
@@ -635,38 +716,36 @@ export function InteractiveLineChart({
           />
         ) : null}
 
-        {/* Data points */}
-        {sortedData.map((d, i) => (
-          <React.Fragment key={`point-${i}`}>
-            {/* Outer glow for selected point */}
-            {selectedPointIndex === i && (
-              <Circle
-                cx={scaleX(d.x)}
-                cy={scaleY(d.y)}
-                r={12}
-                fill={colors.primary}
-                opacity={0.15}
-              />
-            )}
-            {/* Outer ring */}
-            <Circle
-              cx={scaleX(d.x)}
-              cy={scaleY(d.y)}
-              r={selectedPointIndex === i ? 7 : 5}
-              fill={colors.primary}
-              opacity={selectedPointIndex === i ? 0.3 : 0.15}
+        {/* Active crosshair + point */}
+        {activePoint && (
+          <>
+            <SvgLine
+              x1={scaleX(activePoint.x)}
+              y1={padding.top}
+              x2={scaleX(activePoint.x)}
+              y2={height - padding.bottom}
+              stroke={colors.border}
+              strokeWidth={1}
+              strokeDasharray="4,4"
+              strokeOpacity={0.7}
             />
-            {/* Inner dot */}
             <Circle
-              cx={scaleX(d.x)}
-              cy={scaleY(d.y)}
-              r={selectedPointIndex === i ? 5 : 3.5}
-              fill={colors.primary}
+              cx={scaleX(activePoint.x)}
+              cy={scaleY(activePoint.y)}
+              r={12}
+              fill={activePointColor}
+              opacity={0.16}
+            />
+            <Circle
+              cx={scaleX(activePoint.x)}
+              cy={scaleY(activePoint.y)}
+              r={6}
+              fill={activePointColor}
               stroke={colors.background}
-              strokeWidth={2}
+              strokeWidth={2.2}
             />
-          </React.Fragment>
-        ))}
+          </>
+        )}
 
         {/* Marker points (rendered on top) */}
         {(sanitized.markers || []).map((m, i) => (
@@ -740,49 +819,16 @@ export function InteractiveLineChart({
         />
       </Svg>
 
-      {/* Pressable overlay for tap detection */}
+      {/* Gesture overlay for tap + drag scrubbing */}
       <View style={{
         position: 'absolute',
         top: 0,
         left: 0,
         width: width,
         height: height,
-        pointerEvents: 'box-none',
-      }}>
-        {sortedData.map((d, i) => (
-          <Pressable
-            key={`tap-${i}`}
-            onPress={() => {
-              triggerHaptic();
-              handlePointTap(i);
-            }}
-            style={{
-              position: 'absolute',
-              left: scaleX(d.x) - 16,
-              top: scaleY(d.y) - 16,
-              width: 32,
-              height: 32,
-            }}
-          />
-        ))}
-
-        {(sanitized.markers || []).map((m, i) => (
-          <Pressable
-            key={`marker-tap-${i}`}
-            onPress={() => {
-              triggerHaptic();
-              handleMarkerTap(i);
-            }}
-            style={{
-              position: 'absolute',
-              left: scaleX(m.x) - 16,
-              top: scaleY(m.y) - 16,
-              width: 32,
-              height: 32,
-            }}
-          />
-        ))}
-      </View>
+      }}
+      {...panResponder.panHandlers}
+      />
 
       {/* Tooltip */}
       {activePoint && (selectedPointIndex !== null || selectedMarkerIndex !== null) && (
