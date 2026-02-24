@@ -1821,7 +1821,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       <CreateExerciseModal
         visible={showEditModal && currentExercise?.isCustom}
         onClose={() => setShowEditModal(false)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={handleSaveEdit}
         mode="edit"
         defaultPreferredMinReps={settings.defaultAutoProgressionMinReps}
@@ -1843,7 +1843,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
       <EditPredefinedExerciseModal
         visible={!!editingPredefinedExercise}
         onClose={() => setEditingPredefinedExercise(null)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={async (customization) => {
           if (editingPredefinedExercise) {
             const previous = predefinedExerciseCustomizations[editingPredefinedExercise];

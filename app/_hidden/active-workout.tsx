@@ -2786,7 +2786,7 @@ export default function ActiveWorkoutScreen() {
       <CreateExerciseModal
         visible={showCreateExercise}
         onClose={() => setShowCreateExercise(false)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -3109,7 +3109,7 @@ export default function ActiveWorkoutScreen() {
       <ExerciseQuickActionsSheet
         visible={showExerciseQuickActions}
         exerciseName={exerciseQuickActionsName}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 90}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}

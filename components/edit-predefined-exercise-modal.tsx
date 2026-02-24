@@ -53,7 +53,7 @@ interface EditPredefinedExerciseModalProps {
 export function EditPredefinedExerciseModal({
   visible,
   onClose,
-  showAutoProgressionControls = true,
+  showAutoProgressionControls = false,
   onSave,
   onReset,
   exerciseName,

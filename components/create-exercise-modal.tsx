@@ -50,7 +50,7 @@ interface CreateExerciseModalProps {
 export function CreateExerciseModal({
   visible,
   onClose,
-  showAutoProgressionControls = true,
+  showAutoProgressionControls = false,
   onSave,
   mode,
   existingExercise,

@@ -2830,7 +2830,7 @@ export default function TemplateCreateScreen() {
       <CreateExerciseModal
         visible={showCreateExercise}
         onClose={() => setShowCreateExercise(false)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -2865,7 +2865,7 @@ export default function TemplateCreateScreen() {
       <ExerciseQuickActionsSheet
         visible={showExerciseQuickActions}
         exerciseName={exerciseQuickActionsName}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 180}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}

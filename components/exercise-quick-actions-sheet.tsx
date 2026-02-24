@@ -40,7 +40,7 @@ interface ExerciseQuickActionsSheetProps {
 export function ExerciseQuickActionsSheet({
   visible,
   exerciseName,
-  showAutoProgressionControls = true,
+  showAutoProgressionControls = false,
   restTimeSeconds,
   defaultRestTimeSeconds,
   restTimerEnabled,
@@ -72,7 +72,7 @@ export function ExerciseQuickActionsSheet({
   const canEditRest = typeof onChangeRestTimeSeconds === 'function';
   const canToggleRest = typeof onToggleRestTimerEnabled === 'function' && typeof restTimerEnabled === 'boolean';
   const isRestDisabled = canToggleRest && restTimerEnabled === false;
-  const canShowAutoProgressionControls = showAutoProgressionControls !== false;
+  const canShowAutoProgressionControls = showAutoProgressionControls === true;
   const canEditAutoProgression =
     canShowAutoProgressionControls &&
     typeof onChangeAutoProgressionMinReps === 'function' &&

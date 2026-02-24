@@ -281,7 +281,7 @@ export default function ExercisesScreen() {
       <CreateExerciseModal
         visible={showAddModal}
         onClose={() => setShowAddModal(false)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -290,7 +290,7 @@ export default function ExercisesScreen() {
       <EditPredefinedExerciseModal
         visible={!!editingPredefinedExercise}
         onClose={() => setEditingPredefinedExercise(null)}
-        showAutoProgressionControls={settings.autoProgressionEnabled}
+        showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={async (customization) => {
           if (editingPredefinedExercise) {
             const nextPreferredEnabled = customization.preferredAutoProgressionEnabled !== false;
