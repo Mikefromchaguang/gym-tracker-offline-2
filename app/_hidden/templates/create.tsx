@@ -107,6 +107,7 @@ export default function TemplateCreateScreen() {
   }, []);
 
   const [templateName, setTemplateName] = useState('');
+  const [routineAutoProgressionEnabled, setRoutineAutoProgressionEnabled] = useState(true);
   const [exercises, setExercises] = useState<TemplateExerciseWithSets[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -151,6 +152,9 @@ export default function TemplateCreateScreen() {
   const headerPageWidth = Math.max(1, windowWidth - 32); // ScreenContainer has `p-4`
   const [headerCardHeight, setHeaderCardHeight] = useState<number | null>(null);
   const headerScrollRef = useRef<ScrollView>(null);
+
+  const showRoutineAutoProgressionControls =
+    settings.autoProgressionEnabled === true && routineAutoProgressionEnabled;
 
   // Re-measure header height if width changes (e.g., rotation)
   useEffect(() => {
@@ -324,7 +328,7 @@ export default function TemplateCreateScreen() {
       ? ex.timerEnabled !== false && (!mate || mate.timerEnabled !== false)
       : ex.timerEnabled !== false;
     const autoProgressionEnabled =
-      autoProgressionAvailable && settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
+      autoProgressionAvailable && settings.autoProgressionEnabled && routineAutoProgressionEnabled && ex.autoProgressionEnabled !== false;
 
     return {
       ex,
@@ -343,6 +347,7 @@ export default function TemplateCreateScreen() {
     exercises,
     settings.defaultRestTime,
     settings.autoProgressionEnabled,
+    routineAutoProgressionEnabled,
     resolveExercisePreferenceMeta,
   ]);
 
@@ -422,6 +427,7 @@ export default function TemplateCreateScreen() {
       const template = templates.find((t) => t.id === templateId);
       if (template) {
         setTemplateName(template.name);
+        setRoutineAutoProgressionEnabled(template.autoProgressionEnabled !== false);
         
         // Convert Exercise[] to TemplateExerciseWithSets[]
         const exercisesWithSets: TemplateExerciseWithSets[] = template.exercises.map((ex) => {
@@ -477,6 +483,7 @@ export default function TemplateCreateScreen() {
     } else {
       // Reset state when creating new template
       setTemplateName('');
+      setRoutineAutoProgressionEnabled(true);
       setExercises([]);
               setCollapsedDisplayKeys(new Set());
     }
@@ -1443,6 +1450,7 @@ export default function TemplateCreateScreen() {
             ...template,
             name: templateName,
             exercises: cleanExercises,
+            autoProgressionEnabled: routineAutoProgressionEnabled,
             updatedAt: Date.now(),
           };
           console.log('[Template Save] Updating template:', updatedTemplate);
@@ -1453,6 +1461,7 @@ export default function TemplateCreateScreen() {
           id: generateId(),
           name: templateName,
           exercises: cleanExercises,
+          autoProgressionEnabled: routineAutoProgressionEnabled,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -1472,7 +1481,7 @@ export default function TemplateCreateScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [templateName, exercises, templateId, templates, addTemplate, updateTemplate, router, customExercises, predefinedExerciseCustomizations]);
+  }, [templateName, exercises, templateId, templates, addTemplate, updateTemplate, router, customExercises, predefinedExerciseCustomizations, routineAutoProgressionEnabled]);
 
   const handleSaveAsNewTemplate = useCallback(async () => {
     if (exercises.length === 0) {
@@ -1556,6 +1565,7 @@ export default function TemplateCreateScreen() {
         id: generateId(),
         name: newName,
         exercises: cleanExercises,
+        autoProgressionEnabled: routineAutoProgressionEnabled,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -1570,7 +1580,7 @@ export default function TemplateCreateScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [newTemplateName, exercises, customExercises, addTemplate, router]);
+  }, [newTemplateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled]);
 
   // Old Alert.prompt version - replaced with modal
   const handleSaveAsNewTemplate_OLD = useCallback(async () => {
@@ -1658,6 +1668,7 @@ export default function TemplateCreateScreen() {
                 id: generateId(),
                 name: newName.trim(),
                 exercises: cleanExercises,
+                autoProgressionEnabled: routineAutoProgressionEnabled,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
               };
@@ -1678,7 +1689,7 @@ export default function TemplateCreateScreen() {
       'plain-text',
       `Copy of ${templateName}` // Pre-fill with "Copy of [original name]"
     );
-  }, [templateName, exercises, customExercises, addTemplate, router]);
+  }, [templateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled]);
 
   const renderSetRow = useCallback((exerciseIndex: number, set: CompletedSet, setIndex: number, exerciseType?: string) => {
     const unit = settings.weightUnit;
@@ -1874,6 +1885,7 @@ export default function TemplateCreateScreen() {
                                 ex.type !== 'bodyweight' &&
                                 ex.type !== 'assisted-bodyweight' &&
                                 settings.autoProgressionEnabled &&
+                                routineAutoProgressionEnabled &&
                                 ex.autoProgressionEnabled !== false,
                               minReps:
                                 ex.autoProgressionUseDefaultRange === false
@@ -2048,6 +2060,7 @@ export default function TemplateCreateScreen() {
                               exA.type !== 'bodyweight' &&
                               exA.type !== 'assisted-bodyweight' &&
                               settings.autoProgressionEnabled &&
+                              routineAutoProgressionEnabled &&
                               exA.autoProgressionEnabled !== false,
                             minReps:
                               exA.autoProgressionUseDefaultRange === false
@@ -2131,6 +2144,7 @@ export default function TemplateCreateScreen() {
                               exB.type !== 'bodyweight' &&
                               exB.type !== 'assisted-bodyweight' &&
                               settings.autoProgressionEnabled &&
+                              routineAutoProgressionEnabled &&
                               exB.autoProgressionEnabled !== false,
                             minReps:
                               exB.autoProgressionUseDefaultRange === false
@@ -2776,6 +2790,32 @@ export default function TemplateCreateScreen() {
             fontSize: 16,
           }}
         />
+
+        {settings.autoProgressionEnabled === true && (
+          <Pressable
+            onPress={() => setRoutineAutoProgressionEnabled((prev) => !prev)}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderWidth: 1,
+              borderColor: colors.border,
+              backgroundColor: colors.surface,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 10,
+              opacity: pressed ? 0.8 : 1,
+            })}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <IconSymbol size={16} name="chart.line.uptrend.xyaxis" color="#8B5CF6" />
+              <Text style={{ fontSize: 14, color: colors.foreground }}>Routine auto-progression</Text>
+            </View>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: routineAutoProgressionEnabled ? '#8B5CF6' : colors.muted }}>
+              {routineAutoProgressionEnabled ? 'On' : 'Off'}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       <FlatList
@@ -2830,7 +2870,7 @@ export default function TemplateCreateScreen() {
       <CreateExerciseModal
         visible={showCreateExercise}
         onClose={() => setShowCreateExercise(false)}
-        showAutoProgressionControls={settings.autoProgressionEnabled === true}
+        showAutoProgressionControls={showRoutineAutoProgressionControls}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -2865,7 +2905,7 @@ export default function TemplateCreateScreen() {
       <ExerciseQuickActionsSheet
         visible={showExerciseQuickActions}
         exerciseName={exerciseQuickActionsName}
-        showAutoProgressionControls={settings.autoProgressionEnabled === true}
+        showAutoProgressionControls={showRoutineAutoProgressionControls}
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 180}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
@@ -2926,7 +2966,7 @@ export default function TemplateCreateScreen() {
             handleUpdateExercise(meta.ex.id, { timerEnabled: nextEnabled });
           }
         }}
-        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
+        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable && showRoutineAutoProgressionControls ? ((reps) => {
           if (!exerciseQuickActionsId) return;
           const nextMin = reps ?? undefined;
           setExercises((prev) => prev.map((ex) => (
@@ -2940,7 +2980,7 @@ export default function TemplateCreateScreen() {
               : ex
           )));
         }) : undefined}
-        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
+        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable && showRoutineAutoProgressionControls ? ((reps) => {
           if (!exerciseQuickActionsId) return;
           const nextMax = reps ?? undefined;
           setExercises((prev) => prev.map((ex) => (
@@ -2954,11 +2994,11 @@ export default function TemplateCreateScreen() {
               : ex
           )));
         }) : undefined}
-        onToggleAutoProgressionEnabled={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
+        onToggleAutoProgressionEnabled={quickActionsMeta?.autoProgressionAvailable && showRoutineAutoProgressionControls ? (() => {
           if (!exerciseQuickActionsId) return;
           setExercises((prev) => prev.map((ex) => {
             if (ex.id !== exerciseQuickActionsId) return ex;
-            const currentlyEnabled = settings.autoProgressionEnabled && ex.autoProgressionEnabled !== false;
+            const currentlyEnabled = showRoutineAutoProgressionControls && ex.autoProgressionEnabled !== false;
             const nextEnabled = !currentlyEnabled;
             if (!nextEnabled) {
               return { ...ex, autoProgressionEnabled: false };
@@ -2984,7 +3024,7 @@ export default function TemplateCreateScreen() {
             };
           }));
         }) : undefined}
-        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
+        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable && showRoutineAutoProgressionControls ? (() => {
           if (!exerciseQuickActionsId) return;
           setExercises((prev) => prev.map((ex) => (
             ex.id === exerciseQuickActionsId
@@ -2998,7 +3038,7 @@ export default function TemplateCreateScreen() {
               : ex
           )));
         }) : undefined}
-        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
+        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable && showRoutineAutoProgressionControls ? (() => {
           if (!exerciseQuickActionsId) return;
           const meta = quickActionsMeta;
           if (!meta || typeof meta.preferredMin !== 'number' || typeof meta.preferredMax !== 'number') {

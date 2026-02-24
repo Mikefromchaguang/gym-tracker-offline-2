@@ -102,6 +102,8 @@ export interface WorkoutTemplate {
   id: string;
   name: string;
   exercises: Exercise[];
+  /** Routine-level auto-progression toggle (defaults to enabled when missing). */
+  autoProgressionEnabled?: boolean;
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;

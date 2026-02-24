@@ -47,6 +47,8 @@ export function TemplateCard({
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [menuHeight, setMenuHeight] = useState(0);
+  const hasEffectiveAutoProgression =
+    settings.autoProgressionEnabled === true && template.autoProgressionEnabled !== false;
 
   // Calculate total volume and sets for the template (using exact pattern from create.tsx)
   const { totalVolume, totalSets } = useMemo(() => {
@@ -186,6 +188,20 @@ export function TemplateCard({
             <View className="flex-1">
               <View className="flex-row items-center gap-2 flex-wrap">
                 <CardTitle className="text-base">{template.name}</CardTitle>
+                {hasEffectiveAutoProgression ? (
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: '#8B5CF6',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <IconSymbol size={11} name="chart.line.uptrend.xyaxis" color="#ffffff" />
+                  </View>
+                ) : null}
                 {isScheduledToday ? (
                   <View className="bg-orange-500 px-2 py-1 rounded-full">
                     <Text className="text-xs font-semibold text-background">Today</Text>
