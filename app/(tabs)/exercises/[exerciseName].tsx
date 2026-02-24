@@ -1187,6 +1187,7 @@ export function ExerciseDetailScreenLegacy() {
       <CreateExerciseModal
         visible={showEditModal}
         onClose={() => setShowEditModal(false)}
+        showAutoProgressionControls={settings.autoProgressionEnabled}
         onSave={handleSaveEdit}
         mode="edit"
         existingExercise={currentExercise ? {

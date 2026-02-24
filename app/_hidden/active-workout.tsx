@@ -2786,6 +2786,7 @@ export default function ActiveWorkoutScreen() {
       <CreateExerciseModal
         visible={showCreateExercise}
         onClose={() => setShowCreateExercise(false)}
+        showAutoProgressionControls={settings.autoProgressionEnabled}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -3108,6 +3109,7 @@ export default function ActiveWorkoutScreen() {
       <ExerciseQuickActionsSheet
         visible={showExerciseQuickActions}
         exerciseName={exerciseQuickActionsName}
+        showAutoProgressionControls={settings.autoProgressionEnabled}
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 90}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
@@ -3157,7 +3159,7 @@ export default function ActiveWorkoutScreen() {
           if (exerciseQuickActionsIndex === null) return;
           toggleRestTimerEnabledForIndex(exerciseQuickActionsIndex);
         }}
-        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
+        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3173,7 +3175,7 @@ export default function ActiveWorkoutScreen() {
             return next;
           });
         }) : undefined}
-        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
+        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3221,7 +3223,7 @@ export default function ActiveWorkoutScreen() {
             return next;
           });
         }) : undefined}
-        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
+        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
           if (exerciseQuickActionsIndex === null) return;
           setExercises((prev) => {
             const next = [...prev];
@@ -3237,7 +3239,7 @@ export default function ActiveWorkoutScreen() {
             return next;
           });
         }) : undefined}
-        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
+        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
           if (exerciseQuickActionsIndex === null) return;
           const meta = quickActionsMeta;
           if (!meta) return;

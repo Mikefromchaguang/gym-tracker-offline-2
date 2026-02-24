@@ -37,6 +37,7 @@ interface ExerciseData {
 interface CreateExerciseModalProps {
   visible: boolean;
   onClose: () => void;
+  showAutoProgressionControls?: boolean;
   onSave: (
     exercise: ExerciseData
   ) => Promise<void>;
@@ -49,6 +50,7 @@ interface CreateExerciseModalProps {
 export function CreateExerciseModal({
   visible,
   onClose,
+  showAutoProgressionControls = true,
   onSave,
   mode,
   existingExercise,
@@ -149,6 +151,7 @@ export function CreateExerciseModal({
   };
 
   const autoProgressionAvailable =
+    showAutoProgressionControls &&
     exerciseType !== 'bodyweight' && exerciseType !== 'assisted-bodyweight';
 
   const handleResetMuscles = () => {
@@ -389,65 +392,67 @@ export function CreateExerciseModal({
             }}
           />
 
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
-              Auto-progression
-            </Text>
-            {autoProgressionAvailable ? (
-              <>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                  <Text style={{ fontSize: 13, color: colors.muted }}>
-                    {preferredAutoProgressionEnabled ? 'Enabled' : 'Disabled'}
-                  </Text>
-                  <Button
-                    variant="outline"
-                    onPress={() => setPreferredAutoProgressionEnabled((prev) => !prev)}
-                  >
-                    <Text className="text-foreground font-semibold">
-                      {preferredAutoProgressionEnabled ? 'Disable' : 'Enable'}
-                    </Text>
-                  </Button>
-                </View>
-
-                {preferredAutoProgressionEnabled && (
-                  <>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <View style={{ flex: 1 }}>
-                        <Input
-                          placeholder="Min"
-                          keyboardType="numeric"
-                          value={preferredMinDraft}
-                          onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
-                        />
-                      </View>
-                      <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
-                      <View style={{ flex: 1 }}>
-                        <Input
-                          placeholder="Max"
-                          keyboardType="numeric"
-                          value={preferredMaxDraft}
-                          onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
-                        />
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 12, color: colors.muted }}>
-                      Used as this exercise's default auto-progression range.
-                    </Text>
-
-                    {mode === 'edit' && (
-                      <Text style={{ fontSize: 12, color: colors.muted }}>
-                        Saving will apply this preferred range to existing exercises in all routines.
-                      </Text>
-                    )}
-                  </>
-                )}
-              </>
-            ) : (
-              <Text style={{ fontSize: 12, color: colors.muted }}>
-                Unavailable for bodyweight and assisted bodyweight exercises.
+          {showAutoProgressionControls && (
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: colors.foreground }}>
+                Auto-progression
               </Text>
-            )}
-          </View>
+              {autoProgressionAvailable ? (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                    <Text style={{ fontSize: 13, color: colors.muted }}>
+                      {preferredAutoProgressionEnabled ? 'Enabled' : 'Disabled'}
+                    </Text>
+                    <Button
+                      variant="outline"
+                      onPress={() => setPreferredAutoProgressionEnabled((prev) => !prev)}
+                    >
+                      <Text className="text-foreground font-semibold">
+                        {preferredAutoProgressionEnabled ? 'Disable' : 'Enable'}
+                      </Text>
+                    </Button>
+                  </View>
+
+                  {preferredAutoProgressionEnabled && (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <Input
+                            placeholder="Min"
+                            keyboardType="numeric"
+                            value={preferredMinDraft}
+                            onChangeText={(text) => setPreferredMinDraft(text.replace(/[^0-9]/g, ''))}
+                          />
+                        </View>
+                        <Text style={{ color: colors.muted, fontWeight: '700' }}>-</Text>
+                        <View style={{ flex: 1 }}>
+                          <Input
+                            placeholder="Max"
+                            keyboardType="numeric"
+                            value={preferredMaxDraft}
+                            onChangeText={(text) => setPreferredMaxDraft(text.replace(/[^0-9]/g, ''))}
+                          />
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 12, color: colors.muted }}>
+                        Used as this exercise's default auto-progression range.
+                      </Text>
+
+                      {mode === 'edit' && (
+                        <Text style={{ fontSize: 12, color: colors.muted }}>
+                          Saving will apply this preferred range to existing exercises in all routines.
+                        </Text>
+                      )}
+                    </>
+                  )}
+                </>
+              ) : (
+                <Text style={{ fontSize: 12, color: colors.muted }}>
+                  Unavailable for bodyweight and assisted bodyweight exercises.
+                </Text>
+              )}
+            </View>
+          )}
 
           {/* Actions */}
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>

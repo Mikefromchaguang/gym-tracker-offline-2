@@ -2830,6 +2830,7 @@ export default function TemplateCreateScreen() {
       <CreateExerciseModal
         visible={showCreateExercise}
         onClose={() => setShowCreateExercise(false)}
+        showAutoProgressionControls={settings.autoProgressionEnabled}
         onSave={handleCreateExercise}
         mode="create"
       />
@@ -2864,6 +2865,7 @@ export default function TemplateCreateScreen() {
       <ExerciseQuickActionsSheet
         visible={showExerciseQuickActions}
         exerciseName={exerciseQuickActionsName}
+        showAutoProgressionControls={settings.autoProgressionEnabled}
         restTimeSeconds={quickActionsMeta?.restTimerSeconds}
         defaultRestTimeSeconds={settings.defaultRestTime ?? 180}
         restTimerEnabled={quickActionsMeta?.restTimerEnabled}
@@ -2924,7 +2926,7 @@ export default function TemplateCreateScreen() {
             handleUpdateExercise(meta.ex.id, { timerEnabled: nextEnabled });
           }
         }}
-        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
+        onChangeAutoProgressionMinReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
           if (!exerciseQuickActionsId) return;
           const nextMin = reps ?? undefined;
           setExercises((prev) => prev.map((ex) => (
@@ -2938,7 +2940,7 @@ export default function TemplateCreateScreen() {
               : ex
           )));
         }) : undefined}
-        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable ? ((reps) => {
+        onChangeAutoProgressionMaxReps={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? ((reps) => {
           if (!exerciseQuickActionsId) return;
           const nextMax = reps ?? undefined;
           setExercises((prev) => prev.map((ex) => (
@@ -2982,7 +2984,7 @@ export default function TemplateCreateScreen() {
             };
           }));
         }) : undefined}
-        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
+        onResetAutoProgressionToDefaultRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
           if (!exerciseQuickActionsId) return;
           setExercises((prev) => prev.map((ex) => (
             ex.id === exerciseQuickActionsId
@@ -2996,7 +2998,7 @@ export default function TemplateCreateScreen() {
               : ex
           )));
         }) : undefined}
-        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable ? (() => {
+        onResetAutoProgressionToPreferredRange={quickActionsMeta?.autoProgressionAvailable && settings.autoProgressionEnabled ? (() => {
           if (!exerciseQuickActionsId) return;
           const meta = quickActionsMeta;
           if (!meta || typeof meta.preferredMin !== 'number' || typeof meta.preferredMax !== 'number') {

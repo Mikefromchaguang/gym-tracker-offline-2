@@ -9,6 +9,7 @@ import { useColors } from '@/hooks/use-colors';
 interface ExerciseQuickActionsSheetProps {
   visible: boolean;
   exerciseName: string | null;
+  showAutoProgressionControls?: boolean;
   restTimeSeconds?: number | null;
   defaultRestTimeSeconds?: number;
   restTimerEnabled?: boolean;
@@ -39,6 +40,7 @@ interface ExerciseQuickActionsSheetProps {
 export function ExerciseQuickActionsSheet({
   visible,
   exerciseName,
+  showAutoProgressionControls = true,
   restTimeSeconds,
   defaultRestTimeSeconds,
   restTimerEnabled,
@@ -70,10 +72,13 @@ export function ExerciseQuickActionsSheet({
   const canEditRest = typeof onChangeRestTimeSeconds === 'function';
   const canToggleRest = typeof onToggleRestTimerEnabled === 'function' && typeof restTimerEnabled === 'boolean';
   const isRestDisabled = canToggleRest && restTimerEnabled === false;
+  const canShowAutoProgressionControls = showAutoProgressionControls !== false;
   const canEditAutoProgression =
+    canShowAutoProgressionControls &&
     typeof onChangeAutoProgressionMinReps === 'function' &&
     typeof onChangeAutoProgressionMaxReps === 'function';
   const canToggleAutoProgression =
+    canShowAutoProgressionControls &&
     typeof onToggleAutoProgressionEnabled === 'function' && typeof autoProgressionEnabled === 'boolean';
   const isAutoProgressionDisabled = canToggleAutoProgression && autoProgressionEnabled === false;
 
