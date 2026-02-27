@@ -13,11 +13,35 @@ import { MuscleContributionEditor } from '@/components/muscle-contribution-edito
 import { PrimarySecondaryMusclePicker } from '@/components/primary-secondary-muscle-picker';
 import { useColors } from '@/hooks/use-colors';
 import { MuscleGroup, getExerciseMuscles, getEffectiveExerciseMuscles, ExerciseType } from '@/lib/types';
+import { PRIMARY_MUSCLE_GROUPS } from '@/lib/muscle-groups';
 import { calculateDefaultContributions } from '@/lib/muscle-contribution';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 
 const EXERCISE_TYPES: ExerciseType[] = ['weighted', 'bodyweight', 'assisted-bodyweight', 'weighted-bodyweight', 'doubled'];
+
+const normalizeMuscleContributions = (
+  contributions?: Partial<Record<MuscleGroup, number>>
+): Record<MuscleGroup, number> => {
+  const normalized = {} as Record<MuscleGroup, number>;
+
+  for (const muscle of PRIMARY_MUSCLE_GROUPS) {
+    normalized[muscle] = 0;
+  }
+
+  if (!contributions) {
+    return normalized;
+  }
+
+  for (const muscle of Object.keys(contributions) as MuscleGroup[]) {
+    const value = contributions[muscle];
+    if (typeof value === 'number') {
+      normalized[muscle] = value;
+    }
+  }
+
+  return normalized;
+};
 
 interface EditPredefinedExerciseModalProps {
   visible: boolean;
@@ -83,7 +107,11 @@ export function EditPredefinedExerciseModal({
         // Use customization values
         setPrimaryMuscle(currentCustomization.primaryMuscle || predefinedExercise?.primaryMuscle || 'chest');
         setSecondaryMuscles(currentCustomization.secondaryMuscles || predefinedExercise?.secondaryMuscles || []);
-        setMuscleContributions(currentCustomization.muscleContributions || predefinedExercise?.muscleContributions || {});
+        setMuscleContributions(
+          normalizeMuscleContributions(
+            currentCustomization.muscleContributions || predefinedExercise?.muscleContributions
+          )
+        );
         setExerciseType(currentCustomization.exerciseType || currentCustomization.type || predefinedExercise?.exerciseType || 'weighted');
         setPreferredAutoProgressionEnabled(currentCustomization.preferredAutoProgressionEnabled !== false);
         setPreferredMinDraft(
@@ -100,7 +128,12 @@ export function EditPredefinedExerciseModal({
         // Use predefined defaults
         setPrimaryMuscle(predefinedExercise.primaryMuscle);
         setSecondaryMuscles(predefinedExercise.secondaryMuscles || []);
-        setMuscleContributions(predefinedExercise.muscleContributions || calculateDefaultContributions(predefinedExercise.primaryMuscle, predefinedExercise.secondaryMuscles));
+        setMuscleContributions(
+          normalizeMuscleContributions(
+            predefinedExercise.muscleContributions ||
+              calculateDefaultContributions(predefinedExercise.primaryMuscle, predefinedExercise.secondaryMuscles)
+          )
+        );
         setExerciseType(predefinedExercise.exerciseType || 'weighted');
         setPreferredAutoProgressionEnabled(true);
         setPreferredMinDraft(String(defaultPreferredMinReps ?? 8));

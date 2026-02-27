@@ -367,7 +367,17 @@ export default function PreferencesScreen() {
 
   const handleWeightUnitChange = async () => {
     const newUnit = settings.weightUnit === 'kg' ? 'lbs' : 'kg';
-    await updateSettings({ weightUnit: newUnit });
+    const { convertWeightBetweenUnits } = await import('@/lib/unit-conversion');
+    const convertedIncrement = convertWeightBetweenUnits(
+      settings.defaultAutoProgressionWeightIncrement ?? 2.5,
+      settings.weightUnit,
+      newUnit
+    );
+
+    await updateSettings({
+      weightUnit: newUnit,
+      defaultAutoProgressionWeightIncrement: Math.round(convertedIncrement * 100) / 100,
+    });
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }

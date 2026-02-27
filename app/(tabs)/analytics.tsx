@@ -237,6 +237,26 @@ export default function AnalyticsScreen() {
     return getWeekRangeUtil(weekStart);
   };
 
+  const getBodyweightKgForTimestamp = useCallback((timestamp: number): number => {
+    const fallback = currentBodyweight || 70;
+    if (!Number.isFinite(timestamp)) return fallback;
+
+    const targetDate = new Date(timestamp).toISOString().split('T')[0];
+    if (bodyWeightLogs.length === 0) {
+      return fallback;
+    }
+
+    for (let i = bodyWeightLogs.length - 1; i >= 0; i -= 1) {
+      const log = bodyWeightLogs[i];
+      if (log.date <= targetDate) {
+        return log.unit === 'lbs' ? lbsToKg(log.weight) : log.weight;
+      }
+    }
+
+    const earliest = bodyWeightLogs[0];
+    return earliest ? (earliest.unit === 'lbs' ? lbsToKg(earliest.weight) : earliest.weight) : fallback;
+  }, [bodyWeightLogs, currentBodyweight]);
+
   const formatDuration = (ms: number) => {
     const totalMinutes = Math.round(Math.max(0, ms) / (60 * 1000));
     const hours = Math.floor(totalMinutes / 60);
@@ -301,6 +321,7 @@ export default function AnalyticsScreen() {
       const exerciseSetCounts = new Map<string, { name: string; sets: number; volume: number }>();
 
       workoutsInRange.forEach((workout) => {
+        const workoutBodyweightKg = getBodyweightKgForTimestamp(workout.startTime);
         const durationMs = (workout.endTime || 0) - (workout.startTime || 0);
         if (Number.isFinite(durationMs) && durationMs > 0) {
           gymTimeMs += durationMs;
@@ -312,13 +333,13 @@ export default function AnalyticsScreen() {
           countedSets.forEach((set) => {
             reps += set.reps || 0;
             sets += 1;
-            volume += calculateSetVolume(set, exercise.type || 'weighted', currentBodyweight);
+            volume += calculateSetVolume(set, exercise.type || 'weighted', workoutBodyweightKg);
           });
 
           const key = (exercise.exerciseId || exercise.name || '').trim() || exercise.id;
           if (key) {
             const prev = exerciseSetCounts.get(key);
-            const exVolume = countedSets.reduce((sum, set) => sum + calculateSetVolume(set, exercise.type || 'weighted', currentBodyweight), 0);
+            const exVolume = countedSets.reduce((sum, set) => sum + calculateSetVolume(set, exercise.type || 'weighted', workoutBodyweightKg), 0);
             if (prev) {
               prev.sets += countedSets.length;
               prev.volume += exVolume;
@@ -378,6 +399,7 @@ export default function AnalyticsScreen() {
       let actualTotalSets = 0;
 
       workoutsInRange.forEach((workout) => {
+        const workoutBodyweightKg = getBodyweightKgForTimestamp(workout.startTime);
         workout.exercises.forEach((exercise) => {
           // Use saved muscle data from workout if available, otherwise get effective muscles
           let muscleMeta;
@@ -411,7 +433,7 @@ export default function AnalyticsScreen() {
               const volume = calculateSetVolume(
                 set,
                 exercise.type || muscleMeta.exerciseType || 'weighted',
-                currentBodyweight
+                workoutBodyweightKg
               );
 
               actualTotalVolume += volume;
@@ -452,6 +474,7 @@ export default function AnalyticsScreen() {
     };
 
     weekWorkouts.forEach((workout) => {
+      const workoutBodyweightKg = getBodyweightKgForTimestamp(workout.startTime);
       const workoutDate = new Date(workout.startTime);
       const dayOfWeek = workoutDate.getDay();
       const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -465,7 +488,7 @@ export default function AnalyticsScreen() {
           workoutVolume += calculateSetVolume(
             set,
             exercise.type || 'weighted',
-            currentBodyweight
+            workoutBodyweightKg
           );
         });
       });
@@ -492,7 +515,7 @@ export default function AnalyticsScreen() {
         lastWeekSetsForThisWeeksFavorite,
       },
     };
-  }, [workouts, customExercises, predefinedExerciseCustomizations, currentBodyweight, settings.weightUnit, settings.weekStartDay]);
+  }, [workouts, customExercises, predefinedExerciseCustomizations, settings.weightUnit, settings.weekStartDay, getBodyweightKgForTimestamp]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -516,12 +539,13 @@ export default function AnalyticsScreen() {
     const lastRange = getWeekRangeUtil(lastWeekStart);
 
     const sumWorkoutVolumeKg = (workout: any): number => {
+      const workoutBodyweightKg = getBodyweightKgForTimestamp(workout.startTime);
       let total = 0;
       workout.exercises.forEach((exercise: any) => {
         exercise.sets
           .filter((set: any) => set.completed !== false && set.setType !== 'warmup')
           .forEach((set: any) => {
-            total += calculateSetVolume(set, exercise.type || 'weighted', currentBodyweight);
+            total += calculateSetVolume(set, exercise.type || 'weighted', workoutBodyweightKg);
           });
       });
       return total;
@@ -554,7 +578,7 @@ export default function AnalyticsScreen() {
       delta,
       pct,
     };
-  }, [workouts, currentBodyweight, settings.weightUnit, settings.weekStartDay]);
+  }, [workouts, settings.weightUnit, settings.weekStartDay, getBodyweightKgForTimestamp]);
 
   const wowDeltaText = useMemo(() => {
     const sign = wowComparison.delta >= 0 ? '+' : '-';

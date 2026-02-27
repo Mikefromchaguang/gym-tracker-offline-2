@@ -1346,6 +1346,7 @@ export default function ActiveWorkoutScreen() {
 
   const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseIndex: number) => {
     const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
+    const incrementInStoredUnit = settings.weightUnit === 'lbs' ? lbsToKg(increment) : increment;
     if (increment <= 0) {
       Alert.alert('Invalid increment', 'Set a default weight increment in Settings first.');
       return;
@@ -1373,14 +1374,14 @@ export default function ActiveWorkoutScreen() {
                 const nextCompletedSets = ex.completedSets.map((set) => ({
                   ...set,
                   reps: minReps,
-                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                  weight: Math.round(((set.weight || 0) + incrementInStoredUnit) * 100) / 100,
                   isRepsPlaceholder: false,
                   isWeightPlaceholder: false,
                 }));
                 const nextPlannedSets = ex.plannedSets?.map((set) => ({
                   ...set,
                   reps: minReps,
-                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                  weight: Math.round(((set.weight || 0) + incrementInStoredUnit) * 100) / 100,
                 }));
 
                 return {

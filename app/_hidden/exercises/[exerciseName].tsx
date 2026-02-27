@@ -364,7 +364,8 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     const sessionMap = new Map<string, { sets: any[]; timestamp: number }>();
     allSets.forEach((set: any) => {
       const dateKey = set.date;
-      const existing = sessionMap.get(dateKey) || { sets: [], timestamp: set.timestamp };
+      const existing: { sets: any[]; timestamp: number } =
+        sessionMap.get(dateKey) || { sets: [] as any[], timestamp: set.timestamp };
       existing.sets.push(set);
       sessionMap.set(dateKey, existing);
     });
@@ -585,11 +586,13 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
     // Convert from display unit to kg for storage
     const weightInKg = settings.weightUnit === 'lbs' ? weight / 2.20462 : weight;
+    const timestamp = Date.now();
 
     await FailureSetStorage.add(exerciseId, {
       weight: weightInKg,
       reps,
-      timestamp: Date.now(),
+      timestamp,
+      workoutId: `manual-${timestamp}`,
     });
 
     await loadFailureSetData();
@@ -845,6 +848,26 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     
     return null;
   }, [exerciseNameStr, customExercises, hasMuscleCustomization, predefinedExerciseCustomizations]);
+
+  const normalizedMuscleContributions = useMemo(() => {
+    const base = {} as Record<MuscleGroup, number>;
+
+    for (const group of MUSCLE_GROUPS) {
+      base[group] = 0;
+    }
+
+    const existing = currentExercise?.muscleContributions as Partial<Record<MuscleGroup, number>> | undefined;
+    if (existing) {
+      for (const group of Object.keys(existing) as MuscleGroup[]) {
+        const value = existing[group];
+        if (typeof value === 'number') {
+          base[group] = value;
+        }
+      }
+    }
+
+    return base;
+  }, [MUSCLE_GROUPS, currentExercise?.muscleContributions]);
 
   const handleResetToDefault = () => {
     Alert.alert(
@@ -1173,7 +1196,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                 </View>
               </View>
             </CardHeader>
-            <CardContent style={{ paddingTop: 0 }}>
+            <CardContent className="pt-0">
               <StatRow
                 label="Total volume"
                 value={
@@ -1252,11 +1275,11 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                   </View>
                 </View>
               </CardHeader>
-              <CardContent style={{ paddingTop: 0 }}>
+              <CardContent className="pt-0">
                 {!repMaxEstimates ? (
                   /* Empty State - no workout data yet */
                   <View style={{ paddingVertical: 24, alignItems: 'center', gap: 8 }}>
-                    <IconSymbol name="target" size={32} color={colors.muted} />
+                    <IconSymbol name="dumbbell" size={32} color={colors.muted} />
                     <Text style={{ color: colors.muted, fontSize: 14, textAlign: 'center', maxWidth: 280 }}>
                       Complete workouts to see estimated rep maxes
                     </Text>
@@ -1298,7 +1321,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                           marginTop: 12,
                           paddingVertical: 8,
                           paddingHorizontal: 16,
-                          backgroundColor: colors.destructive || '#EF4444',
+                          backgroundColor: colors.error || '#EF4444',
                           borderRadius: 8,
                           alignSelf: 'center',
                           flexDirection: 'row',
@@ -1819,7 +1842,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
       {/* Edit Custom Exercise Modal */}
       <CreateExerciseModal
-        visible={showEditModal && currentExercise?.isCustom}
+        visible={showEditModal && !!currentExercise?.isCustom}
         onClose={() => setShowEditModal(false)}
         showAutoProgressionControls={settings.autoProgressionEnabled === true}
         onSave={handleSaveEdit}
@@ -1831,7 +1854,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
           primaryMuscle: currentExercise?.primaryMuscle || 'chest',
           secondaryMuscles: currentExercise?.secondaryMuscles || [],
           type: currentExercise?.exerciseType || 'weighted',
-          muscleContributions: currentExercise?.muscleContributions || {},
+          muscleContributions: normalizedMuscleContributions,
           preferredAutoProgressionEnabled:
             currentExercise?.preferredAutoProgressionEnabled !== false,
           preferredAutoProgressionMinReps: currentExercise?.preferredAutoProgressionMinReps,

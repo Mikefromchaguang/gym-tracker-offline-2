@@ -22,6 +22,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { runMuscleGroupMigration } from './migrate-muscle-groups';
 import { runExerciseIdMigration } from './exercise-id-migration';
 import { runDeltoidSplitMigration } from './deltoid-split-migration';
+import { lbsToKg } from './unit-conversion';
 
 // WorkoutExercise type for active workout
 interface WorkoutExercise extends Exercise {
@@ -750,10 +751,10 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       
       // Get bodyweight for volume calculations
       const { BodyWeightStorage } = await import('@/lib/storage');
-      const bodyWeightLog = await BodyWeightStorage.getTodayWeight();
+      const bodyWeightLog = await BodyWeightStorage.getWeightForDate(new Date(workoutDate));
       let bodyWeight: number = 70;
       if (bodyWeightLog) {
-        bodyWeight = bodyWeightLog.weight;
+        bodyWeight = bodyWeightLog.unit === 'lbs' ? lbsToKg(bodyWeightLog.weight) : bodyWeightLog.weight;
       }
       
       for (const exercise of newWorkout.exercises) {

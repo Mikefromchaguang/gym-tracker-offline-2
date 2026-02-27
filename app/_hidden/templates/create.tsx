@@ -26,7 +26,7 @@ import { useColors } from '@/hooks/use-colors';
 import { useBodyweight } from '@/hooks/use-bodyweight';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
-import { convertWeight, formatWeight, formatVolume } from '@/lib/unit-conversion';
+import { convertWeight, formatWeight, formatVolume, lbsToKg } from '@/lib/unit-conversion';
 import { calculateExerciseVolume, calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
 import { getExerciseContributions } from '@/lib/muscle-contribution';
 import { getIncreaseWeightSuggestion } from '@/lib/auto-progression';
@@ -923,6 +923,7 @@ export default function TemplateCreateScreen() {
 
   const handleApplyAutoProgressionWeightIncrease = useCallback((exerciseId: string) => {
     const increment = settings.defaultAutoProgressionWeightIncrement ?? 0;
+    const incrementInStoredUnit = settings.weightUnit === 'lbs' ? lbsToKg(increment) : increment;
     if (increment <= 0) {
       Alert.alert('Invalid increment', 'Set a default weight increment in Settings first.');
       return;
@@ -949,7 +950,7 @@ export default function TemplateCreateScreen() {
                 const nextSets = ex.sets.map((set) => ({
                   ...set,
                   reps: minReps,
-                  weight: Math.round(((set.weight || 0) + increment) * 100) / 100,
+                  weight: Math.round(((set.weight || 0) + incrementInStoredUnit) * 100) / 100,
                   isRepsPlaceholder: false,
                   isWeightPlaceholder: false,
                 }));

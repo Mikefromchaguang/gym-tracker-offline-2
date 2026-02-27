@@ -175,7 +175,59 @@ export const DAILY_QUOTES: Quote[] = [
   {
     text: "When the ego lifts, it is the body that falls.",
     author: "Zhuangzi"
-  }
+  },
+  {
+    text: "Never value anything that will compel you to break your form.",
+    author: "Marcus Aurelius"
+  },
+  {
+    text: "Accept the things to which fate binds you, and love the people with whom fate brings you to train.",
+    author: "Marcus Aurelius"
+  },
+  {
+    text: "No man is free who is not master of himself.",
+    author: "Epictetus"
+  },
+  {
+    text: "Make the best use of what is in your power, and take the rest as it falls.",
+    author: "Epictetus"
+  },
+  {
+    text: "Think of yourself as weak. Now take what remains and train properly.",
+    author: "Marcus Aurelius"
+  },
+  {
+    text: "Be tolerant with others in the gym and strict with yourself.",
+    author: "Marcus Aurelius"
+  },
+  {
+    text: "It is not that we have a short time to train, but that we waste much of it.",
+    author: "Seneca"
+  },
+  {
+    text: "If you accomplish something good with hard training, the lactic passes quickly, but the strength endures.",
+    author: "Musonius Rufus"
+  },
+  {
+    text: "The higher we soar in our lifts, the smaller we appear to those who cannot fly.",
+    author: "Nietzsche"
+  },
+  {
+    text: "Should I kill myself or go to the gym? These are the only serious questions.",
+    author: "Camus"
+  },
+  {
+    text: "The torch of chaos and doubt, this is what the sage steers by. Then he enters the gym.",
+    author: "Zhuangzi"
+  },
+  {
+    text: "A man who has attained mastery of the lift does not contend with anyone.",
+    author: "Liezi"
+  },
+  {
+    text: "The best athlete wants his opponent at his best. The best lifter wants the bar at its heaviest.",
+    author: "Laozi"
+  },
 ];
 
 /**
