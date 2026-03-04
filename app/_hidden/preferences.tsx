@@ -391,6 +391,14 @@ export default function PreferencesScreen() {
     }
   };
 
+  const handleCountDirectionChange = async () => {
+    const next: 'down' | 'up' = (settings.restCountDirection ?? 'down') === 'down' ? 'up' : 'down';
+    await updateSettings({ restCountDirection: next });
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
   const handleWeekStartDayChange = async (day: WeekStartDay) => {
     await updateSettings({ weekStartDay: day });
     setShowWeekStartPicker(false);
@@ -475,7 +483,7 @@ export default function PreferencesScreen() {
           <Text className="text-base text-muted">Update app defaults and units</Text>
         </View>
 
-        {/* Default Rest Time */}
+        {/* Rest time */}
         <View
           style={{
             backgroundColor: colors.surface,
@@ -500,9 +508,13 @@ export default function PreferencesScreen() {
               <IconSymbol size={20} name="timer" color={colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Default Rest Time</Text>
-              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>Applied to new exercises (seconds)</Text>
+              <Text style={{ fontSize: 16, fontWeight: '700', color: colors.foreground }}>Rest time</Text>
             </View>
+          </View>
+
+          {/* Default rest time row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontSize: 13, color: colors.muted }}>Default rest time (seconds)</Text>
             <TextInput
               value={restTimeInput}
               onChangeText={handleRestTimeChange}
@@ -520,6 +532,32 @@ export default function PreferencesScreen() {
                 textAlign: 'center',
               }}
             />
+          </View>
+
+          {/* Count direction row */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <View>
+              <Text style={{ fontSize: 13, color: colors.muted }}>Count direction</Text>
+              <Text style={{ fontSize: 12, color: colors.foreground, marginTop: 2, fontWeight: '600' }}>
+                {(settings.restCountDirection ?? 'down') === 'down' ? 'Count down' : 'Count up'}
+              </Text>
+            </View>
+            <Pressable
+              onPress={handleCountDirectionChange}
+              style={({ pressed }) => [
+                {
+                  paddingHorizontal: 16,
+                  paddingVertical: 8,
+                  borderRadius: 10,
+                  backgroundColor: colors.primary,
+                  opacity: pressed ? 0.7 : 1,
+                },
+              ]}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: colors.background }}>
+                Change
+              </Text>
+            </Pressable>
           </View>
         </View>
 

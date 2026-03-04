@@ -53,8 +53,9 @@ export function RestTimerPopup() {
   };
 
   // Calculate progress percentage
+  const isCountUp = timerState.countDirection === 'up';
   const progress = timerState.totalSeconds > 0
-    ? (timerState.remainingSeconds / timerState.totalSeconds) * 100
+    ? Math.min(100, (timerState.remainingSeconds / timerState.totalSeconds) * 100)
     : 0;
 
   return (
@@ -78,42 +79,52 @@ export function RestTimerPopup() {
         />
       </View>
 
-      {/* Content */}
-      <View style={styles.content}>
-        {/* Timer display */}
-        <Text style={[styles.timerDisplay, { color: colors.primary }]}>
-          {formatTime(timerState.remainingSeconds)}
-        </Text>
+      {/* Single-row content */}
+      <View style={styles.row}>
+        {isCountUp ? (
+          <>
+            <Text style={[styles.timerDisplay, { color: colors.primary, flex: 1 }]}>
+              {formatTime(timerState.remainingSeconds)}
+            </Text>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={handleSkip}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.actionButtonText, { color: colors.background }]}>Stop</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity
+              style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+              onPress={() => handleAdjust(-15)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>-15s</Text>
+            </TouchableOpacity>
 
-        {/* Controls */}
-        <View style={styles.controls}>
-          {/* -15s button */}
-          <TouchableOpacity
-            style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => handleAdjust(-15)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>-15s</Text>
-          </TouchableOpacity>
+            <Text style={[styles.timerDisplay, { color: colors.primary, flex: 1, textAlign: 'center' }]}>
+              {formatTime(timerState.remainingSeconds)}
+            </Text>
 
-          {/* Skip button */}
-          <TouchableOpacity
-            style={[styles.skipButton, { backgroundColor: colors.primary }]}
-            onPress={handleSkip}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.skipButtonText, { color: colors.background }]}>Skip</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+              onPress={() => handleAdjust(15)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>+15s</Text>
+            </TouchableOpacity>
 
-          {/* +15s button */}
-          <TouchableOpacity
-            style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-            onPress={() => handleAdjust(15)}
-            activeOpacity={0.7}
-          >
-            <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>+15s</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.primary }]}
+              onPress={handleSkip}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.actionButtonText, { color: colors.background }]}>Skip</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </View>
   );
@@ -141,54 +152,36 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 2,
   },
-  content: {
-    paddingHorizontal: 20,
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingTop: 8,
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoSection: {
-    alignItems: 'center',
-    gap: 2,
-  },
-  exerciseName: {
-    fontSize: 14,
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  setNumber: {
-    fontSize: 12,
+    gap: 10,
   },
   timerDisplay: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: 'bold',
     fontVariant: ['tabular-nums'],
   },
-  controls: {
-    flexDirection: 'row',
-    gap: 10,
-    alignItems: 'center',
-  },
   adjustButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    minWidth: 60,
     alignItems: 'center',
   },
   adjustButtonText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  skipButton: {
-    paddingHorizontal: 24,
+  actionButton: {
+    paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 8,
-    minWidth: 80,
     alignItems: 'center',
   },
-  skipButtonText: {
+  actionButtonText: {
     fontSize: 15,
     fontWeight: 'bold',
   },

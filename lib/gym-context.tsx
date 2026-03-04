@@ -34,12 +34,14 @@ interface WorkoutExercise extends Exercise {
 // Timer state interface
 export interface RestTimerState {
   isRunning: boolean;
-  remainingSeconds: number;
+  remainingSeconds: number; // count-down: seconds left; count-up: elapsed seconds
   totalSeconds: number;
   exerciseName: string;
   setNumber: number;
   exerciseId: string;
-  endTime: number | null; // Timestamp when timer should end (for background support)
+  endTime: number | null; // count-down: when timer ends; count-up: when to vibrate
+  countDirection: 'down' | 'up';
+  hasVibrated: boolean; // count-up: whether the target vibration has fired
 }
 
 interface GymContextState {
@@ -188,6 +190,7 @@ const initialState: GymContextState = {
     bodyMapGender: 'male', // Default to male body map
     weekStartDay: 1, // Default Monday (0 = Sunday, 1 = Monday, etc.)
     showQuotes: true, // Show inspirational quotes by default
+    restCountDirection: 'down',
     lastUpdated: Date.now(),
   },
   customExercises: [],
@@ -358,6 +361,8 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     setNumber: 0,
     exerciseId: '',
     endTime: null,
+    countDirection: 'down',
+    hasVibrated: false,
   });
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const notificationIdRef = useRef<string | null>(null);
@@ -389,34 +394,54 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       if (nextAppState === 'active' && timerState.endTime) {
         const now = Date.now();
-        if (now >= timerState.endTime) {
-          // Timer finished while app was in background
-          stopTimer();
+        if (timerState.countDirection === 'up') {
+          // Count-up: recalculate elapsed time; vibrate if target reached
+          const startTime = timerState.endTime - timerState.totalSeconds * 1000;
+          const elapsed = Math.floor((now - startTime) / 1000);
+          const hasVibrated = elapsed >= timerState.totalSeconds;
+          setTimerState((prev) => ({ ...prev, remainingSeconds: elapsed, hasVibrated }));
         } else {
-          // Update remaining time
-          const remaining = Math.ceil((timerState.endTime - now) / 1000);
-          setTimerState((prev) => ({ ...prev, remainingSeconds: remaining }));
+          // Count-down
+          if (now >= timerState.endTime) {
+            stopTimer();
+          } else {
+            const remaining = Math.ceil((timerState.endTime - now) / 1000);
+            setTimerState((prev) => ({ ...prev, remainingSeconds: remaining }));
+          }
         }
       }
     });
     return () => subscription.remove();
   }, [timerState.endTime]);
 
-  // Timer countdown effect
+  // Timer countdown/countup effect
   useEffect(() => {
-    if (timerState.isRunning && timerState.remainingSeconds > 0) {
+    if (timerState.isRunning && (timerState.countDirection === 'up' || timerState.remainingSeconds > 0)) {
       timerIntervalRef.current = setInterval(() => {
         setTimerState((prev) => {
-          const newRemaining = prev.remainingSeconds - 1;
-          if (newRemaining <= 0) {
-            // Timer finished - vibrate for 1 second
-            if (Platform.OS !== 'web') {
-              Vibration.vibrate(1000);
+          if (!prev.isRunning) return prev;
+          if (prev.countDirection === 'up') {
+            const newElapsed = prev.remainingSeconds + 1;
+            // Vibrate once when target is reached, then keep going
+            if (!prev.hasVibrated && newElapsed >= prev.totalSeconds && prev.totalSeconds > 0) {
+              if (Platform.OS !== 'web') {
+                Vibration.vibrate(1000);
+              }
+              return { ...prev, remainingSeconds: newElapsed, hasVibrated: true };
             }
-            stopTimer();
-            return prev;
+            return { ...prev, remainingSeconds: newElapsed };
+          } else {
+            // Count-down
+            const newRemaining = prev.remainingSeconds - 1;
+            if (newRemaining <= 0) {
+              if (Platform.OS !== 'web') {
+                Vibration.vibrate(1000);
+              }
+              stopTimer();
+              return prev;
+            }
+            return { ...prev, remainingSeconds: newRemaining };
           }
-          return { ...prev, remainingSeconds: newRemaining };
         });
       }, 1000) as unknown as NodeJS.Timeout;
     } else if (timerIntervalRef.current) {
@@ -457,14 +482,16 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
 
     setTimerState({
       isRunning: true,
-      remainingSeconds: durationSeconds,
+      remainingSeconds: (state.settings.restCountDirection ?? 'down') === 'up' ? 0 : durationSeconds,
       totalSeconds: durationSeconds,
       exerciseName,
       setNumber,
       exerciseId,
       endTime,
+      countDirection: state.settings.restCountDirection ?? 'down',
+      hasVibrated: false,
     });
-  }, []);
+  }, [state.settings.restCountDirection]);
 
   // Stop rest timer
   const stopTimer = useCallback(async () => {
@@ -492,6 +519,8 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       setNumber: 0,
       exerciseId: '',
       endTime: null,
+      countDirection: 'down',
+      hasVibrated: false,
     });
   }, []);
 
@@ -499,13 +528,16 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
   const adjustTimer = useCallback((secondsToAdd: number) => {
     setTimerState((prev) => {
       if (!prev.isRunning) return prev;
-      const newRemaining = Math.max(0, prev.remainingSeconds + secondsToAdd);
-      const newEndTime = Date.now() + newRemaining * 1000;
-      return {
-        ...prev,
-        remainingSeconds: newRemaining,
-        endTime: newEndTime,
-      };
+      if (prev.countDirection === 'up') {
+        // Adjust elapsed seconds (clamp to 0)
+        const newElapsed = Math.max(0, prev.remainingSeconds + secondsToAdd);
+        return { ...prev, remainingSeconds: newElapsed };
+      } else {
+        // Adjust remaining seconds for count-down
+        const newRemaining = Math.max(0, prev.remainingSeconds + secondsToAdd);
+        const newEndTime = Date.now() + newRemaining * 1000;
+        return { ...prev, remainingSeconds: newRemaining, endTime: newEndTime };
+      }
     });
   }, []);
 

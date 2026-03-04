@@ -41,7 +41,7 @@ export const DAILY_QUOTES: Quote[] = [
     author: "Socrates"
   },
   {
-    text: "He who conquers the bar is strong; he who conquers himself is powerful.",
+    text: "He who conquers the bar is strong; he who conquers himself is whole.",
     author: "Laozi"
   },
   {

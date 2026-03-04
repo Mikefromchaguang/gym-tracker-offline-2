@@ -10,6 +10,7 @@ import { IconSymbol } from './ui/icon-symbol';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { useAudioPlayer } from 'expo-audio';
+import { useGym } from '@/lib/gym-context';
 
 interface ExerciseRestTimerProps {
   duration: number; // in seconds
@@ -20,7 +21,9 @@ interface ExerciseRestTimerProps {
 
 export function ExerciseRestTimer({ duration, onTimerStateChange, onDurationChange, autoStart }: ExerciseRestTimerProps) {
   const colors = useColors();
-  const [timeLeft, setTimeLeft] = useState(duration);
+  const { settings } = useGym();
+  const countDirection = settings.restCountDirection ?? 'down';
+  const [timeLeft, setTimeLeft] = useState(countDirection === 'up' ? 0 : duration);
   const [isRunning, setIsRunning] = useState(false);
   const [hasCompleted, setHasCompleted] = useState(false);
   
@@ -32,9 +35,9 @@ export function ExerciseRestTimer({ duration, onTimerStateChange, onDurationChan
   // Update timeLeft when duration prop changes
   useEffect(() => {
     if (!isRunning) {
-      setTimeLeft(duration);
+      setTimeLeft(countDirection === 'up' ? 0 : duration);
     }
-  }, [duration, isRunning]);
+  }, [duration, isRunning, countDirection]);
 
   // Auto-start timer when autoStart prop is true
   useEffect(() => {
@@ -54,45 +57,63 @@ export function ExerciseRestTimer({ duration, onTimerStateChange, onDurationChan
   const player = useAudioPlayer('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
 
   useEffect(() => {
-    if (!isRunning || hasCompleted) return;
+    if (!isRunning) return;
 
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
-        if (prev <= 1) {
-          // Play completion sound
-          if (Platform.OS !== 'web') {
-            player.play();
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        if (countDirection === 'up') {
+          const next = prev + 1;
+          // Vibrate and play sound once when target is reached, then keep counting
+          if (!hasCompleted && next >= duration && duration > 0) {
+            if (Platform.OS !== 'web') {
+              player.play();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            setHasCompleted(true);
           }
-          setIsRunning(false);
-          setHasCompleted(true);
-          return 0;
+          return next;
+        } else {
+          // Count down
+          if (prev <= 1) {
+            if (Platform.OS !== 'web') {
+              player.play();
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            }
+            setIsRunning(false);
+            setHasCompleted(true);
+            return 0;
+          }
+          return prev - 1;
         }
-        return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isRunning, hasCompleted, player]);
+  }, [isRunning, hasCompleted, player, countDirection, duration]);
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = timeLeft % 60;
   const displayTime = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  // In count-up mode, show a '+' indicator after the target has been passed
+  const isOverTarget = countDirection === 'up' && hasCompleted;
 
   const handleToggleTimer = useCallback(() => {
     if (isRunning) {
       // Stop button: reset timer
-      setTimeLeft(duration);
+      setTimeLeft(countDirection === 'up' ? 0 : duration);
       setIsRunning(false);
       setHasCompleted(false);
     } else {
-      // Start button: begin countdown
+      // Start button: begin timer
+      if (countDirection === 'up') {
+        setTimeLeft(0);
+      }
       setIsRunning(true);
     }
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [isRunning, duration]);
+  }, [isRunning, duration, countDirection]);
 
 
 
@@ -142,7 +163,7 @@ export function ExerciseRestTimer({ duration, onTimerStateChange, onDurationChan
       <View className="flex-row items-center gap-2 py-2 px-3 bg-background rounded-lg border border-border">
         <IconSymbol size={16} name="clock" color={colors.primary} />
         <Text className="text-sm font-semibold text-foreground flex-1">
-          Rest: {displayTime}
+          Rest: {displayTime}{isOverTarget ? ' ⚡' : ''}
         </Text>
         
         {/* -15s button */}

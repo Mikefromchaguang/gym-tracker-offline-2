@@ -45,6 +45,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   autoProgressionUpdateSetsFirst: false,
   bodyMapGender: 'male', // Default to male body map
   weekStartDay: 0, // Default to Sunday (0 = Sunday, 1 = Monday, etc.)
+  restCountDirection: 'down',
   lastUpdated: Date.now(),
 };
 

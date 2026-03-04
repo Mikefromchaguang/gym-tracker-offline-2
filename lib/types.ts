@@ -215,6 +215,7 @@ export interface AppSettings {
   bodyMapGender: 'male' | 'female'; // Gender for body map visualization
   weekStartDay: WeekStartDay; // Day to start the week (0 = Sunday, 1 = Monday, etc.)
   showQuotes: boolean; // Whether to show inspirational quotes on home screen
+  restCountDirection?: 'down' | 'up'; // Rest timer count direction (default 'down')
   lastUpdated: number;
   exerciseIdMigrationCompleted?: boolean; // Whether exercise ID migration has been completed
 }
