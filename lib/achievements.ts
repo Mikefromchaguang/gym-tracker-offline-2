@@ -129,14 +129,14 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   },
   {
     id: 'addicted_to_iron',
-    title: 'Addicted to Iron',
+    title: 'That Iron Bran',
     description: 'Complete 25 workouts',
     message: 'Complete 25 workouts',
     isUnlocked: ({ workouts }) => workouts.length >= 25,
   },
   {
     id: 'triple_digit_demon',
-    title: 'One Hunnid',
+    title: 'Cool Hunnid',
     description: 'Complete 100 workouts',
     message: 'Complete 100 workouts',
     isUnlocked: ({ workouts }) => workouts.length >= 100,
@@ -164,7 +164,7 @@ export const ACHIEVEMENTS: AchievementDefinition[] = [
   },
   {
     id: 'five_day_streak',
-    title: 'One, two, three, fo, fif!',
+    title: 'One, two, tree, fo, fif!',
     description: 'Work out 5 days in a row',
     message: 'Work out 5 days in a row',
     isUnlocked: ({ workouts }) => getMaxConsecutiveRun(getUniqueWorkoutDayNumbers(workouts)) >= 5,

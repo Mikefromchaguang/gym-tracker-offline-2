@@ -228,6 +228,10 @@ export const DAILY_QUOTES: Quote[] = [
     text: "The best athlete wants his opponent at his best. The best lifter wants the bar at its heaviest.",
     author: "Laozi"
   },
+  {
+    text: "The routine that can be programmed is not the eternal routine.",
+    author: "Laozi"
+  },
 ];
 
 /**

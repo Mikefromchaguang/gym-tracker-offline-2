@@ -1095,17 +1095,19 @@ export default function HomeScreen() {
                               </Pressable>
                             </View>
                             <View className="flex-1">
-                              <CardTitle className="text-base">{plan.name}</CardTitle>
+                              <View className="flex-row items-center gap-2 flex-wrap">
+                                <CardTitle className="text-base">{plan.name}</CardTitle>
+                                {isActive ? (
+                                  <View className="bg-orange-500 px-2 py-1 rounded-full">
+                                    <Text className="text-xs font-semibold text-background">Active</Text>
+                                  </View>
+                                ) : null}
+                              </View>
                               <CardDescription>
                                 {totalSessions} sessions • Today: {todayCount}
                               </CardDescription>
                             </View>
                             <View className="flex-row items-center gap-2">
-                              {isActive ? (
-                                <View className="bg-orange-500 px-2 py-1 rounded-full">
-                                  <Text className="text-xs font-semibold text-background">Active</Text>
-                                </View>
-                              ) : null}
                               <Pressable
                                 onPress={() => openWeekPlanMenu(plan.id)}
                                 style={({ pressed }) => [{
