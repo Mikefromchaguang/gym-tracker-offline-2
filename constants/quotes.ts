@@ -232,6 +232,30 @@ export const DAILY_QUOTES: Quote[] = [
     text: "The routine that can be programmed is not the eternal routine.",
     author: "Laozi"
   },
+  {
+    text: "The ox does not know its own strength. This is why it is strong.",
+    author: "Zhuangzi"
+  },
+  {
+  text: "You celebrate adding a plate. The bar does not notice.",
+  author: "Zhuangzi"
+  },
+  {
+  text: "After ten thousand reps, form becomes formless. This is when the work begins.",
+  author: "Zhuangzi"
+  }, 
+  {
+  text: "Do not seek to follow the programs of the old masters. Seek what they sought.",
+  author: "Miyamoto Musashi"
+  },
+  {
+  text: "The way is in training. There is nothing outside of it.",
+  author: "Miyamoto Musashi"
+  },
+  {
+  text: "Under the bar, there is only the bar.",
+  author: "Miyamoto Musashi"
+  },
 ];
 
 /**

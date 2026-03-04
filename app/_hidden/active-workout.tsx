@@ -852,14 +852,14 @@ export default function ActiveWorkoutScreen() {
   const handleAddExerciseToWorkout = useCallback(async (exerciseName: string) => {
     const newExercise = await buildWorkoutExercise(exerciseName);
 
-    setExercises([...exercises, newExercise]);
+    setExercises((prev) => [...prev, newExercise]);
     setShowExercisePicker(false);
     setExerciseSearch('');
 
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-  }, [exercises, buildWorkoutExercise]);
+  }, [buildWorkoutExercise]);
 
   const handleSubmitSuperset = useCallback(async (result: AddSupersetModalResult) => {
     const a = result.exerciseAName;
