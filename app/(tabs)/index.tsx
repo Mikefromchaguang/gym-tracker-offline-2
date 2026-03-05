@@ -122,9 +122,9 @@ export default function HomeScreen() {
   }, [localWeekPlans]);
 
   const activeWeekPlan = useMemo(() => {
-    if (localWeekPlans.length === 0) return null;
-    return localWeekPlans.find((p) => p.id === activeWeekPlanId) || localWeekPlans[0];
-  }, [localWeekPlans, activeWeekPlanId]);
+    if (weekPlans.length === 0) return null;
+    return weekPlans.find((p) => p.id === activeWeekPlanId) ?? weekPlans[0];
+  }, [weekPlans, activeWeekPlanId]);
 
   const selectedWeekPlan = useMemo(() => {
     if (!selectedWeekPlanId) return null;

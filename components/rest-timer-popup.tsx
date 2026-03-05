@@ -96,26 +96,30 @@ export function RestTimerPopup() {
           </>
         ) : (
           <>
-            <TouchableOpacity
-              style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-              onPress={() => handleAdjust(-15)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>-15s</Text>
-            </TouchableOpacity>
+            {/* Left group: -15s, time, +15s */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+              <TouchableOpacity
+                style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+                onPress={() => handleAdjust(-15)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>-15s</Text>
+              </TouchableOpacity>
 
-            <Text style={[styles.timerDisplay, { color: colors.primary, flex: 1, textAlign: 'center' }]}>
-              {formatTime(timerState.remainingSeconds)}
-            </Text>
+              <Text style={[styles.timerDisplay, { color: colors.primary }]}>
+                {formatTime(timerState.remainingSeconds)}
+              </Text>
 
-            <TouchableOpacity
-              style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-              onPress={() => handleAdjust(15)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>+15s</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.adjustButton, { backgroundColor: colors.background, borderColor: colors.border }]}
+                onPress={() => handleAdjust(15)}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.adjustButtonText, { color: colors.foreground }]}>+15s</Text>
+              </TouchableOpacity>
+            </View>
 
+            {/* Right: Skip button */}
             <TouchableOpacity
               style={[styles.actionButton, { backgroundColor: colors.primary }]}
               onPress={handleSkip}
