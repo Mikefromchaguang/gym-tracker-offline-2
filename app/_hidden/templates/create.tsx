@@ -98,7 +98,7 @@ export default function TemplateCreateScreen() {
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { addTemplate, updateTemplate, templates, workouts, settings, customExercises, addCustomExercise, getMostRecentExerciseData, getExercisePRData, predefinedExerciseCustomizations } = useGym();
-  const { templateId, newExerciseName } = useLocalSearchParams();
+  const { templateId, newExerciseName, fromWorkoutId } = useLocalSearchParams();
 
   useEffect(() => {
     if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -491,6 +491,57 @@ export default function TemplateCreateScreen() {
               setCollapsedDisplayKeys(new Set());
     }
   }, [templateId, templates]);
+
+  // Pre-populate from a historical workout ("Save as Routine")
+  useEffect(() => {
+    if (fromWorkoutId && typeof fromWorkoutId === 'string' && !templateId) {
+      const workout = workouts.find((w) => w.id === fromWorkoutId);
+      if (workout) {
+        setTemplateName(workout.name);
+        setRoutineAutoProgressionEnabled(true);
+        setSpecialSessionEnabled(false);
+
+        const exercisesWithSets: TemplateExerciseWithSets[] = workout.exercises.map((ex) => {
+          const completedSets: CompletedSet[] = ex.sets.map((set, i) => ({
+            setNumber: i + 1,
+            reps: set.reps,
+            weight: set.weight,
+            unit: set.unit,
+            setType: set.setType || 'working',
+            timestamp: Date.now(),
+            completed: false,
+          }));
+
+          return {
+            id: ex.id,
+            exerciseId: ex.exerciseId,
+            name: ex.name,
+            sets: completedSets,
+            reps: ex.sets[0]?.reps ?? 10,
+            weight: ex.sets[0]?.weight ?? 0,
+            unit: ex.sets[0]?.unit ?? settings.weightUnit,
+            type: ex.type ?? 'barbell',
+            notes: ex.notes,
+            restTimer: ex.restTimer,
+            timerEnabled: ex.timerEnabled,
+            autoProgressionEnabled: ex.autoProgressionEnabled,
+            autoProgressionMinReps: ex.autoProgressionMinReps,
+            autoProgressionMaxReps: ex.autoProgressionMaxReps,
+            autoProgressionUseDefaultRange: ex.autoProgressionUseDefaultRange,
+            autoProgressionUsePreferredRange: ex.autoProgressionUsePreferredRange,
+            primaryMuscle: ex.primaryMuscle as string | undefined,
+            secondaryMuscles: ex.secondaryMuscles as string[] | undefined,
+            groupType: ex.groupType,
+            groupId: ex.groupId,
+            groupPosition: ex.groupPosition,
+          };
+        });
+
+        setExercises(exercisesWithSets);
+        setCollapsedDisplayKeys(new Set());
+      }
+    }
+  }, [fromWorkoutId]);
 
   // Handle new exercise created from create-exercise screen
   useEffect(() => {

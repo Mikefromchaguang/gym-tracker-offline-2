@@ -83,6 +83,14 @@ export function WorkoutDetailModal({ workout, visible, onClose }: WorkoutDetailM
     router.push(`/_hidden/edit-workout/${workout.id}`);
   };
 
+  const handleSaveAsRoutine = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onClose();
+    router.push({ pathname: '/_hidden/templates/create', params: { fromWorkoutId: workout.id } });
+  };
+
   const duration = Math.round((workout.endTime - workout.startTime) / 1000 / 60); // minutes
   const totalVolume = workout.exercises.reduce((sum, ex) => {
     const exVolume = ex.sets
@@ -129,6 +137,21 @@ export function WorkoutDetailModal({ workout, visible, onClose }: WorkoutDetailM
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable
+              onPress={handleSaveAsRoutine}
+              style={({ pressed }) => ({
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: colors.surface,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+              })}
+            >
+              <IconSymbol size={20} name="doc.badge.plus" color={colors.primary} />
+            </Pressable>
+
             <Pressable
               onPress={handleEdit}
               style={({ pressed }) => ({
