@@ -1103,6 +1103,8 @@ export function GymProvider({ children }: { children: React.ReactNode }) {
       
       // Find the most recent workout that includes this exercise
       for (const workout of sortedWorkouts) {
+        // Skip special sessions — their sets shouldn't auto-fill into future workouts
+        if (workout.isSpecialSession) continue;
         const exercise = workout.exercises.find(ex => ex.name === exerciseName);
         if (exercise && exercise.sets.length > 0) {
           // Return the first set's data as the most representative

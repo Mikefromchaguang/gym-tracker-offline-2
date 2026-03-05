@@ -188,6 +188,20 @@ export function TemplateCard({
             <View className="flex-1">
               <View className="flex-row items-center gap-2 flex-wrap">
                 <CardTitle className="text-base">{template.name}</CardTitle>
+                {template.isSpecialSession ? (
+                  <View
+                    style={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: '#F59E0B',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <IconSymbol size={11} name="star.fill" color="#ffffff" />
+                  </View>
+                ) : null}
                 {hasEffectiveAutoProgression ? (
                   <View
                     style={{

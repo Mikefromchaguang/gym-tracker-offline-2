@@ -108,6 +108,7 @@ export default function TemplateCreateScreen() {
 
   const [templateName, setTemplateName] = useState('');
   const [routineAutoProgressionEnabled, setRoutineAutoProgressionEnabled] = useState(true);
+  const [specialSessionEnabled, setSpecialSessionEnabled] = useState(false);
   const [exercises, setExercises] = useState<TemplateExerciseWithSets[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -428,6 +429,7 @@ export default function TemplateCreateScreen() {
       if (template) {
         setTemplateName(template.name);
         setRoutineAutoProgressionEnabled(template.autoProgressionEnabled !== false);
+        setSpecialSessionEnabled(template.isSpecialSession === true);
         
         // Convert Exercise[] to TemplateExerciseWithSets[]
         const exercisesWithSets: TemplateExerciseWithSets[] = template.exercises.map((ex) => {
@@ -484,6 +486,7 @@ export default function TemplateCreateScreen() {
       // Reset state when creating new template
       setTemplateName('');
       setRoutineAutoProgressionEnabled(true);
+      setSpecialSessionEnabled(false);
       setExercises([]);
               setCollapsedDisplayKeys(new Set());
     }
@@ -1452,6 +1455,7 @@ export default function TemplateCreateScreen() {
             name: templateName,
             exercises: cleanExercises,
             autoProgressionEnabled: routineAutoProgressionEnabled,
+            isSpecialSession: specialSessionEnabled,
             updatedAt: Date.now(),
           };
           console.log('[Template Save] Updating template:', updatedTemplate);
@@ -1463,6 +1467,7 @@ export default function TemplateCreateScreen() {
           name: templateName,
           exercises: cleanExercises,
           autoProgressionEnabled: routineAutoProgressionEnabled,
+          isSpecialSession: specialSessionEnabled,
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
@@ -1482,7 +1487,7 @@ export default function TemplateCreateScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [templateName, exercises, templateId, templates, addTemplate, updateTemplate, router, customExercises, predefinedExerciseCustomizations, routineAutoProgressionEnabled]);
+  }, [templateName, exercises, templateId, templates, addTemplate, updateTemplate, router, customExercises, predefinedExerciseCustomizations, routineAutoProgressionEnabled, specialSessionEnabled]);
 
   const handleSaveAsNewTemplate = useCallback(async () => {
     if (exercises.length === 0) {
@@ -1567,6 +1572,7 @@ export default function TemplateCreateScreen() {
         name: newName,
         exercises: cleanExercises,
         autoProgressionEnabled: routineAutoProgressionEnabled,
+        isSpecialSession: specialSessionEnabled,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -1581,7 +1587,7 @@ export default function TemplateCreateScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [newTemplateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled]);
+  }, [newTemplateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled, specialSessionEnabled]);
 
   // Old Alert.prompt version - replaced with modal
   const handleSaveAsNewTemplate_OLD = useCallback(async () => {
@@ -1670,6 +1676,7 @@ export default function TemplateCreateScreen() {
                 name: newName.trim(),
                 exercises: cleanExercises,
                 autoProgressionEnabled: routineAutoProgressionEnabled,
+                isSpecialSession: specialSessionEnabled,
                 createdAt: Date.now(),
                 updatedAt: Date.now(),
               };
@@ -1690,7 +1697,7 @@ export default function TemplateCreateScreen() {
       'plain-text',
       `Copy of ${templateName}` // Pre-fill with "Copy of [original name]"
     );
-  }, [templateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled]);
+  }, [templateName, exercises, customExercises, addTemplate, router, routineAutoProgressionEnabled, specialSessionEnabled]);
 
   const renderSetRow = useCallback((exerciseIndex: number, set: CompletedSet, setIndex: number, exerciseType?: string) => {
     const unit = settings.weightUnit;
@@ -2817,6 +2824,33 @@ export default function TemplateCreateScreen() {
             </Text>
           </Pressable>
         )}
+
+        <Pressable
+          onPress={() => setSpecialSessionEnabled((prev) => !prev)}
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            borderWidth: 1,
+            borderColor: specialSessionEnabled ? '#F59E0B' : colors.border,
+            backgroundColor: colors.surface,
+            borderRadius: 8,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            opacity: pressed ? 0.8 : 1,
+          })}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <IconSymbol size={16} name="star.fill" color="#F59E0B" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, color: colors.foreground }}>Special session</Text>
+              <Text style={{ fontSize: 11, color: colors.muted, marginTop: 1 }}>Sets won't auto-fill into future workouts</Text>
+            </View>
+          </View>
+          <Text style={{ fontSize: 13, fontWeight: '700', color: specialSessionEnabled ? '#F59E0B' : colors.muted }}>
+            {specialSessionEnabled ? 'On' : 'Off'}
+          </Text>
+        </Pressable>
       </View>
 
       <FlatList

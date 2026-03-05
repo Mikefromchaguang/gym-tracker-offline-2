@@ -104,6 +104,8 @@ export interface WorkoutTemplate {
   exercises: Exercise[];
   /** Routine-level auto-progression toggle (defaults to enabled when missing). */
   autoProgressionEnabled?: boolean;
+  /** Special session — completed sets won't be used for auto-fill in future workouts. */
+  isSpecialSession?: boolean;
   createdAt: number;
   updatedAt: number;
   lastUsedAt?: number;
@@ -182,6 +184,8 @@ export interface CompletedWorkout {
   endTime: number;
   exercises: CompletedExercise[];
   notes?: string;
+  /** Special session — sets are excluded from auto-fill lookups. */
+  isSpecialSession?: boolean;
 }
 
 /**
@@ -293,6 +297,7 @@ const PREDEFINED_EXERCISES_RAW: Omit<ExerciseMetadata, 'id'>[] = [
   { name: 'Bench Press (Smith)', primaryMuscle: 'chest', secondaryMuscles: ['deltoids-front'], exerciseType: 'weighted', muscleContributions: { chest: 70, 'deltoids-front': 30 } },
   { name: 'Chest Fly (Cable)', primaryMuscle: 'chest', exerciseType: 'weighted', muscleContributions: { chest: 100 } },
   { name: 'Chest Fly (Dumbbell)', primaryMuscle: 'chest', exerciseType: 'weighted', muscleContributions: { chest: 100 } },
+  { name: 'Chest Fly (Incline Dumbbell)', primaryMuscle: 'chest', exerciseType: 'weighted', muscleContributions: { chest: 100 } },
   { name: 'Chest Press (Machine)', primaryMuscle: 'chest', secondaryMuscles: ['triceps'], exerciseType: 'weighted', muscleContributions: { chest: 70, triceps: 30 } },
   { name: 'Pec Deck', primaryMuscle: 'chest', exerciseType: 'weighted', muscleContributions: { chest: 100 } },
   { name: 'Push-up', primaryMuscle: 'chest', secondaryMuscles: ['triceps'], exerciseType: 'bodyweight', muscleContributions: { chest: 70, triceps: 30 } },
@@ -301,36 +306,50 @@ const PREDEFINED_EXERCISES_RAW: Omit<ExerciseMetadata, 'id'>[] = [
   { name: 'Back Extension', primaryMuscle: 'lower-back', secondaryMuscles: ['gluteal', 'hamstring'], exerciseType: 'weighted', muscleContributions: { 'lower-back': 60, gluteal: 20, hamstring: 20 } },
   { name: 'Back Extension (Machine)', primaryMuscle: 'lower-back', secondaryMuscles: ['gluteal', 'hamstring'], exerciseType: 'weighted', muscleContributions: { 'lower-back': 60, gluteal: 20, hamstring: 20 } },
   { name: 'Chin-up (Assisted)', primaryMuscle: 'lats', secondaryMuscles: ['upper-back', 'biceps'], exerciseType: 'assisted-bodyweight', muscleContributions: { lats: 50, 'upper-back': 25, biceps: 25 } },
+  { name: 'Lat Pull-over', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'weighted', muscleContributions: { lats: 100} },
   { name: 'Lat Pulldown (Cable)', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'weighted', muscleContributions: { lats: 70, biceps: 20, 'upper-back': 10 } },
   { name: 'Lat Pulldown (Machine)', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'weighted', muscleContributions: { lats: 70, biceps: 20, 'upper-back': 10 } },
-  { name: 'Lat Pull-over', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'weighted', muscleContributions: { lats: 100} },
   { name: 'Pull-up', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'bodyweight', muscleContributions: { lats: 60, 'upper-back': 10, biceps: 30 } },
   { name: 'Pull-up (Assisted)', primaryMuscle: 'lats', secondaryMuscles: ['upper-back', 'biceps'], exerciseType: 'assisted-bodyweight', muscleContributions: { lats: 60, 'upper-back': 10, biceps: 30 } },
   { name: 'Pull-up (Weighted)', primaryMuscle: 'lats', secondaryMuscles: ['biceps', 'upper-back'], exerciseType: 'weighted-bodyweight', muscleContributions: { lats: 60, 'upper-back': 10, biceps: 30 } },
   { name: 'Row (Barbell)', primaryMuscle: 'upper-back', secondaryMuscles: ['biceps', 'lats'], exerciseType: 'weighted', muscleContributions: { 'upper-back': 50, biceps: 25, lats: 25 } },
   { name: 'Row (Dumbbell)', primaryMuscle: 'upper-back', secondaryMuscles: ['biceps', 'lats'], exerciseType: 'doubled', muscleContributions: { 'upper-back': 50, biceps: 25, lats: 25 } },
+  { name: 'Row (Flywheel)', primaryMuscle: 'upper-back', secondaryMuscles: ['biceps', 'lats'], exerciseType: 'weighted', muscleContributions: { 'upper-back': 50, biceps: 25, lats: 25 } },
   { name: 'Row (Seated Cable)', primaryMuscle: 'lats', secondaryMuscles: ['upper-back', 'biceps'], exerciseType: 'weighted', muscleContributions: { lats: 60, 'upper-back': 20, biceps: 20 } },
 
   // Shoulders
+  { name: 'Driver', primaryMuscle: 'deltoids-front', secondaryMuscles: ['deltoids-side'], exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 60, 'deltoids-side': 40 } },
   { name: 'Face Pull', primaryMuscle: 'deltoids-rear', secondaryMuscles: ['upper-back'], exerciseType: 'weighted', muscleContributions: { 'deltoids-rear': 60, 'upper-back': 40 } },
   { name: 'Front Raise', primaryMuscle: 'deltoids-front', exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 100 } },
-  { name: 'Lateral Raise (Dumbell)', primaryMuscle: 'deltoids-side', exerciseType: 'doubled', muscleContributions: { 'deltoids-side': 100 } },
+  { name: 'Kettlebell Halo', primaryMuscle: 'deltoids-side', secondaryMuscles: ['deltoids-front', 'deltoids-rear', 'trapezius'], exerciseType: 'weighted', muscleContributions: { 'deltoids-side': 35, 'deltoids-front': 25, 'deltoids-rear': 25, trapezius: 15 } },
+  { name: 'Kettlebell Press', primaryMuscle: 'deltoids-front', secondaryMuscles: ['triceps', 'deltoids-side'], exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 50, 'deltoids-side': 20, triceps: 30 } },
   { name: 'Lateral Raise (Cable)', primaryMuscle: 'deltoids-side', exerciseType: 'doubled', muscleContributions: { 'deltoids-side': 100 } },
-  { name: 'Rear Delt Fly', primaryMuscle: 'deltoids-rear', secondaryMuscles: ['upper-back'], exerciseType: 'weighted', muscleContributions: { 'deltoids-rear': 70, 'upper-back': 30 } },
+  { name: 'Lateral Raise (Dumbell)', primaryMuscle: 'deltoids-side', exerciseType: 'doubled', muscleContributions: { 'deltoids-side': 100 } },
+  { name: 'Overhead Press (Barbell)', primaryMuscle: 'deltoids-front', secondaryMuscles: ['triceps', 'deltoids-side'], exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 50, 'deltoids-side': 20, triceps: 30 } },
+  { name: 'Rear Delt Fly (Cable)', primaryMuscle: 'deltoids-rear', secondaryMuscles: ['upper-back'], exerciseType: 'weighted', muscleContributions: { 'deltoids-rear': 70, 'upper-back': 30 } },
+  { name: 'Rear Delt Fly (Machine)', primaryMuscle: 'deltoids-rear', secondaryMuscles: ['upper-back'], exerciseType: 'weighted', muscleContributions: { 'deltoids-rear': 70, 'upper-back': 30 } },
   { name: 'Shoulder Press (Dumbbell)', primaryMuscle: 'deltoids-front', secondaryMuscles: ['triceps', 'deltoids-side'], exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 50, 'deltoids-side': 20, triceps: 30 } },
   { name: 'Shoulder Press (Machine)', primaryMuscle: 'deltoids-front', secondaryMuscles: ['triceps', 'deltoids-side'], exerciseType: 'weighted', muscleContributions: { 'deltoids-front': 50, 'deltoids-side': 20, triceps: 30 } },
-  { name: 'Shrug', primaryMuscle: 'trapezius', exerciseType: 'weighted', muscleContributions: { trapezius: 100 } },
+  { name: 'Shrug (Barbell)', primaryMuscle: 'trapezius', exerciseType: 'weighted', muscleContributions: { trapezius: 100 } },
+  { name: 'Shrug (Dumbell)', primaryMuscle: 'trapezius', exerciseType: 'weighted', muscleContributions: { trapezius: 100 } },
+  { name: 'Upright Row (Cable)', primaryMuscle: 'deltoids-side', secondaryMuscles: ['trapezius', 'deltoids-front'], exerciseType: 'weighted', muscleContributions: { 'deltoids-side': 50, trapezius: 30, 'deltoids-front': 20 } },
 
   // Arms
   { name: 'Bicep Curl (Barbell)', primaryMuscle: 'biceps', exerciseType: 'weighted', muscleContributions: { biceps: 100 } },
   { name: 'Bicep Curl (Bayesian)', primaryMuscle: 'biceps', exerciseType: 'doubled', muscleContributions: { biceps: 100 } },
+  { name: 'Bicep Curl (Cable Bar)', primaryMuscle: 'biceps', exerciseType: 'weighted', muscleContributions: { biceps: 100 } },
   { name: 'Bicep Curl (Dumbbell)', primaryMuscle: 'biceps', exerciseType: 'doubled', muscleContributions: { biceps: 100 } },
+  { name: 'Bicep Curl (Incline Dumbbell)', primaryMuscle: 'biceps', exerciseType: 'doubled', muscleContributions: { biceps: 100 } },
   { name: 'Bicep Curl (Machine)', primaryMuscle: 'biceps', exerciseType: 'weighted', muscleContributions: { biceps: 100 } },
   { name: 'Dip (Assisted)', primaryMuscle: 'triceps', secondaryMuscles: ['chest'], exerciseType: 'assisted-bodyweight', muscleContributions: { triceps: 65, chest: 35 } },
   { name: 'Hammer Curl (Dumbbell)', primaryMuscle: 'biceps', secondaryMuscles: ['forearms'], exerciseType: 'doubled', muscleContributions: { biceps: 85, forearms: 15 } },
   { name: 'Hammer Curl (Machine)', primaryMuscle: 'biceps', secondaryMuscles: ['forearms'], exerciseType: 'weighted', muscleContributions: { biceps: 85, forearms: 15 } },
   { name: 'Preacher Curl', primaryMuscle: 'biceps', exerciseType: 'weighted', muscleContributions: { biceps: 100 } },
+  { name: 'Skullcrusher', primaryMuscle: 'triceps', exerciseType: 'weighted', muscleContributions: { triceps: 100 } },
   { name: 'Tricep Dip', primaryMuscle: 'triceps', secondaryMuscles: ['chest'], exerciseType: 'bodyweight', muscleContributions: { triceps: 65, chest: 35 } },
+  { name: 'Tricep Extension (Dumbbell)', primaryMuscle: 'triceps', exerciseType: 'doubled', muscleContributions: { triceps: 100 } },
+  { name: 'Tricep Kickback', primaryMuscle: 'triceps', exerciseType: 'doubled', muscleContributions: { triceps: 100 } },
+  { name: 'Tricep Press (Machine)', primaryMuscle: 'triceps', exerciseType: 'weighted', muscleContributions: { triceps: 100 } },
   { name: 'Tricep Pushdown', primaryMuscle: 'triceps', exerciseType: 'weighted', muscleContributions: { triceps: 100 } },
 
   // Legs
@@ -340,6 +359,7 @@ const PREDEFINED_EXERCISES_RAW: Omit<ExerciseMetadata, 'id'>[] = [
   { name: 'Deadlift (Straight leg)', primaryMuscle: 'hamstring', secondaryMuscles: ['lower-back', 'gluteal'], exerciseType: 'weighted', muscleContributions: { hamstring: 50, 'lower-back': 25, gluteal: 25 } },
   { name: 'Hip Abduction (Machine)', primaryMuscle: 'gluteal', exerciseType: 'weighted', muscleContributions: { gluteal: 100 } },
   { name: 'Hip Adduction (Machine)', primaryMuscle: 'adductors', secondaryMuscles: ['quadriceps'], exerciseType: 'weighted', muscleContributions: { adductors: 80, quadriceps: 20 } },
+  { name: 'Kettlebell Front Squat', primaryMuscle: 'quadriceps', secondaryMuscles: ['gluteal', 'abs'], exerciseType: 'weighted', muscleContributions: { quadriceps: 55, gluteal: 30, abs: 15 } },
   { name: 'Kettlebell Swing', primaryMuscle: 'gluteal', secondaryMuscles: ['hamstring', 'lower-back', 'abs'], exerciseType: 'weighted', muscleContributions: { gluteal: 40, hamstring: 30, 'lower-back': 20, abs: 10 } },
   { name: 'Leg Curl (Lying)', primaryMuscle: 'hamstring', exerciseType: 'weighted', muscleContributions: { hamstring: 100 } },
   { name: 'Leg Curl (Seated)', primaryMuscle: 'hamstring', secondaryMuscles: ['calves'], exerciseType: 'weighted', muscleContributions: { hamstring: 85, calves: 15 } },
@@ -351,13 +371,20 @@ const PREDEFINED_EXERCISES_RAW: Omit<ExerciseMetadata, 'id'>[] = [
 
   // Core
   { name: 'Ab Wheel Rollout', primaryMuscle: 'abs', exerciseType: 'bodyweight', muscleContributions: { abs: 100 } },
+  { name: 'Cable Wood Chop', primaryMuscle: 'obliques', secondaryMuscles: ['abs'], exerciseType: 'weighted', muscleContributions: { obliques: 70, abs: 30 } },
   { name: 'Crunch', primaryMuscle: 'abs', exerciseType: 'bodyweight', muscleContributions: { abs: 100 } },
   { name: 'Crunch (Machine)', primaryMuscle: 'abs', exerciseType: 'weighted', muscleContributions: { abs: 100 } },
+  { name: 'Dumbbell Side Bend', primaryMuscle: 'obliques', exerciseType: 'weighted', muscleContributions: { obliques: 100 } },
+  { name: 'Heel Reach', primaryMuscle: 'obliques', secondaryMuscles: ['abs'], exerciseType: 'bodyweight', muscleContributions: { obliques: 60, abs: 40 } },
+  { name: 'Leg Raise (Capt Chair)', primaryMuscle: 'abs', exerciseType: 'bodyweight', muscleContributions: { abs: 100 } },
   { name: 'Leg Raise (Hanging)', primaryMuscle: 'abs', exerciseType: 'bodyweight', muscleContributions: { abs: 100 } },
-  { name: "Leg Raise (Capt Chair)", primaryMuscle: 'abs', exerciseType: 'bodyweight', muscleContributions: { abs: 100 } },
   { name: 'Plank', primaryMuscle: 'abs', secondaryMuscles: ['obliques'], exerciseType: 'bodyweight', muscleContributions: { abs: 70, obliques: 30 } },
   { name: 'Russian Twist', primaryMuscle: 'obliques', secondaryMuscles: ['abs'], exerciseType: 'bodyweight', muscleContributions: { obliques: 70, abs: 30 } },
+  { name: 'Suitcase Carry', primaryMuscle: 'obliques', secondaryMuscles: ['forearm', 'abs'], exerciseType: 'weighted', muscleContributions: { obliques: 40, forearm: 30, abs: 30 } },
   { name: 'Torso Rotation Machine', primaryMuscle: 'obliques', exerciseType: 'weighted', muscleContributions: { obliques: 100 } },
+
+  // Neck
+  { name: 'Neck Curl (Lying)', primaryMuscle: 'neck', exerciseType: 'weighted', muscleContributions: { neck: 100 } },
 ];
 
 /**

@@ -79,6 +79,12 @@ export default function ActiveWorkoutScreen() {
     return sourceTemplate?.autoProgressionEnabled !== false;
   }, [templateId, templates]);
 
+  const isSpecialSession = useMemo(() => {
+    if (!templateId || typeof templateId !== 'string') return false;
+    const sourceTemplate = templates.find((t) => t.id === templateId);
+    return sourceTemplate?.isSpecialSession === true;
+  }, [templateId, templates]);
+
   const [workoutName, setWorkoutName] = useState(
     templateName && typeof templateName === 'string' ? templateName : 'Quick Workout'
   );
@@ -248,6 +254,7 @@ export default function ActiveWorkoutScreen() {
   const getLastSessionSourceSets = useCallback((exerciseName: string) => {
     const mostRecentWorkout = [...workouts]
       .sort((a, b) => b.endTime - a.endTime)
+      .filter((w) => !w.isSpecialSession)
       .find((w) => w.exercises.some((ex) => ex.name === exerciseName && ex.sets.length > 0));
 
     return mostRecentWorkout?.exercises.find((ex) => ex.name === exerciseName)?.sets ?? [];
@@ -1901,6 +1908,7 @@ export default function ActiveWorkoutScreen() {
                 startTime,
                 endTime: Date.now(),
                 exercises: completedExercises,
+                ...(isSpecialSession ? { isSpecialSession: true } : {}),
               };
 
               await addWorkout(workout);
@@ -2156,6 +2164,11 @@ export default function ActiveWorkoutScreen() {
             <View className="flex-1">
               <View className="flex-row items-center gap-3">
                 <Text className="text-2xl font-bold text-foreground">{workoutName}</Text>
+                {isSpecialSession ? (
+                  <View style={{ backgroundColor: '#F59E0B', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: '#ffffff' }}>Special</Text>
+                  </View>
+                ) : null}
                 <Text className="text-lg text-muted">
                   {(() => {
                     const totalVolume = exercises.reduce((sum, ex) => {
