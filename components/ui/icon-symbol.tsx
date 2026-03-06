@@ -55,6 +55,7 @@ const MAPPING = {
   "minus": "remove",
   "calendar": "event",
   "sparkles": "auto-awesome",
+  "star.fill": "star",
 } as const satisfies IconMapping;
 
 type IconSymbolName = keyof typeof MAPPING;

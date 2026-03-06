@@ -2891,7 +2891,7 @@ export default function TemplateCreateScreen() {
             opacity: pressed ? 0.8 : 1,
           })}
         >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <IconSymbol size={16} name="star.fill" color="#F59E0B" />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 14, color: colors.foreground }}>Special session</Text>
