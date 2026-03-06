@@ -364,6 +364,11 @@ export default function ActiveWorkoutScreen() {
     );
   }, [allExercises, exerciseSearch]);
 
+  // Fast lookup for orphan detection (exercises that no longer exist in the exercise list)
+  const knownExerciseNames = useMemo(() => {
+    return new Set(allExercises.map(ex => ex.name));
+  }, [allExercises]);
+
   // Reset state when screen is focused (ensures fresh workouts)
   useEffect(() => {
     const focusUnsubscribe = navigation.addListener('focus', () => {
@@ -2281,9 +2286,10 @@ export default function ActiveWorkoutScreen() {
                                   style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0 }]}
                                 >
                                   <Text
-                                    className="text-base font-bold text-foreground"
+                                    className="text-base font-bold"
                                     numberOfLines={1}
                                     ellipsizeMode="tail"
+                                    style={!knownExerciseNames.has(exercise.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                                   >
                                     {exercise.name}
                                   </Text>
@@ -2470,9 +2476,10 @@ export default function ActiveWorkoutScreen() {
                                 style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                               >
                                 <Text
-                                  className="text-base font-bold text-foreground"
+                                  className="text-base font-bold"
                                   numberOfLines={1}
                                   ellipsizeMode="tail"
+                                  style={!knownExerciseNames.has(exA.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                                 >
                                   {exA.name}
                                 </Text>
@@ -2584,9 +2591,10 @@ export default function ActiveWorkoutScreen() {
                               style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                             >
                               <Text
-                                className="text-base font-bold text-foreground"
+                                className="text-base font-bold"
                                 numberOfLines={1}
                                 ellipsizeMode="tail"
+                                style={!knownExerciseNames.has(exB.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                               >
                                 {exB.name}
                               </Text>

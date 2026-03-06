@@ -1363,6 +1363,111 @@ export async function clearSelectedCategories(options: {
 }
 
 // ============================================================================
+// Exercise Data Migration
+// ============================================================================
+
+/**
+ * Migrate all historical data from one exercise to another.
+ * Transfers: volume logs, failure set data, workout history exercise names,
+ * and predefined exercise customizations.
+ *
+ * Uses a **merge** strategy: if both source and target have a volume entry for
+ * the same date, the entry with higher volume wins.
+ */
+export async function migrateExerciseData(
+  sourceExerciseName: string,
+  targetExerciseName: string,
+): Promise<{ volumeLogsMigrated: number; failureSetsMigrated: number; workoutExercisesMigrated: number }> {
+  let volumeLogsMigrated = 0;
+  let failureSetsMigrated = 0;
+  let workoutExercisesMigrated = 0;
+
+  // 1. Migrate ExerciseVolumeStorage (keyed by exercise name)
+  const allVolumeLogs = await ExerciseVolumeStorage.getAll();
+  const targetExisting = new Map<string, number>(); // date → index in allVolumeLogs
+
+  // Index existing target entries by date
+  allVolumeLogs.forEach((log, idx) => {
+    if (log.exerciseId === targetExerciseName) {
+      const prev = targetExisting.get(log.date);
+      if (prev === undefined || log.volume > allVolumeLogs[prev].volume) {
+        targetExisting.set(log.date, idx);
+      }
+    }
+  });
+
+  const indicesToRemove = new Set<number>();
+  for (let i = 0; i < allVolumeLogs.length; i++) {
+    const log = allVolumeLogs[i];
+    if (log.exerciseId !== sourceExerciseName) continue;
+
+    const existingIdx = targetExisting.get(log.date);
+    if (existingIdx !== undefined) {
+      // Both have entry for this date — keep the higher volume
+      if (log.volume > allVolumeLogs[existingIdx].volume) {
+        allVolumeLogs[existingIdx] = { ...log, exerciseId: targetExerciseName };
+        volumeLogsMigrated++;
+      }
+      indicesToRemove.add(i);
+    } else {
+      // No conflict — re-key to target
+      allVolumeLogs[i] = { ...log, exerciseId: targetExerciseName };
+      targetExisting.set(log.date, i);
+      volumeLogsMigrated++;
+    }
+  }
+  const cleanedVolumeLogs = allVolumeLogs.filter((_, idx) => !indicesToRemove.has(idx));
+  cleanedVolumeLogs.sort((a, b) => b.timestamp - a.timestamp);
+  await AsyncStorage.setItem(STORAGE_KEYS.EXERCISE_VOLUME, JSON.stringify(cleanedVolumeLogs));
+
+  // 2. Migrate FailureSetStorage (keyed by lowercased name)
+  const allFailureData = await FailureSetStorage.getAll();
+  const srcKey = sourceExerciseName.toLowerCase().trim();
+  const tgtKey = targetExerciseName.toLowerCase().trim();
+  if (allFailureData[srcKey] && allFailureData[srcKey].length > 0) {
+    const existing = allFailureData[tgtKey] || [];
+    allFailureData[tgtKey] = [...existing, ...allFailureData[srcKey]];
+    failureSetsMigrated = allFailureData[srcKey].length;
+    delete allFailureData[srcKey];
+    await AsyncStorage.setItem(STORAGE_KEYS.FAILURE_SET_DATA, JSON.stringify(allFailureData));
+  }
+
+  // 3. Migrate workout history (exercise.name inside completed workouts)
+  const allWorkouts = await WorkoutStorage.getAll();
+  for (const workout of allWorkouts) {
+    let changed = false;
+    const updatedExercises = workout.exercises.map((ex) => {
+      if (ex.name === sourceExerciseName) {
+        changed = true;
+        workoutExercisesMigrated++;
+        return { ...ex, name: targetExerciseName };
+      }
+      return ex;
+    });
+    if (changed) {
+      await WorkoutStorage.save({ ...workout, exercises: updatedExercises });
+    }
+  }
+
+  // 4. Migrate predefined exercise customizations
+  try {
+    const custData = await AsyncStorage.getItem(STORAGE_KEYS.PREDEFINED_EXERCISE_CUSTOMIZATIONS);
+    if (custData) {
+      const customizations = JSON.parse(custData);
+      if (customizations[sourceExerciseName] && !customizations[targetExerciseName]) {
+        customizations[targetExerciseName] = customizations[sourceExerciseName];
+        delete customizations[sourceExerciseName];
+        await AsyncStorage.setItem(STORAGE_KEYS.PREDEFINED_EXERCISE_CUSTOMIZATIONS, JSON.stringify(customizations));
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  return { volumeLogsMigrated, failureSetsMigrated, workoutExercisesMigrated };
+}
+
+// ============================================================================
 // Legacy Clear Functions (kept for backward compatibility)
 // ============================================================================
 

@@ -25,8 +25,8 @@ from typing import Dict, List, Optional, Tuple
 # -----------------------------
 # ⚙️  LOCAL CONFIG — edit these paths before running
 # -----------------------------
-CSV_PATH       = r"d:\gym-tracker-offline-2\scripts\7da-11f1-b463-dfafe1ec4330(edited).csv"
-TYPES_FILE_PATH = r"d:\gym-tracker-offline-2\lib\types.ts"
+CSV_PATH       = r"D:\Downloads\7da-11f1-b463-dfafe1ec4330(edited).csv"
+TYPES_FILE_PATH = r"D:\Downloads\types.ts"
 
 LBS_TO_KG = 1 / 2.20462
 

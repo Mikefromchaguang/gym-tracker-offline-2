@@ -1128,7 +1128,6 @@ export default function HomeScreen() {
                           <Text className="text-xs text-muted">
                             {plan.days
                               .filter((d) => d.routineIds.length > 0)
-                              .slice(0, 3)
                               .map((d) => `${['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.dayIndex]} ${d.routineIds.length}`)
                               .join(' • ') || 'No routines assigned'}
                           </Text>

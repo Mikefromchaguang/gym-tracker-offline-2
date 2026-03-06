@@ -422,6 +422,11 @@ export default function TemplateCreateScreen() {
     );
   }, [allExercises, exerciseSearch]);
 
+  // Fast lookup for orphan detection (exercises that no longer exist in the exercise list)
+  const knownExerciseNames = useMemo(() => {
+    return new Set(allExercises.map(ex => ex.name));
+  }, [allExercises]);
+
   // Load template if editing
   useEffect(() => {
     if (templateId && typeof templateId === 'string') {
@@ -1930,9 +1935,10 @@ export default function TemplateCreateScreen() {
                           style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0 }]}
                         >
                           <Text
-                            className="text-lg font-bold text-foreground"
+                            className="text-lg font-bold"
                             numberOfLines={1}
                             ellipsizeMode="tail"
+                            style={!knownExerciseNames.has(ex.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                           >
                             {ex.name}
                           </Text>
@@ -2105,9 +2111,10 @@ export default function TemplateCreateScreen() {
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                       >
                         <Text
-                          className="text-lg font-bold text-foreground"
+                          className="text-lg font-bold"
                           numberOfLines={1}
                           ellipsizeMode="tail"
+                          style={!knownExerciseNames.has(exA.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                         >
                           {exA.name}
                         </Text>
@@ -2189,9 +2196,10 @@ export default function TemplateCreateScreen() {
                         style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1, flex: 1, minWidth: 0, marginLeft: 4 }]}
                       >
                         <Text
-                          className="text-lg font-bold text-foreground"
+                          className="text-lg font-bold"
                           numberOfLines={1}
                           ellipsizeMode="tail"
+                          style={!knownExerciseNames.has(exB.name) ? { color: colors.muted, textDecorationLine: 'line-through' } : { color: colors.foreground }}
                         >
                           {exB.name}
                         </Text>

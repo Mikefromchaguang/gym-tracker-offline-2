@@ -56,6 +56,7 @@ const MAPPING = {
   "calendar": "event",
   "sparkles": "auto-awesome",
   "star.fill": "star",
+  "arrow.right.arrow.left": "swap-horiz",
 } as const satisfies IconMapping;
 
 type IconSymbolName = keyof typeof MAPPING;

@@ -13,7 +13,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useGym } from '@/lib/gym-context';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { PREDEFINED_EXERCISES_WITH_MUSCLES, MuscleGroup, ExerciseType, getExerciseMuscles } from '@/lib/types';
+import { PREDEFINED_EXERCISES_WITH_MUSCLES, PREDEFINED_EXERCISES, MuscleGroup, ExerciseType, getExerciseMuscles, getEffectiveExerciseMuscles } from '@/lib/types';
 import { PRIMARY_MUSCLE_GROUPS, getMuscleGroupDisplayName } from '@/lib/muscle-groups';
 import { useColors } from '@/hooks/use-colors';
 import * as Haptics from 'expo-haptics';
@@ -22,7 +22,8 @@ import { Svg, Line, Circle, Text as SvgText, Polyline } from 'react-native-svg';
 import { convertWeight, formatWeight, formatVolume } from '@/lib/unit-conversion';
 import { CreateExerciseModal } from '@/components/create-exercise-modal';
 import { EditPredefinedExerciseModal } from '@/components/edit-predefined-exercise-modal';
-import { ExerciseDetailChartPrefsStorage, ExerciseVolumeStorage, FailureSetStorage } from '@/lib/storage';
+import { GroupedExercisePicker } from '@/components/grouped-exercise-picker';
+import { ExerciseDetailChartPrefsStorage, ExerciseVolumeStorage, FailureSetStorage, migrateExerciseData } from '@/lib/storage';
 import { ExerciseVolumeLog, FailureSetData } from '@/lib/types';
 import { TextInput } from 'react-native';
 import { calculateRepMaxEstimates, RepMaxEstimate } from '@/lib/rep-max-calculator';
@@ -95,6 +96,9 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
   const [newDataPointWeight, setNewDataPointWeight] = useState('');
   const [newDataPointReps, setNewDataPointReps] = useState('');
   const [selectedFailureMarkerIndex, setSelectedFailureMarkerIndex] = useState<number | null>(null);
+  const [showMigrateModal, setShowMigrateModal] = useState(false);
+  const [migrateSearch, setMigrateSearch] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
   const { bodyWeightKg: bodyWeightKgForCalc } = useBodyweight();
 
   const exerciseNameStr =
@@ -849,6 +853,20 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     return null;
   }, [exerciseNameStr, customExercises, hasMuscleCustomization, predefinedExerciseCustomizations]);
 
+  // Build exercise list for migration picker (excludes current exercise)
+  const allExercisesForMigration = useMemo(() => {
+    const predefined = PREDEFINED_EXERCISES.map((name) => ({
+      name,
+      ...getEffectiveExerciseMuscles(name, predefinedExerciseCustomizations, false, undefined),
+      isCustom: false,
+    }));
+    const custom = (customExercises || []).map((ex) => ({
+      ...ex,
+      isCustom: true,
+    }));
+    return [...predefined, ...custom].filter(ex => ex.name !== exerciseNameStr);
+  }, [customExercises, predefinedExerciseCustomizations, exerciseNameStr]);
+
   const normalizedMuscleContributions = useMemo(() => {
     const base = {} as Record<MuscleGroup, number>;
 
@@ -1145,6 +1163,18 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                 <IconSymbol size={24} name="pencil" color={colors.primary} />
               </Pressable>
             )}
+            <Pressable
+              onPress={() => {
+                setMigrateSearch('');
+                setShowMigrateModal(true);
+                if (Platform.OS !== 'web') {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                }
+              }}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
+            >
+              <IconSymbol size={24} name="arrow.right.arrow.left" color={colors.muted} />
+            </Pressable>
           </View>
 
           {/* Stats (All Time / This Week) */}
@@ -1943,6 +1973,98 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
         defaultPreferredMaxReps={settings.defaultAutoProgressionMaxReps}
         currentCustomization={editingPredefinedExercise ? predefinedExerciseCustomizations[editingPredefinedExercise] : undefined}
       />
+
+      {/* Migrate Data Modal */}
+      <Modal
+        visible={showMigrateModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowMigrateModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top }}>
+          {/* Modal Header */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Pressable
+              onPress={() => setShowMigrateModal(false)}
+              style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1, padding: 4 }]}
+            >
+              <IconSymbol size={24} name="xmark" color={colors.foreground} />
+            </Pressable>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <Text style={{ fontSize: 18, fontWeight: '700', color: colors.foreground }}>Migrate Data</Text>
+              <Text style={{ fontSize: 13, color: colors.muted, marginTop: 2 }}>
+                Pick an exercise to merge its data into "{exerciseNameStr}"
+              </Text>
+            </View>
+          </View>
+
+          {/* Exercise Picker */}
+          <GroupedExercisePicker
+            exercises={allExercisesForMigration}
+            searchQuery={migrateSearch}
+            onSearchChange={setMigrateSearch}
+            onSelectExercise={(sourceExerciseName) => {
+              // Confirm before migrating
+              Alert.alert(
+                'Migrate Exercise Data',
+                `This will merge all data from "${sourceExerciseName}" into "${exerciseNameStr}".\n\nThis includes volume logs, failure sets, and workout history.\n\nThis cannot be undone. Please backup your data first.`,
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'Migrate',
+                    style: 'destructive',
+                    onPress: async () => {
+                      setIsMigrating(true);
+                      try {
+                        const result = await migrateExerciseData(sourceExerciseName, exerciseNameStr);
+                        setShowMigrateModal(false);
+
+                        // Reload volume history to reflect merged data
+                        await loadVolumeHistory();
+                        await loadFailureSetData();
+
+                        if (Platform.OS !== 'web') {
+                          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                        }
+
+                        Alert.alert(
+                          'Migration Complete',
+                          `Successfully migrated data from "${sourceExerciseName}":\n\n` +
+                          `• ${result.volumeLogsMigrated} volume log${result.volumeLogsMigrated !== 1 ? 's' : ''}\n` +
+                          `• ${result.failureSetsMigrated} failure set record${result.failureSetsMigrated !== 1 ? 's' : ''}\n` +
+                          `• ${result.workoutExercisesMigrated} workout exercise${result.workoutExercisesMigrated !== 1 ? 's' : ''}`
+                        );
+                      } catch (error) {
+                        Alert.alert('Error', 'Failed to migrate exercise data. Please try again.');
+                      } finally {
+                        setIsMigrating(false);
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
+            onCreateNew={() => {}}
+            showCreateButton={false}
+          />
+
+          {/* Loading overlay */}
+          {isMigrating && (
+            <View style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+            }}>
+              <Text style={{ fontSize: 16, fontWeight: '600', color: '#fff' }}>Migrating...</Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </ScreenContainer>
   );
 }
