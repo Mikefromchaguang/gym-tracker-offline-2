@@ -7,6 +7,7 @@ export type AutoProgressionConfig = {
 };
 
 const isWorkingSet = (set: Pick<CompletedSet, 'setType'>) => set.setType !== 'warmup';
+const normalizeWeight = (value: number) => Math.round(value * 100) / 100;
 
 export function getValidRepRange(config: AutoProgressionConfig): { min: number; max: number } | null {
   if (!config.enabled) return null;
@@ -17,8 +18,44 @@ export function getValidRepRange(config: AutoProgressionConfig): { min: number; 
   return { min, max };
 }
 
+export function getDerivedWorkingWeight(
+  sets: Array<Pick<CompletedSet, 'setType'> & Partial<Pick<CompletedSet, 'weight'>>>
+): number | null {
+  const working = sets.filter(isWorkingSet);
+  if (working.length === 0) return null;
+
+  const weightCounts = new Map<number, number>();
+  for (const set of working) {
+    const weight = Number(set.weight);
+    if (!Number.isFinite(weight)) continue;
+    const normalized = normalizeWeight(weight);
+    weightCounts.set(normalized, (weightCounts.get(normalized) ?? 0) + 1);
+  }
+
+  if (weightCounts.size === 0) return null;
+
+  let bestWeight: number | null = null;
+  let bestCount = 0;
+
+  for (const [weight, count] of weightCounts.entries()) {
+    if (count > bestCount || (count === bestCount && (bestWeight == null || weight > bestWeight))) {
+      bestWeight = weight;
+      bestCount = count;
+    }
+  }
+
+  if (bestWeight == null) return null;
+
+  // Require a clear majority to treat this as the session's working weight.
+  if (bestCount / working.length <= 0.5) {
+    return null;
+  }
+
+  return bestWeight;
+}
+
 export function getIncreaseWeightSuggestion(
-  sets: Array<Pick<CompletedSet, 'reps' | 'setType'>>,
+  sets: Array<Pick<CompletedSet, 'reps' | 'setType'> & Partial<Pick<CompletedSet, 'weight'>>>,
   config: AutoProgressionConfig
 ): boolean {
   const range = getValidRepRange(config);
@@ -27,10 +64,15 @@ export function getIncreaseWeightSuggestion(
   const working = sets.filter(isWorkingSet);
   if (working.length === 0) return false;
 
-  const reps = working.map((s) => Math.max(0, Number(s.reps) || 0));
-  const anyAboveMax = reps.some((r) => r > range.max);
-  const allAtOrAboveMax = reps.every((r) => r >= range.max);
-  return anyAboveMax || allAtOrAboveMax;
+  const workingWeight = getDerivedWorkingWeight(working);
+
+  const setsToEvaluate = workingWeight == null
+    ? working
+    : working.filter((set) => normalizeWeight(Number(set.weight) || 0) === workingWeight);
+
+  if (setsToEvaluate.length === 0) return false;
+
+  return setsToEvaluate.every((set) => Math.max(0, Number(set.reps) || 0) >= range.max);
 }
 
 export function applyAutoProgressionOnStart<T extends Pick<CompletedSet, 'reps' | 'setType'>>(

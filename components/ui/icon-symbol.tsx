@@ -57,6 +57,7 @@ const MAPPING = {
   "sparkles": "auto-awesome",
   "star.fill": "star",
   "arrow.right.arrow.left": "swap-horiz",
+  "doc.badge.plus": "note-add",
 } as const satisfies IconMapping;
 
 type IconSymbolName = keyof typeof MAPPING;

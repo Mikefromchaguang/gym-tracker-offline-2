@@ -66,6 +66,7 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
     settings,
     templates,
     updateTemplate,
+    updateWorkout,
     customExercises,
     updateCustomExercise,
     predefinedExerciseCustomizations,
@@ -131,15 +132,44 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
 
   // Load volume history
   const loadVolumeHistory = useCallback(async () => {
-    const logs = await ExerciseVolumeStorage.getForExercise(exerciseId);
-    setVolumeHistory(logs);
-  }, [exerciseId]);
+    const [byId, byName] = await Promise.all([
+      ExerciseVolumeStorage.getForExercise(exerciseId),
+      exerciseNameStr && exerciseNameStr !== exerciseId
+        ? ExerciseVolumeStorage.getForExercise(exerciseNameStr)
+        : Promise.resolve([]),
+    ]);
+
+    const merged = [...byId, ...byName];
+    const deduped = new Map<string, ExerciseVolumeLog>();
+    for (const log of merged) {
+      const key = `${log.date}-${log.timestamp}`;
+      const existing = deduped.get(key);
+      if (!existing || log.volume > existing.volume) {
+        deduped.set(key, log);
+      }
+    }
+
+    setVolumeHistory(Array.from(deduped.values()).sort((a, b) => b.timestamp - a.timestamp));
+  }, [exerciseId, exerciseNameStr]);
 
   // Load failure set data
   const loadFailureSetData = useCallback(async () => {
-    const data = await FailureSetStorage.getForExercise(exerciseId);
-    setFailureSetData(data);
-  }, [exerciseId]);
+    const [byId, byName] = await Promise.all([
+      FailureSetStorage.getForExercise(exerciseId),
+      exerciseNameStr && exerciseNameStr !== exerciseId
+        ? FailureSetStorage.getForExercise(exerciseNameStr)
+        : Promise.resolve([]),
+    ]);
+
+    const merged = [...byId, ...byName];
+    const deduped = new Map<string, FailureSetData>();
+    for (const point of merged) {
+      const key = `${point.timestamp}-${point.reps}-${point.weight}`;
+      deduped.set(key, point);
+    }
+
+    setFailureSetData(Array.from(deduped.values()).sort((a, b) => a.reps - b.reps));
+  }, [exerciseId, exerciseNameStr]);
 
   // Load volume history on mount
   useEffect(() => {
@@ -2017,6 +2047,21 @@ export function ExerciseDetailView({ exerciseName: exerciseNameOverride, onReque
                       setIsMigrating(true);
                       try {
                         const result = await migrateExerciseData(sourceExerciseName, exerciseNameStr);
+
+                        // Sync in-memory workouts so charts update immediately (no app restart required)
+                        const workoutsToSync = workouts.filter((workout) =>
+                          workout.exercises.some((ex) => ex.name === sourceExerciseName)
+                        );
+
+                        for (const workout of workoutsToSync) {
+                          const updatedExercises = workout.exercises.map((ex) =>
+                            ex.name === sourceExerciseName
+                              ? { ...ex, name: exerciseNameStr }
+                              : ex
+                          );
+                          await updateWorkout({ ...workout, exercises: updatedExercises });
+                        }
+
                         setShowMigrateModal(false);
 
                         // Reload volume history to reflect merged data

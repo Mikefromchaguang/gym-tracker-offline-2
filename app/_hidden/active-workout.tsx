@@ -31,7 +31,7 @@ import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
 import { convertWeight, formatWeight, formatVolume, lbsToKg } from '@/lib/unit-conversion';
 import { calculateExerciseVolume, calculateTemplateExerciseVolume } from '@/lib/volume-calculation';
-import { applyAutoProgressionOnStart, getIncreaseWeightSuggestion } from '@/lib/auto-progression';
+import { applyAutoProgressionOnStart, getDerivedWorkingWeight, getIncreaseWeightSuggestion } from '@/lib/auto-progression';
 import { groupExercisesForDisplay, moveDisplayItem, mergeExercisesToSuperset, splitSupersetToExercises, isExerciseInSuperset } from '@/lib/superset';
 import { MergeSupersetModal } from '@/components/merge-superset-modal';
 
@@ -1407,13 +1407,19 @@ export default function ActiveWorkoutScreen() {
     const exercise = exercises[exerciseIndex];
     if (!exercise) return;
 
+    const derivedWorkingWeight = getDerivedWorkingWeight(exercise.completedSets);
+    const fallbackWeight = Number.isFinite(Number(exercise.weight)) ? Number(exercise.weight) : 0;
+    const baseWorkingWeight = derivedWorkingWeight ?? fallbackWeight;
+    const nextWorkingWeight = Math.round((baseWorkingWeight + incrementInStoredUnit) * 100) / 100;
+    const nextWorkingWeightDisplay = Math.round(convertWeight(nextWorkingWeight, settings.weightUnit) * 100) / 100;
+
     const minReps = (exercise.autoProgressionUsePreferredRange === true || exercise.autoProgressionUseDefaultRange === false)
       ? (exercise.autoProgressionMinReps ?? settings.defaultAutoProgressionMinReps ?? 8)
       : (settings.defaultAutoProgressionMinReps ?? exercise.autoProgressionMinReps ?? 8);
 
     Alert.alert(
       'Increase weight?',
-      `Increase all sets by ${increment}${settings.weightUnit} and reset reps to ${minReps}?`,
+      `Set all sets to ${nextWorkingWeightDisplay}${settings.weightUnit} and reset reps to ${minReps}?`,
       [
         { text: 'No', style: 'cancel' },
         {
@@ -1426,14 +1432,14 @@ export default function ActiveWorkoutScreen() {
                 const nextCompletedSets = ex.completedSets.map((set) => ({
                   ...set,
                   reps: minReps,
-                  weight: Math.round(((set.weight || 0) + incrementInStoredUnit) * 100) / 100,
+                  weight: nextWorkingWeight,
                   isRepsPlaceholder: false,
                   isWeightPlaceholder: false,
                 }));
                 const nextPlannedSets = ex.plannedSets?.map((set) => ({
                   ...set,
                   reps: minReps,
-                  weight: Math.round(((set.weight || 0) + incrementInStoredUnit) * 100) / 100,
+                  weight: nextWorkingWeight,
                 }));
 
                 return {
